@@ -1,0 +1,27 @@
+.header {
+  border-bottom: 1px solid var(--border);
+}
+
+.nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.linkPlaceholder {
+  color: var(--foreground-muted);
+  font-size: 0.95rem;
+}

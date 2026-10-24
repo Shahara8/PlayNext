@@ -14,7 +14,11 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
-_No implementation has started yet. The next session should begin with M0 — Project scaffolding (Section 9)._
+### 2026-10-24 — M0 (partial)
+- Did: scaffolded Next.js (App Router, TypeScript, ESLint) at repo root via `create-next-app`; added Prettier (`.prettierrc.json`, `.prettierignore`, `format`/`format:check` scripts, wired into `eslint.config.mjs` via `eslint-config-prettier`); replaced the boilerplate home page with a minimal `app/components/header.tsx` (logo + placeholder nav links) and a placeholder `app/page.tsx`; verified `npm run lint`, `npm run format:check`, and `npm run build` all pass, and smoke-tested `npm run dev` serves the header/home page.
+- Decisions / deviations: `create-next-app` rejects "PlayNext" as a package name (npm disallows capital letters), so it was scaffolded into a temp lowercase subfolder and moved up to the repo root, then `package.json`'s `name` was changed to `playnext`. Declined Tailwind (plain CSS modules, consistent with "no theming beyond one default look" in Section 8). `docs/` is excluded from Prettier's scope (`.prettierignore`) so it doesn't reformat these planning docs.
+- Still open from M0 (needs the user's own accounts — can't be done from here): create the Supabase project and record its URL/anon key/service role key, add env vars to `.env.local` + Vercel, connect the repo to Vercel and confirm a first deploy. Manual step-by-step instructions for these were given to the user in-session.
+- Next step: once Supabase project + keys and the Vercel link exist, wire up `.env.local` / Vercel env vars, confirm the first deploy, then move to M1 — Schema + mock data.
 
 <!-- Template for future entries — newest entry on top:
 ### YYYY-MM-DD — <milestone(s) worked on>
@@ -154,12 +158,12 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 ### M0 — Project scaffolding
 **Story:** As a developer, I want the project scaffolded with Next.js, TypeScript, Supabase, and deployed to Vercel, so we have a working, deployed foundation to build every feature on top of.
 
-- [ ] Initialize Next.js app (App Router, TypeScript) at repo root
-- [ ] Set up ESLint/Prettier
+- [x] Initialize Next.js app (App Router, TypeScript) at repo root
+- [x] Set up ESLint/Prettier
 - [ ] Create the Supabase project; record project URL, anon key, service role key
 - [ ] Add env vars locally (`.env.local`) and in Vercel project settings
 - [ ] Connect the repo to Vercel, confirm a first deploy succeeds
-- [ ] Add base layout (header/nav placeholder) and a placeholder home page
+- [x] Add base layout (header/nav placeholder) and a placeholder home page
 - [ ] Commit the scaffold
 
 *Demo: empty app live on a Vercel URL.*
