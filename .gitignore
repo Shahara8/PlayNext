@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.env
+.env.*
+
+# Local browser captures may contain tokens and browsing/session data.
+*.har
+
+# Generated catalogs are refreshed locally, not versioned snapshots.
+data/*
+!data/.gitkeep

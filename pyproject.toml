@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "playnext-catalog"
+version = "0.1.0"
+description = "Provider catalog collection and normalization for PlayNext"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.32,<3", "urllib3>=2,<3", "curl-cffi>=0.11,<1"]
+
+[project.scripts]
+playnext = "playnext.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -10,6 +10,15 @@ To get reliable, complete availability data, a second developer will supply the 
 
 **Current status: the real feed is not live yet.** Until it is, `title_cache`/`provider_availability` are populated by a mock seed script (see `docs/MVP.md`, Section 7) using the exact same resolver logic this pipeline will use — so switching from mock to real data should require zero application code changes, only standing up the pieces below.
 
+**Provider collector prototype (2026-10-24):** the Python package documented in
+[`README.md`](../README.md) now fetches YES and Partner TV website listings into
+one local `data/catalog.jsonl`. It keeps unknown values `null`, including all
+current IMDb IDs and some Partner content types. Coverage is partial/unproven;
+no complete daily delivery, upload, scheduler, database processing, or removal
+reconciliation is enabled. This is collection work upstream of the pipeline
+below. Its merged file and incomplete rows still need a handoff agreement before
+the strict ingestion contract below can accept them.
+
 This document covers the ingestion/sync pipeline only — the rest of the product (search, sort, favorites, recommendations) is scoped in `docs/MVP.md`.
 
 ---
@@ -222,11 +231,33 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 
 ## Status
 
-This pipeline is **not yet built**. `title_cache`/`provider_availability` are currently created and populated via the mock seed path instead (`docs/MVP.md`, Milestone M1). Building this real pipeline is queued as **post-M8** work in `docs/MVP.md`.
+This downstream processing pipeline is **not yet built**. Its planned interim
+data source is the mock seed path (`docs/MVP.md`, Milestone M1). The upstream
+provider collector prototype is described in the README and the progress entry
+below. Building the real processing pipeline remains queued as **post-M8** work
+in `docs/MVP.md`.
 
 ## Progress Log
 
-_Not started. Do not begin this pipeline until `docs/MVP.md` reaches its "Post-M8" step, and until the external developer's feed is actually ready to receive._
+### 2026-10-24 — Provider collection prototype
+
+- Did: added automatic YES/Partner HTTP collectors, optional offline HAR import,
+  a shared 14-field JSONL model, deduplication, atomic single-file merging, fetch
+  dates, a YES 403 fallback, provider-supplied English/international names, and
+  conservative cross-provider name matching. Added offline tests and setup,
+  usage, source, validation, and extension documentation in the README.
+- Observed: the local snapshot contains 316 YES and 101 Partner records. YES
+  fetching was verified live; the automated test suite uses mocked transports.
+- Decisions / deviations: this collector exports one merged file and leaves
+  missing fields null, as requested for the fetching work. The strict downstream
+  ID requirements and complete daily/per-provider delivery described above are
+  still future integration requirements. Raw HARs and generated catalogs remain
+  local and are excluded from Git. No translation service, daily job, upload,
+  application feature, or downstream database pipeline was implemented.
+- Next step: establish catalog coverage and sources for missing IDs/types, add
+  FreeTV once its source is known, and agree on handoff compatibility and cadence.
+  Keep downstream processing queued until the app's Post-M8 step and a suitable
+  feed are ready.
 
 <!-- Template for future entries — newest entry on top, same convention as docs/MVP.md:
 ### YYYY-MM-DD — <what was worked on>
