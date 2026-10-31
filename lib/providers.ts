@@ -27,3 +27,7 @@ export const PROVIDERS: Provider[] = [
 export function getProviderBySlug(slug: string): Provider | undefined {
   return PROVIDERS.find((p) => p.slug === slug);
 }
+
+export function getProviderByCode(code: string): Provider | undefined {
+  return PROVIDERS.find((p) => p.code === code);
+}

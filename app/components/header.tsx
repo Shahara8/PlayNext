@@ -12,7 +12,9 @@ export default function Header() {
           <Link href="/" className={styles.link}>
             Browse
           </Link>
-          <span className={styles.linkPlaceholder}>Search</span>
+          <Link href="/search" className={styles.link}>
+            Search
+          </Link>
           <span className={styles.linkPlaceholder}>My List</span>
           <span className={styles.linkPlaceholder}>Sign in</span>
         </div>

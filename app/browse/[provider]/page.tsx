@@ -11,15 +11,12 @@ import {
 } from "@/lib/catalog";
 import TitleCard from "@/app/components/title-card";
 import SortFilterBar from "@/app/components/sort-filter-bar";
+import { firstSearchParam } from "@/lib/query-params";
 import styles from "./page.module.css";
 
 const SORT_KEYS = SORT_OPTIONS.map((o) => o.value) as string[];
 const TYPE_VALUES = TYPE_OPTIONS.map((o) => o.value);
 const AVAILABILITY_VALUES = AVAILABILITY_OPTIONS.map((o) => o.value);
-
-function firstValue(v: string | string[] | undefined): string {
-  return (Array.isArray(v) ? v[0] : v) ?? "";
-}
 
 export default async function BrowsePage({
   params,
@@ -33,24 +30,24 @@ export default async function BrowsePage({
   if (!provider) notFound();
 
   const sp = await searchParams;
-  const sortRaw = firstValue(sp.sort);
+  const sortRaw = firstSearchParam(sp.sort);
   const sort: SortKey = SORT_KEYS.includes(sortRaw)
     ? (sortRaw as SortKey)
     : "trending";
 
-  const typeRaw = firstValue(sp.type);
+  const typeRaw = firstSearchParam(sp.type);
   const type = TYPE_VALUES.includes(typeRaw as CatalogRow["type"])
     ? (typeRaw as CatalogRow["type"])
     : undefined;
 
-  const availRaw = firstValue(sp.avail);
+  const availRaw = firstSearchParam(sp.avail);
   const availabilityType = AVAILABILITY_VALUES.includes(
     availRaw as CatalogRow["availability_type"],
   )
     ? (availRaw as CatalogRow["availability_type"])
     : undefined;
 
-  const genre = firstValue(sp.genre) || undefined;
+  const genre = firstSearchParam(sp.genre) || undefined;
 
   const [rows, genres] = await Promise.all([
     getCatalogByProvider(provider.code, {

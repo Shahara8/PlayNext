@@ -2,12 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CatalogRow } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
+import { mediaTypeLabel, releaseYear } from "@/lib/format";
 import styles from "./title-card.module.css";
 
 export default function TitleCard({ row }: { row: CatalogRow }) {
   const poster = posterUrl(row.poster_path);
-  const year = row.release_date ? row.release_date.slice(0, 4) : null;
-  const typeLabel = row.media_type === "tv" ? "TV Series" : "Movie";
+  const year = releaseYear(row.release_date);
+  const typeLabel = mediaTypeLabel(row.media_type);
 
   return (
     <Link href={`/title/${row.tmdb_id}`} className={styles.card}>

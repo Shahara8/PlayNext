@@ -1,0 +1,42 @@
+.titleSkeleton {
+  width: 140px;
+  height: 2rem;
+}
+
+.barSkeleton {
+  width: 100%;
+  max-width: 480px;
+  height: 2.75rem;
+}
+
+.cardSkeleton {
+  display: flex;
+  gap: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.posterSkeleton {
+  flex: 0 0 80px;
+  width: 80px;
+  aspect-ratio: 2 / 3;
+}
+
+.lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.3rem;
+}
+
+.lineSkeleton {
+  height: 0.9rem;
+  width: 60%;
+}
+
+.lineSkeletonShort {
+  height: 0.9rem;
+  width: 35%;
+}

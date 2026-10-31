@@ -1,0 +1,61 @@
+.card {
+  display: flex;
+  gap: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.card:hover {
+  background: var(--border);
+}
+
+.posterWrap {
+  position: relative;
+  flex: 0 0 80px;
+  width: 80px;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.poster {
+  object-fit: cover;
+}
+
+.posterFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0.3rem;
+  text-align: center;
+  color: var(--foreground-muted);
+  font-size: 0.7rem;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.meta {
+  display: flex;
+  gap: 0.75rem;
+  color: var(--foreground-muted);
+  font-size: 0.85rem;
+}
+
+.unavailable {
+  color: var(--foreground-muted);
+  font-size: 0.8rem;
+}

@@ -7,6 +7,7 @@ import {
   AVAILABILITY_OPTIONS,
   type SortKey,
 } from "@/lib/catalog";
+import { withUpdatedParam } from "@/lib/query-params";
 import styles from "./sort-filter-bar.module.css";
 
 export default function SortFilterBar({
@@ -27,11 +28,9 @@ export default function SortFilterBar({
   const searchParams = useSearchParams();
 
   function update(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    router.push(
+      withUpdatedParam(searchParams.toString(), pathname, key, value),
+    );
   }
 
   return (

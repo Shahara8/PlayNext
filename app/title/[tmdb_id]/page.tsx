@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { getCatalogByTmdbId } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
-import { PROVIDERS } from "@/lib/providers";
+import { getProviderByCode } from "@/lib/providers";
+import { mediaTypeLabel, releaseYear } from "@/lib/format";
 import styles from "./page.module.css";
 
 export default async function TitleDetailPage({
@@ -19,8 +20,8 @@ export default async function TitleDetailPage({
 
   const title = rows[0];
   const poster = posterUrl(title.poster_path, "w500");
-  const year = title.release_date ? title.release_date.slice(0, 4) : null;
-  const typeLabel = title.media_type === "tv" ? "TV Series" : "Movie";
+  const year = releaseYear(title.release_date);
+  const typeLabel = mediaTypeLabel(title.media_type);
 
   return (
     <main className={styles.main}>
@@ -67,9 +68,7 @@ export default async function TitleDetailPage({
             <h2>Where to watch</h2>
             <ul className={styles.providerList}>
               {rows.map((row) => {
-                const providerMeta = PROVIDERS.find(
-                  (p) => p.code === row.provider,
-                );
+                const providerMeta = getProviderByCode(row.provider);
                 return (
                   <li key={row.availability_id} className={styles.providerItem}>
                     <span

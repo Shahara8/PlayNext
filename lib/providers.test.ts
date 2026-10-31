@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PROVIDERS, REGION, getProviderBySlug } from "./providers";
+import {
+  PROVIDERS,
+  REGION,
+  getProviderByCode,
+  getProviderBySlug,
+} from "./providers";
 
 describe("PROVIDERS", () => {
   it("has a non-empty label and color for every entry", () => {
@@ -36,5 +41,17 @@ describe("getProviderBySlug", () => {
 
   it("is case-sensitive (slugs are lowercase by convention)", () => {
     expect(getProviderBySlug("NETFLIX")).toBeUndefined();
+  });
+});
+
+describe("getProviderByCode", () => {
+  it("finds a known provider by its code", () => {
+    expect(getProviderByCode("NETFLIX")).toEqual(
+      expect.objectContaining({ slug: "netflix", label: "Netflix" }),
+    );
+  });
+
+  it("returns undefined for an unknown code", () => {
+    expect(getProviderByCode("HBO_MAX")).toBeUndefined();
   });
 });
