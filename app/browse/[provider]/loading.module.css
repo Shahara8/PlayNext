@@ -3,6 +3,12 @@
   height: 2rem;
 }
 
+.barSkeleton {
+  width: 100%;
+  max-width: 480px;
+  height: 2.5rem;
+}
+
 .cardSkeleton {
   display: flex;
   flex-direction: column;

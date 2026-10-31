@@ -1,0 +1,22 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--foreground-muted);
+}
+
+.field select {
+  font-size: 0.9rem;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.6rem;
+}

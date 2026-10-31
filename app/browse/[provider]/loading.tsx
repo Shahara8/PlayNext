@@ -5,6 +5,7 @@ export default function BrowseLoading() {
   return (
     <main className={styles.main}>
       <div className={`skeleton ${skeletonStyles.titleSkeleton}`} />
+      <div className={`skeleton ${skeletonStyles.barSkeleton}`} />
       <div className={styles.grid}>
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className={skeletonStyles.cardSkeleton}>
