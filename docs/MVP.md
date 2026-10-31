@@ -34,9 +34,10 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Prerequisites (one-time setup)
 
-- **TMDB API key** — already obtained (personal-use Developer plan). Store the v4 read access token as `TMDB_API_KEY` in `.env.local` and in Vercel/GitHub secrets when needed. Never commit the key itself to the repo.
-- **Supabase project** — to be created in M0; provides `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **TMDB API key** — already obtained (personal-use Developer plan). Stored as `TMDB_API_KEY` in `.env.local` and in Vercel project env vars (Production/Preview/Development). Never commit the key itself to the repo.
+- **Supabase project** — created in M0 (`playnext`, org "PlayNext", region `eu-central-1`/Frankfurt). `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are in `.env.local` and Vercel env vars. Project-level "Automatically expose new tables" is **off** and "automatic RLS" is **on** — M1's migrations must explicitly grant API exposure and define RLS policies per table rather than relying on defaults.
 - **GitHub repo** — already initialized, remote set to `github.com/Shahara8/PlayNext`.
+- **Vercel project** — connected in M0 (`playnext`, team `shahara8's projects`), auto-deploys `main`. Live at https://playnext-beta.vercel.app.
 - **Google OAuth app** — needed before M5 (Auth); not yet created.
 
 ## Context
