@@ -13,8 +13,9 @@ Both files have a **Progress Log** near the top — read it first to see what pr
 
 1. Read the Progress Log in `docs/MVP.md` (and `docs/INGESTION.md` if relevant) to find the current state.
 2. Implement the next unchecked task(s) in `docs/MVP.md` Section 9 — usually one milestone, or part of one, not the whole remaining backlog at once.
-3. Check off (`- [x]`) each task as it's completed.
-4. **Before ending the session**, append a new Progress Log entry (date, what was done, any deviations from the doc, explicit next step).
-5. If something in either doc turns out wrong or outdated once actually building it, update that doc directly rather than leaving it stale, and note the change in the Progress Log entry.
+3. **Every feature or bug fix gets unit test(s) in the same session**, per the scope in `docs/MVP.md` Section 8 "Testing" — i.e. data-access, resolver, API-route, and other pure/testable logic in `lib/`/`scripts/`/`app/api/` always gets Vitest tests (`npm test`); UI/component/page rendering stays manual-smoke-test-only (no component/E2E framework), as that section spells out. When touching an un-guarded script or module with side-effecting top-level code, make sure it's safe to `import` from a test before writing one against it (see that section's safety rule).
+4. Check off (`- [x]`) each task as it's completed.
+5. **Before ending the session**, append a new Progress Log entry (date, what was done, any deviations from the doc, explicit next step).
+6. If something in either doc turns out wrong or outdated once actually building it, update that doc directly rather than leaving it stale, and note the change in the Progress Log entry.
 
 This applies automatically, every session, without the user needing to ask.

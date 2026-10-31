@@ -9,7 +9,9 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "seed:mock": "tsx scripts/seed-mock-data.ts"
+    "seed:mock": "tsx scripts/seed-mock-data.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
@@ -28,6 +30,7 @@
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

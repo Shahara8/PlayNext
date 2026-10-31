@@ -12,10 +12,11 @@ config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "fs";
+import { pathToFileURL } from "url";
 import { z } from "zod";
 import { resolveImdbToTmdb } from "../lib/tmdb-resolve";
 
-const feedRowSchema = z.object({
+export const feedRowSchema = z.object({
   provider: z.string().min(1),
   region: z.string().min(1),
   title: z.string().min(1),
@@ -146,7 +147,16 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run when executed directly (`npm run seed:mock`) — importing this
+// module for `feedRowSchema` (e.g. from a unit test) must never trigger a
+// live TMDB/Supabase run as a side effect of import.
+const isMainModule =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
