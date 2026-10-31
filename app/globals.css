@@ -51,3 +51,19 @@ a {
     color-scheme: dark;
   }
 }
+
+.skeleton {
+  background: var(--border);
+  border-radius: 0.4rem;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

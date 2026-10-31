@@ -1,0 +1,27 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.tile {
+  --provider-color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--provider-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.tile:hover {
+  border-color: var(--provider-color);
+  transform: translateY(-2px);
+}

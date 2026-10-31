@@ -1,0 +1,20 @@
+.titleSkeleton {
+  width: 220px;
+  height: 2rem;
+}
+
+.cardSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.posterSkeleton {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+}
+
+.lineSkeleton {
+  height: 0.9rem;
+  width: 80%;
+}

@@ -9,7 +9,9 @@ export default function Header() {
           PlayNext
         </Link>
         <div className={styles.links}>
-          <span className={styles.linkPlaceholder}>Browse</span>
+          <Link href="/" className={styles.link}>
+            Browse
+          </Link>
           <span className={styles.linkPlaceholder}>Search</span>
           <span className={styles.linkPlaceholder}>My List</span>
           <span className={styles.linkPlaceholder}>Sign in</span>

@@ -1,0 +1,114 @@
+.main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.layout {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.posterWrap {
+  position: relative;
+  flex: 0 0 260px;
+  width: 260px;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.poster {
+  object-fit: cover;
+}
+
+.posterFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 1rem;
+  text-align: center;
+  color: var(--foreground-muted);
+}
+
+.info {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.meta {
+  display: flex;
+  gap: 1rem;
+  color: var(--foreground-muted);
+  font-size: 0.95rem;
+}
+
+.genres {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.genre {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--foreground-muted);
+}
+
+.overview {
+  line-height: 1.5;
+}
+
+.providers h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.providerList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  list-style: none;
+}
+
+.providerItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.providerDot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.providerName {
+  font-weight: 600;
+}
+
+.availabilityType {
+  color: var(--foreground-muted);
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.watchLink {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.watchLink:hover {
+  text-decoration: underline;
+}
