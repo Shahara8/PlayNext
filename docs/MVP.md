@@ -14,6 +14,16 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-10-31 — M1 complete: schema + mock data
+- Did: wrote and applied `supabase/migrations/0001_user_data_and_views.sql` (title_cache, provider_availability, profiles, user_watchlist, user_title_feedback, the signup trigger, RLS, `v_catalog`, `search_titles()`) and a follow-up `0002_service_role_grants.sql` (see Decisions). Built `lib/tmdb-resolve.ts` (shared imdb→tmdb→metadata resolver, bearer-auth against TMDB) and `scripts/seed-mock-data.ts` (Zod-validated, idempotent upsert), seeded from a hand-written `data/mock-feed.jsonl` (26 titles across Netflix/Disney+/Prime/YES IL). Verified: all 26 rows resolved and seeded, a second run produced a byte-identical snapshot (confirmed idempotent), `v_catalog` sort/filter and `search_titles()` typo-tolerant search both spot-checked against the live seeded data.
+- Decisions / deviations:
+  - Didn't create `imdb_tmdb_map`/`staging_availability`/`ingestion_runs` — those belong to the real ingestion pipeline (post-M8); the mock seed path upserts directly, per this doc's Section 7.
+  - Applying the migration needed a way to run DDL against the live DB without interactive `supabase login`. Added `SUPABASE_DB_URL` (Session pooler connection string, IPv4-compatible — plain Direct/IPv6 needs a paid add-on and wasn't reachable from this environment) to `.env.local`, then used `supabase db push --db-url`, which needs no account auth at all. Documented in Prerequisites.
+  - Discovered mid-session that "automatically expose new tables" being off meant **`service_role` had no table grants either** (BYPASSRLS only skips row-policy checks, not base table privileges) — `0001`'s seed upserts failed with "permission denied" until `0002_service_role_grants.sql` added explicit grants for `service_role` too. Section 2's RLS note and the Prerequisites entry above were updated to call this out so it isn't rediscovered the hard way again.
+  - `TMDB_API_KEY` turned out to hold the v4 Read Access Token (JWT), not a v3 key — `lib/tmdb-resolve.ts` sends it as a `Bearer` header, not the `api_key` query param.
+  - Corrected 5 of the mock feed's `imdb_id`s after TMDB `/find` came back empty for them (Extraction, Prisoners of War, Tehran, When Heroes Fly, Our Boys) — the ones I'd written from memory were wrong; found the right ones via `/search/movie`+`/search/tv` then `/external_ids`.
+- Next step: M2 — Browse & title detail (Section 9): provider picker, browse grid querying `v_catalog`, title card component, title detail page at `/title/[tmdb_id]`, loading/empty states.
+
 ### 2026-10-31 — M0 complete
 - Did: Supabase project `playnext` created (org "PlayNext", region `eu-central-1`/Frankfurt, legacy anon/service_role keys, "Automatically expose new tables" disabled, "Enable automatic RLS" enabled — both deliberately, since M1's migrations define RLS/exposure explicitly per table rather than relying on project-wide defaults). `.env.local` created locally with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TMDB_API_KEY` (confirmed git-ignored). Repo connected to Vercel (project `playnext`, team `shahara8's projects`), same four env vars added there for Production/Preview/Development, first deploy succeeded after pushing the M0 scaffold commit (`c29ccbd`) that had been made but not yet pushed to `origin/main`. Live at https://playnext-beta.vercel.app, confirmed serving the header + placeholder home page built in the earlier M0 session.
 - Decisions / deviations: none beyond what the prior entry recorded; the only hiccup was the scaffold commit not having been pushed yet when the first Vercel deploy was attempted (`[NEXT_NO_VERSION]` error since `package.json` wasn't visible on `origin/main` yet) — fixed by `git push origin main`.
@@ -35,7 +45,8 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 ## Prerequisites (one-time setup)
 
 - **TMDB API key** — already obtained (personal-use Developer plan). Stored as `TMDB_API_KEY` in `.env.local` and in Vercel project env vars (Production/Preview/Development). Never commit the key itself to the repo.
-- **Supabase project** — created in M0 (`playnext`, org "PlayNext", region `eu-central-1`/Frankfurt). `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are in `.env.local` and Vercel env vars. Project-level "Automatically expose new tables" is **off** and "automatic RLS" is **on** — M1's migrations must explicitly grant API exposure and define RLS policies per table rather than relying on defaults.
+- **Supabase project** — created in M0 (`playnext`, org "PlayNext", region `eu-central-1`/Frankfurt). `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are in `.env.local` and Vercel env vars. Project-level "Automatically expose new tables" is **off** and "automatic RLS" is **on** — migrations must explicitly grant API exposure (to `anon`/`authenticated`/`service_role` alike — this setting means even `service_role` gets no default grants, only its usual RLS bypass) and define RLS policies per table rather than relying on defaults.
+- **`SUPABASE_DB_URL`** (added in M1) — direct Postgres connection string (Session pooler, port 5432, IPv4-compatible — NOT the Direct/IPv6 connection, which needs a paid add-on from this environment) in `.env.local` only, never committed or added to Vercel. Lets migrations be pushed non-interactively via `npx supabase db push --db-url "$SUPABASE_DB_URL"`, with no `supabase login`/account access token needed. Treat it like a DB root password — it bypasses RLS and PostgREST grants entirely.
 - **GitHub repo** — already initialized, remote set to `github.com/Shahara8/PlayNext`.
 - **Vercel project** — connected in M0 (`playnext`, team `shahara8's projects`), auto-deploys `main`. Live at https://playnext-beta.vercel.app.
 - **Google OAuth app** — needed before M5 (Auth); not yet created.
@@ -177,18 +188,18 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 ### M1 — Schema + mock data
 **Story:** As a developer, I want the full database schema (ingestion tables + app tables) created and populated with realistic mock data, so every later feature has real data to query against instead of being blocked on the external feed.
 
-- [ ] Migration: `title_cache`, `provider_availability` (schema defined in `docs/INGESTION.md`, Section 5)
-- [ ] Migration: `profiles`, `user_watchlist`, `user_title_feedback`
-- [ ] RLS policies on all user tables + public-read-only policies on `title_cache`/`provider_availability`
-- [ ] Trigger: auto-create `profiles` row on signup
-- [ ] `v_catalog` view (joins availability + metadata, live rows only)
-- [ ] `pg_trgm` extension + GIN index on `title_cache.title`
-- [ ] `search_titles` SQL function
-- [ ] Write `data/mock-feed.jsonl` (20-30 titles across Netflix IL, Disney+ IL, Amazon Prime IL, YES)
-- [ ] Write `lib/tmdb-resolve.ts` (shared imdb→tmdb→metadata resolver)
-- [ ] Write `scripts/seed-mock-data.ts`
-- [ ] Run the seed script; verify rows in Supabase Studio
-- [ ] Re-run the seed script; confirm it's idempotent (no duplicates/changes)
+- [x] Migration: `title_cache`, `provider_availability` (schema defined in `docs/INGESTION.md`, Section 5)
+- [x] Migration: `profiles`, `user_watchlist`, `user_title_feedback`
+- [x] RLS policies on all user tables + public-read-only policies on `title_cache`/`provider_availability`
+- [x] Trigger: auto-create `profiles` row on signup
+- [x] `v_catalog` view (joins availability + metadata, live rows only)
+- [x] `pg_trgm` extension + GIN index on `title_cache.title`
+- [x] `search_titles` SQL function
+- [x] Write `data/mock-feed.jsonl` (20-30 titles across Netflix IL, Disney+ IL, Amazon Prime IL, YES)
+- [x] Write `lib/tmdb-resolve.ts` (shared imdb→tmdb→metadata resolver)
+- [x] Write `scripts/seed-mock-data.ts`
+- [x] Run the seed script; verify rows in Supabase Studio
+- [x] Re-run the seed script; confirm it's idempotent (no duplicates/changes)
 
 *Demo: seeded rows visible and queryable in Supabase.*
 
