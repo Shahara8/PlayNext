@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// Value of /login's `?error=` param set by app/auth/callback/route.ts when
+// the OAuth/email-confirmation code exchange fails or is missing — shared so
+// the route and the page that reads it can't drift apart.
+export const AUTH_CALLBACK_ERROR_PARAM = "auth_callback";
+export const AUTH_CALLBACK_ERROR_MESSAGE =
+  "Something went wrong signing you in — please try again.";
+
 export const signUpSchema = z.object({
   email: z
     .string()

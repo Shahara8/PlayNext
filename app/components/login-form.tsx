@@ -12,12 +12,16 @@ import styles from "./login-form.module.css";
 
 type Mode = "signin" | "signup";
 
-export default function LoginForm() {
+export default function LoginForm({
+  initialError = null,
+}: {
+  initialError?: string | null;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,7 +52,12 @@ export default function LoginForm() {
         return;
       }
       if (data.session) {
+        // `refresh()` after `push()` — the header's auth state (AuthNav) is
+        // an async Server Component behind a Suspense boundary, and without
+        // this, client-router navigation can serve a cached RSC payload for
+        // "/" from before sign-in, leaving it stuck on "Sign in".
         router.push("/");
+        router.refresh();
       } else {
         setInfo("Check your email to confirm your account before signing in.");
       }
@@ -65,6 +74,7 @@ export default function LoginForm() {
       return;
     }
     router.push("/");
+    router.refresh();
   }
 
   async function handleGoogleSignIn() {
