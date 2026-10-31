@@ -14,6 +14,11 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-10-31 — M0 complete
+- Did: Supabase project `playnext` created (org "PlayNext", region `eu-central-1`/Frankfurt, legacy anon/service_role keys, "Automatically expose new tables" disabled, "Enable automatic RLS" enabled — both deliberately, since M1's migrations define RLS/exposure explicitly per table rather than relying on project-wide defaults). `.env.local` created locally with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TMDB_API_KEY` (confirmed git-ignored). Repo connected to Vercel (project `playnext`, team `shahara8's projects`), same four env vars added there for Production/Preview/Development, first deploy succeeded after pushing the M0 scaffold commit (`c29ccbd`) that had been made but not yet pushed to `origin/main`. Live at https://playnext-beta.vercel.app, confirmed serving the header + placeholder home page built in the earlier M0 session.
+- Decisions / deviations: none beyond what the prior entry recorded; the only hiccup was the scaffold commit not having been pushed yet when the first Vercel deploy was attempted (`[NEXT_NO_VERSION]` error since `package.json` wasn't visible on `origin/main` yet) — fixed by `git push origin main`.
+- Next step: M1 — Schema + mock data (Section 9). Start with the `supabase/migrations/0001_user_data_and_views.sql` migration (title_cache/provider_availability per `docs/INGESTION.md` Section 5, plus profiles/user_watchlist/user_title_feedback per this doc's Section 2), then RLS, the `v_catalog` view, `pg_trgm`/`search_titles`, and finally the mock data + seed script.
+
 ### 2026-10-24 — M0 (partial)
 - Did: scaffolded Next.js (App Router, TypeScript, ESLint) at repo root via `create-next-app`; added Prettier (`.prettierrc.json`, `.prettierignore`, `format`/`format:check` scripts, wired into `eslint.config.mjs` via `eslint-config-prettier`); replaced the boilerplate home page with a minimal `app/components/header.tsx` (logo + placeholder nav links) and a placeholder `app/page.tsx`; verified `npm run lint`, `npm run format:check`, and `npm run build` all pass, and smoke-tested `npm run dev` serves the header/home page.
 - Decisions / deviations: `create-next-app` rejects "PlayNext" as a package name (npm disallows capital letters), so it was scaffolded into a temp lowercase subfolder and moved up to the repo root, then `package.json`'s `name` was changed to `playnext`. Declined Tailwind (plain CSS modules, consistent with "no theming beyond one default look" in Section 8). `docs/` is excluded from Prettier's scope (`.prettierignore`) so it doesn't reformat these planning docs.
@@ -160,11 +165,11 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 
 - [x] Initialize Next.js app (App Router, TypeScript) at repo root
 - [x] Set up ESLint/Prettier
-- [ ] Create the Supabase project; record project URL, anon key, service role key
-- [ ] Add env vars locally (`.env.local`) and in Vercel project settings
-- [ ] Connect the repo to Vercel, confirm a first deploy succeeds
+- [x] Create the Supabase project; record project URL, anon key, service role key
+- [x] Add env vars locally (`.env.local`) and in Vercel project settings
+- [x] Connect the repo to Vercel, confirm a first deploy succeeds
 - [x] Add base layout (header/nav placeholder) and a placeholder home page
-- [ ] Commit the scaffold
+- [x] Commit the scaffold
 
 *Demo: empty app live on a Vercel URL.*
 
