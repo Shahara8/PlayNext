@@ -1,0 +1,93 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab,
+.tabActive {
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: var(--foreground-muted);
+}
+
+.tabActive {
+  color: var(--foreground);
+  border-bottom-color: var(--foreground);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--foreground-muted);
+}
+
+.field input {
+  font-size: 0.95rem;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.submit,
+.google {
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+}
+
+.submit {
+  color: var(--background);
+  background: var(--foreground);
+  border: none;
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.google {
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+
+.divider {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--foreground-muted);
+}
+
+.error {
+  color: #c43d3d;
+  font-size: 0.85rem;
+}
+
+.info {
+  color: var(--foreground-muted);
+  font-size: 0.85rem;
+}

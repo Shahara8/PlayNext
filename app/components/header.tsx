@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import AuthNav from "./auth-nav";
 import styles from "./header.module.css";
 
 export default function Header() {
@@ -16,7 +18,11 @@ export default function Header() {
             Search
           </Link>
           <span className={styles.linkPlaceholder}>My List</span>
-          <span className={styles.linkPlaceholder}>Sign in</span>
+          <Suspense
+            fallback={<span className={`skeleton ${styles.authNavSkeleton}`} />}
+          >
+            <AuthNav />
+          </Suspense>
         </div>
       </nav>
     </header>
