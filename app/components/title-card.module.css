@@ -1,6 +1,12 @@
 .card {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
 }
 

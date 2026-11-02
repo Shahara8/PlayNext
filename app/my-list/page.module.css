@@ -1,0 +1,40 @@
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab,
+.tabActive {
+  padding-bottom: 0.5rem;
+  margin-bottom: -1px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+
+.tab {
+  color: var(--foreground-muted);
+}
+
+.tabActive {
+  border-bottom-color: var(--foreground);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1.5rem 1rem;
+}
+
+.empty {
+  color: var(--foreground-muted);
+}

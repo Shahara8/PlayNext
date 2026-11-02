@@ -21,11 +21,6 @@
   gap: 1.5rem;
 }
 
-.linkPlaceholder {
-  color: var(--foreground-muted);
-  font-size: 0.95rem;
-}
-
 .link {
   font-size: 0.95rem;
   font-weight: 500;

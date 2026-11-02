@@ -12,6 +12,7 @@ import {
 import TitleCard from "@/app/components/title-card";
 import SortFilterBar from "@/app/components/sort-filter-bar";
 import { firstSearchParam } from "@/lib/query-params";
+import { getViewerTitleStates } from "@/lib/viewer-titles";
 import styles from "./page.module.css";
 
 const SORT_KEYS = SORT_OPTIONS.map((o) => o.value) as string[];
@@ -57,6 +58,10 @@ export default async function BrowsePage({
     getProviderGenres(provider.code),
   ]);
 
+  const { userId, states, unavailable } = await getViewerTitleStates(
+    rows.map((row) => row.tmdb_id),
+  );
+
   const filtersActive = Boolean(type || availabilityType || genre);
 
   return (
@@ -78,7 +83,13 @@ export default async function BrowsePage({
       ) : (
         <div className={styles.grid}>
           {rows.map((row) => (
-            <TitleCard key={row.availability_id} row={row} />
+            <TitleCard
+              key={row.availability_id}
+              row={row}
+              userId={userId}
+              state={states.get(row.tmdb_id)}
+              stateUnavailable={unavailable}
+            />
           ))}
         </div>
       )}

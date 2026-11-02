@@ -4,6 +4,8 @@ import { getCatalogByTmdbId } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
 import { getProviderByCode } from "@/lib/providers";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
+import { getViewerTitleStates } from "@/lib/viewer-titles";
+import TitleActions from "@/app/components/title-actions";
 import styles from "./page.module.css";
 
 export default async function TitleDetailPage({
@@ -17,6 +19,8 @@ export default async function TitleDetailPage({
 
   const rows = await getCatalogByTmdbId(tmdbId);
   if (rows.length === 0) notFound();
+
+  const { userId, states, unavailable } = await getViewerTitleStates([tmdbId]);
 
   const title = rows[0];
   const poster = posterUrl(title.poster_path, "w500");
@@ -49,6 +53,13 @@ export default async function TitleDetailPage({
               <span>★ {title.vote_average.toFixed(1)}</span>
             )}
           </div>
+
+          <TitleActions
+            tmdbId={tmdbId}
+            userId={userId}
+            initialState={states.get(tmdbId)}
+            unavailable={unavailable}
+          />
 
           {title.genres && title.genres.length > 0 && (
             <div className={styles.genres}>

@@ -17,7 +17,9 @@ export default function Header() {
           <Link href="/search" className={styles.link}>
             Search
           </Link>
-          <span className={styles.linkPlaceholder}>My List</span>
+          <Link href="/my-list" className={styles.link}>
+            My List
+          </Link>
           <Suspense
             fallback={<span className={`skeleton ${styles.authNavSkeleton}`} />}
           >

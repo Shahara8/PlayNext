@@ -14,6 +14,32 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-10-31 — M6 built: favorites, watchlist, like/dislike, rating (browser click-through still pending)
+- Did: added `lib/user-titles.ts` (`getTitleStates`, `setFavorite`/`setSentiment`/`setRating`, `setInWatchlist`, `getWatchlistTitles`/`getFavoriteTitles`, pure `nextSentiment`/`parseRating`; every function takes the Supabase client as a parameter so the same module works from Client and Server Components) and `lib/viewer-titles.ts` (`getViewerTitleStates`, server-only, returns the viewer's id + states or null + empty when signed out), with `lib/user-titles.test.ts` (25 tests) and `lib/viewer-titles.test.ts` (2 tests). Built `app/components/title-actions.tsx` (client component: favorite, watchlist, like, dislike, 1-10 rating select) and put it on `title-card.tsx` and `app/title/[tmdb_id]/page.tsx`. Added `app/my-list/` (`?view=favorites` or the default watchlist, redirects to `/login` when signed out, per-view empty state, `loading.tsx`) and made the header's "My List" placeholder a real link. No migration needed: M1's tables, RLS and grants already cover this.
+- Decisions / deviations:
+  - Writes go directly from the browser to PostgREST under RLS, as Section 3 specifies, not through Server Actions. Controls update optimistically, roll back with an inline error if the write fails, and stay disabled during a write so quick clicks can't land out of order. Each successful write calls `router.refresh()` so already-visited pages and My List don't show stale state.
+  - `upsertFeedback` sets `updated_at` itself because no trigger maintains it, and sends only the changed column, so setting one field never resets the others (confirmed live).
+  - Clearing every field leaves an all-empty `user_title_feedback` row rather than deleting it. Harmless: My List filters on `is_favorite`, and M7's seed set filters on favorite/like/rating.
+  - `title-card.tsx` is now a `<div>` holding the `<Link>` and the controls as siblings, since buttons can't be nested in a link. Its `row` prop narrowed to `TitleSummary` so My List can render it from an embedded `title_cache` row.
+  - Controls are on the browse card and detail page only, per this milestone's task. `search-result-card.tsx` has none.
+  - Known limitations: a saved title with no live provider rows still appears in My List, but its link goes to the detail page's not-found (`getCatalogByTmdbId` only returns live rows). Can't happen with today's mock data; revisit at the real-feed cutover. Sign-in from a control always lands on `/`, not back on the original page, since `/login` has no return-path support.
+- Verified: `npm test` (103 passing), `npm run lint`/`format:check`/`build` clean. Two throwaway scripts against the live project (confirmed accounts created via the admin API, deleted afterwards, not committed): (1) RLS, 17 checks passing: a second account can't read the first's rows, can't insert or upsert as them, and its update/delete attempts change nothing; a user can't reassign their own row to someone else; anon can't read or write. It also confirmed the real upsert and FK-embed behavior that mocks can't. (2) Production build fetched signed out and with a real session cookie, 13 checks passing: saved state renders on browse/detail, each My List view shows the right titles, signed-out `/my-list` redirects to `/login`.
+- **Not verified**: clicking the controls in a real browser (no browser automation in this session). The write functions were run live, but the client component's click handling, optimistic update, rollback, `router.refresh()` and the card layout at 140px width have not been exercised or looked at.
+- **`/code-review` rounds (2026-11-02, three passes before committing)**. Fixed:
+  - `getTitleStates` put every browse-page id into one `.in()` GET URL, which would exceed URL limits at real-feed catalog size. It now splits ids into chunks of `STATE_QUERY_CHUNK_SIZE` (100).
+  - A failed viewer-state read threw and took down the whole browse/detail page. `getViewerTitleStates` now returns `unavailable: true` and the controls render disabled (not empty, which would misreport saved state). My List now uses the same helper, so it gets the same fallback.
+  - `title-actions.tsx` never adopted new server state after mount (it used `useState(initialState)` only). The first fix, remounting via a key on the server state, caused a regression the next pass caught: a refresh from an earlier write could remount the controls in the middle of a second write. Final version: adjust-state-during-render, adopting server state only when it *changes* and no write is in flight. If a write fails after fresher server state arrived, it adopts that state rather than rolling back to the older one. Helper is `titleStateKey()` in `lib/user-titles.ts`.
+  - The Favorites tab sorted by `updated_at`, which every rating/like change bumps, and `updated_at` came from the browser clock. **New `supabase/migrations/0006_feedback_timestamps.sql`**: a `favorited_at` column plus a `before insert or update` trigger that sets `updated_at = now()` and sets `favorited_at` on favorite (kept across other edits, cleared on unfavorite), so clients can't forge either. The favorites index is now `(user_id, favorited_at desc) where is_favorite`. The client no longer sends `updated_at`, and Favorites sorts by `favorited_at`.
+- Declined from those passes:
+  - Running `getCurrentUser()` in parallel with the catalog fetches, and folding My List's state read into its list query: each saves about one round trip, not worth the extra code at MVP scale.
+  - Per-card `router.refresh()` re-rendering the whole route: accepted for MVP; revisit with `revalidatePath` if it becomes noticeable.
+  - Duplicate cards for one title on a browse page: can't happen, because `provider_availability`'s unique key is `(provider, region, imdb_id, type)`.
+  - A stale refresh landing after the next write finishes: the refresh that write issues supersedes it, and Next discards superseded navigations (verified in M4).
+  - The signed-out rating select via keyboard: the select is controlled and `apply` redirects before changing state, so no value is ever shown.
+- **Migration 0006 applied live** (`supabase db push --db-url`, with the user's explicit approval after the session's auto-mode check first blocked it as a production change). Re-ran both live scripts afterwards. RLS + trigger: 23/23 passing, including favorited_at set on favorite, kept across a rating change, cleared on unfavorite, re-set on re-favorite, and a client unable to forge `updated_at`/`favorited_at`. Pages against the production build: 13/13 passing. Unit tests: 111 passing. Lint/format/build clean.
+- Note for future migrations: `supabase` CLI v3 warns that `--db-url` is deprecated (removed in v4) in favor of `--remote=<db-url>`. It still works for now.
+- Next step: do the M6 browser click-through: toggle each control on a card and on the detail page, reload, check My List (Favorites order follows when each was favorited) and remove a title from it. Then M7 — Recommendations (Section 9). M7's seed set can use `favorited_at`/`updated_at` for "most recent ~20" (Section 6).
+
 ### 2026-10-31 — M5 complete: authentication
 - Did: added `@supabase/ssr` and three new client factories — `lib/supabase-browser.ts` (`createBrowserSupabaseClient()`, cookie-backed session for Client Components), `lib/supabase-server.ts` (`createServerSupabaseClient()`, cookie-aware for Server Components/Route Handlers/Server Actions), and `middleware.ts` (refreshes the session cookie on every request so Server Components always see a current session — the standard `@supabase/ssr` pattern). Added `lib/auth.ts` (`signUpSchema`/`signInSchema` Zod schemas — signup requires an 8-char password, sign-in just requires non-empty; `friendlyAuthErrorMessage()` mapping Supabase's plain-English `AuthError.message` strings for the 3 common cases to clearer UI text) with `lib/auth.test.ts` (11 tests). Built `app/components/login-form.tsx` (client component; sign-in/sign-up tab toggle, email+password fields, a "Continue with Google" button calling `signInWithOAuth({ provider: "google" })`, redirecting through `/auth/callback`) and `app/login/page.tsx` (redirects to `/` if already signed in; `export const instant = false` since that redirect check needs `cookies()` — see Decisions). Added `app/auth/callback/route.ts` (one handler covers both the Google OAuth redirect and the email-confirmation link, since Supabase's PKCE flow hands back the same `?code=` for each — exchanges it for a session, redirects to `/`) and `app/auth/actions.ts` (`signOutAction`, a Server Action used by the header's sign-out form). Split `app/components/header.tsx` into a static shell plus `app/components/auth-nav.tsx` (async Server Component reading the session, wrapped in `<Suspense>` — see Decisions) rendering "Sign in" or the user's email + a sign-out button. The user then did the Google Cloud Console + Supabase dashboard setup (OAuth consent screen, Web application client with the Supabase project's callback URL as its redirect URI, pasted into Supabase's Google provider) — confirmed working end-to-end via a real browser click-through. That surfaced two more issues, both fixed in this same session: (1) `auth-nav.tsx` crashed `next build` with "Next.js encountered the unstable value `Date.now()` while prerendering" — `supabase.auth.getUser()` calls `Date.now()` internally (token-expiry check), which `cacheComponents` won't allow inside a `<Suspense>`-deferred subtree unless the component has explicitly called a Next-recognized dynamic API first; fixed by adding `await connection()` (from `next/server`) at the top of `AuthNav`, ahead of the Supabase call. (2) `profiles.display_name` stayed `NULL` after a real Google sign-in even once that was fixed — added `supabase/migrations/0004_profile_display_name_from_oauth.sql` (the signup trigger now does `coalesce(raw_user_meta_data->>'full_name', raw_user_meta_data->>'name')` into `display_name`) plus `0005_profile_display_name_on_link.sql` once testing showed the first migration still wasn't enough for an account that signs up via email/password first and links Google afterward (see Decisions) — both applied live via `supabase db push --db-url`.
 - Decisions / deviations:
@@ -148,9 +174,12 @@ create table public.user_title_feedback (
   rating       smallint check (rating between 1 and 10),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
+  favorited_at timestamptz,  -- added in 0006; null unless is_favorite
   primary key (user_id, tmdb_id)
 );
 ```
+
+`updated_at` and `favorited_at` are maintained by a trigger (`0006_feedback_timestamps.sql`) from the DB clock, since these rows are written directly from the browser.
 
 Plus supporting indexes (`user_id` on both tables, partial indexes on `is_favorite`/`sentiment='like'`). Both tables key on `title_cache.tmdb_id`, matching the forward-compat rule already set in the ingestion plan — a favorite is "this movie," not "this movie on this provider." A title only becomes favoritable once it's resolved and visible via `title_cache`, so there's no orphan-handling needed here.
 
@@ -303,11 +332,11 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 ### M6 — Favorites, watchlist, like/dislike, rating
 **Story:** As a signed-in user, I want to mark titles as favorite, like/dislike them, add them to a watchlist, and rate them, so I can track what I care about and build the signal recommendations will use.
 
-- [ ] Favorite / like-dislike / rating controls on the title card and detail page
-- [ ] Wire mutations to `user_title_feedback` (upsert)
-- [ ] Wire watchlist add/remove to `user_watchlist`
-- [ ] "My List" page (watchlist + favorites, each with its own view)
-- [ ] Verify RLS: a second test account cannot see or modify the first account's data
+- [x] Favorite / like-dislike / rating controls on the title card and detail page
+- [x] Wire mutations to `user_title_feedback` (upsert)
+- [x] Wire watchlist add/remove to `user_watchlist`
+- [x] "My List" page (watchlist + favorites, each with its own view)
+- [x] Verify RLS: a second test account cannot see or modify the first account's data
 
 *Demo: favorite/like/rate a few titles, see them reflected in My List.*
 

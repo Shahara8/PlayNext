@@ -1,0 +1,52 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.button {
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: var(--foreground);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--foreground-muted);
+}
+
+.button[aria-pressed="true"] {
+  background: var(--border);
+  border-color: var(--foreground);
+}
+
+.button:disabled,
+.rating:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.rating {
+  height: 1.9rem;
+  padding: 0 0.3rem;
+  font-size: 0.8rem;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.error {
+  width: 100%;
+  color: #d32f2f;
+  font-size: 0.8rem;
+}
