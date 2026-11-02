@@ -17,3 +17,8 @@
 .empty {
   color: var(--foreground-muted);
 }
+
+.emptyLink {
+  color: var(--foreground);
+  text-decoration: underline;
+}

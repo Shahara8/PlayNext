@@ -415,6 +415,26 @@ describe("getRecommendations", () => {
     consoleError.mockRestore();
   });
 
+  it("logs failed seed lookups once per call, not once per seed", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const reason = new Error("rate limited");
+    vi.mocked(getRelatedTmdbIds).mockRejectedValue(reason);
+    vi.mocked(getTrendingTitles).mockResolvedValue([]);
+    const { viewer } = makeClient(
+      [1, 2, 3].map((tmdb_id) => feedback({ tmdb_id, sentiment: "like" })),
+      [],
+    );
+
+    await getRecommendations(viewer, 5);
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toMatch(/3 of 3 seed lookups/);
+    expect(consoleError.mock.calls[0][1]).toBe(reason);
+    consoleError.mockRestore();
+  });
+
   it("reads every page of a long history", async () => {
     vi.mocked(getTrendingTitles).mockResolvedValue([]);
     // Past the first page: a dislike that must still be excluded.

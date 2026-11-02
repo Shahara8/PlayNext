@@ -6,6 +6,7 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
     ok,
     status,
     statusText: ok ? "OK" : "Error",
+    headers: new Headers(),
     json: async () => body,
   } as Response;
 }
@@ -168,7 +169,8 @@ describe("resolveImdbToTmdb", () => {
   });
 
   it("throws with the status code when the TMDB request fails", async () => {
-    fetchMock().mockResolvedValueOnce(jsonResponse({}, false, 500));
-    await expect(resolveImdbToTmdb("tt0111161")).rejects.toThrow(/500/);
+    // 401: not retried (tmdbFetch's retries are covered in lib/tmdb.test.ts).
+    fetchMock().mockResolvedValueOnce(jsonResponse({}, false, 401));
+    await expect(resolveImdbToTmdb("tt0111161")).rejects.toThrow(/401/);
   });
 });

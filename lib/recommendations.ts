@@ -192,13 +192,21 @@ async function recommendFromSeeds(
   const lookups = await Promise.allSettled(
     seeds.map((seed) => getRelatedTmdbIds(seed.mediaType, seed.tmdbId)),
   );
-  const related = lookups.map((lookup) => {
-    if (lookup.status === "fulfilled") return lookup.value;
-    console.error(lookup.reason);
-    return null;
-  });
+  const related: (number[] | null)[] = [];
+  const failures: unknown[] = [];
+  for (const lookup of lookups) {
+    related.push(lookup.status === "fulfilled" ? lookup.value : null);
+    if (lookup.status === "rejected") failures.push(lookup.reason);
+  }
 
-  const anyFailed = related.some((ids) => ids === null);
+  // One log line per view, not per seed: during a TMDB outage or rate-limit
+  // cooldown every seed fails, usually for the same reason.
+  const anyFailed = failures.length > 0;
+  if (anyFailed)
+    console.error(
+      `getRecommendations: ${failures.length} of ${seeds.length} seed lookups failed; first:`,
+      failures[0],
+    );
 
   const candidateIds = related
     .flatMap((ids) => ids ?? [])

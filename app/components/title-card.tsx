@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-image";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
 import type { TitleSummary, TitleUserState } from "@/lib/user-titles";
 import TitleActions from "./title-actions";
+import Poster from "./poster";
 import styles from "./title-card.module.css";
 
 export default function TitleCard({
@@ -25,17 +25,13 @@ export default function TitleCard({
     <div className={styles.card}>
       <Link href={`/title/${row.tmdb_id}`} className={styles.link}>
         <div className={styles.posterWrap}>
-          {poster ? (
-            <Image
-              src={poster}
-              alt={row.title}
-              fill
-              sizes="(max-width: 600px) 45vw, (max-width: 1000px) 22vw, 15vw"
-              className={styles.poster}
-            />
-          ) : (
-            <div className={styles.posterFallback}>{row.title}</div>
-          )}
+          <Poster
+            src={poster}
+            alt={row.title}
+            sizes="(max-width: 600px) 45vw, (max-width: 1000px) 22vw, 15vw"
+            className={styles.poster}
+            fallbackClassName={styles.posterFallback}
+          />
         </div>
         <span className={styles.title}>{row.title}</span>
         <span className={styles.meta}>

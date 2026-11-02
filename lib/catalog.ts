@@ -29,6 +29,8 @@ export interface CatalogRow {
 
 export type SortKey = "trending" | "newest" | "rating" | "alphabetical";
 
+export const DEFAULT_SORT: SortKey = "trending";
+
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "trending", label: "Trending" },
   { value: "newest", label: "Newest" },
@@ -70,7 +72,7 @@ export async function getCatalogByProvider(
   providerCode: string,
   options: { sort?: SortKey; filters?: CatalogFilters } = {},
 ): Promise<CatalogRow[]> {
-  const { sort = "trending", filters = {} } = options;
+  const { sort = DEFAULT_SORT, filters = {} } = options;
   const supabase = createPublicClient();
   let query = supabase
     .from("v_catalog")
@@ -128,7 +130,11 @@ export async function getCatalogByTmdbId(
   const { data, error } = await supabase
     .from("v_catalog")
     .select("*")
-    .eq("tmdb_id", tmdbId);
+    .eq("tmdb_id", tmdbId)
+    // A stable order, so the page and its metadata list providers the same
+    // way on every request.
+    .order("provider")
+    .order("availability_type");
 
   if (error) throw new Error(`getCatalogByTmdbId failed: ${error.message}`);
   return data as CatalogRow[];

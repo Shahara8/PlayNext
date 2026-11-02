@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BASE_BACKOFF_MS, resetTmdbCooldown } from "./tmdb";
 import { getRelatedTmdbIds, SPARSE_RECOMMENDATIONS } from "./tmdb-related";
 
 // cacheLife only works inside Next's runtime; caching itself isn't under test.
 vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 
-function listResponse(ids: number[], status = 200) {
+function listResponse(
+  ids: number[],
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return {
     ok: status === 200,
     status,
     statusText: status === 200 ? "OK" : "Error",
+    headers: new Headers(headers),
     json: async () => ({ results: ids.map((id) => ({ id })) }),
   } as Response;
 }
@@ -21,11 +27,14 @@ describe("getRelatedTmdbIds", () => {
   beforeEach(() => {
     process.env.TMDB_API_KEY = "test-token";
     vi.stubGlobal("fetch", vi.fn());
+    resetTmdbCooldown();
   });
 
   afterEach(() => {
     delete process.env.TMDB_API_KEY;
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   function fetchMock() {
@@ -51,9 +60,32 @@ describe("getRelatedTmdbIds", () => {
   });
 
   it("throws when TMDB fails", async () => {
-    fetchMock().mockResolvedValueOnce(listResponse([], 429));
+    fetchMock().mockResolvedValueOnce(listResponse([], 401));
+
+    await expect(getRelatedTmdbIds("movie", 550)).rejects.toThrow(/401/);
+  });
+
+  it("fails at once on a rate limit too long to wait out on a page", async () => {
+    fetchMock().mockResolvedValueOnce(
+      listResponse([], 429, { "Retry-After": "10" }),
+    );
 
     await expect(getRelatedTmdbIds("movie", 550)).rejects.toThrow(/429/);
+    expect(fetchMock()).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a brief TMDB hiccup within the page's budget", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    fetchMock()
+      .mockResolvedValueOnce(listResponse([], 503, { "Retry-After": "0" }))
+      .mockResolvedValueOnce(listResponse(range(1, SPARSE_RECOMMENDATIONS)));
+
+    const result = getRelatedTmdbIds("tv", 1);
+    await vi.advanceTimersByTimeAsync(BASE_BACKOFF_MS);
+
+    expect(await result).toHaveLength(SPARSE_RECOMMENDATIONS);
+    expect(fetchMock()).toHaveBeenCalledTimes(2);
   });
 
   it("returns no ids for a title TMDB no longer has", async () => {

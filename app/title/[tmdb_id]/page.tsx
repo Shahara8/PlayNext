@@ -1,12 +1,31 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Image from "next/image";
+import { cache } from "react";
 import { getCatalogByTmdbId } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
 import { getProviderByCode } from "@/lib/providers";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
+import { NOT_FOUND_METADATA, titleMetadata } from "@/lib/seo";
+import { parseTmdbId } from "@/lib/query-params";
 import TitleActions from "@/app/components/title-actions";
+import Poster from "@/app/components/poster";
 import styles from "./page.module.css";
+
+// Shared by generateMetadata and the page, so one request reads it once.
+const getTitleRows = cache(getCatalogByTmdbId);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tmdb_id: string }>;
+}): Promise<Metadata> {
+  const tmdbId = parseTmdbId((await params).tmdb_id);
+  if (tmdbId === null) return NOT_FOUND_METADATA;
+  const rows = await getTitleRows(tmdbId);
+  // No rows: the page calls notFound(), which sets noindex.
+  return rows.length > 0 ? titleMetadata(rows) : NOT_FOUND_METADATA;
+}
 
 export default async function TitleDetailPage({
   params,
@@ -14,10 +33,10 @@ export default async function TitleDetailPage({
   params: Promise<{ tmdb_id: string }>;
 }) {
   const { tmdb_id } = await params;
-  const tmdbId = Number(tmdb_id);
-  if (!Number.isInteger(tmdbId)) notFound();
+  const tmdbId = parseTmdbId(tmdb_id);
+  if (tmdbId === null) notFound();
 
-  const rows = await getCatalogByTmdbId(tmdbId);
+  const rows = await getTitleRows(tmdbId);
   if (rows.length === 0) notFound();
 
   const { userId, states, unavailable } = await getViewerTitleStates([tmdbId]);
@@ -31,17 +50,13 @@ export default async function TitleDetailPage({
     <main className={styles.main}>
       <div className={styles.layout}>
         <div className={styles.posterWrap}>
-          {poster ? (
-            <Image
-              src={poster}
-              alt={title.title}
-              fill
-              sizes="(max-width: 700px) 60vw, 300px"
-              className={styles.poster}
-            />
-          ) : (
-            <div className={styles.posterFallback}>{title.title}</div>
-          )}
+          <Poster
+            src={poster}
+            alt={title.title}
+            sizes="(max-width: 700px) 60vw, 300px"
+            className={styles.poster}
+            fallbackClassName={styles.posterFallback}
+          />
         </div>
 
         <div className={styles.info}>

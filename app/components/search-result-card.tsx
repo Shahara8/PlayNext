@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { SearchResultRow } from "@/lib/search";
 import { posterUrl } from "@/lib/tmdb-image";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
 import ProviderBadges from "./provider-badges";
+import Poster from "./poster";
 import styles from "./search-result-card.module.css";
 
 export default function SearchResultCard({ row }: { row: SearchResultRow }) {
@@ -14,17 +14,13 @@ export default function SearchResultCard({ row }: { row: SearchResultRow }) {
   return (
     <Link href={`/title/${row.tmdb_id}`} className={styles.card}>
       <div className={styles.posterWrap}>
-        {poster ? (
-          <Image
-            src={poster}
-            alt={row.title}
-            fill
-            sizes="80px"
-            className={styles.poster}
-          />
-        ) : (
-          <div className={styles.posterFallback}>{row.title}</div>
-        )}
+        <Poster
+          src={poster}
+          alt={row.title}
+          sizes="80px"
+          className={styles.poster}
+          fallbackClassName={styles.posterFallback}
+        />
       </div>
       <div className={styles.info}>
         <span className={styles.title}>{row.title}</span>

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProviderBySlug } from "@/lib/providers";
 import {
@@ -6,18 +8,30 @@ import {
   SORT_OPTIONS,
   TYPE_OPTIONS,
   AVAILABILITY_OPTIONS,
+  DEFAULT_SORT,
   type CatalogRow,
   type SortKey,
 } from "@/lib/catalog";
 import TitleCard from "@/app/components/title-card";
 import SortFilterBar from "@/app/components/sort-filter-bar";
-import { firstSearchParam } from "@/lib/query-params";
+import { firstSearchParam, withUpdatedParam } from "@/lib/query-params";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
+import { browseMetadata, NOT_FOUND_METADATA } from "@/lib/seo";
 import styles from "./page.module.css";
 
 const SORT_KEYS = SORT_OPTIONS.map((o) => o.value) as string[];
 const TYPE_VALUES = TYPE_OPTIONS.map((o) => o.value);
 const AVAILABILITY_VALUES = AVAILABILITY_OPTIONS.map((o) => o.value);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ provider: string }>;
+}): Promise<Metadata> {
+  const provider = getProviderBySlug((await params).provider);
+  // Unknown provider: the page calls notFound(), which sets noindex.
+  return provider ? browseMetadata(provider) : NOT_FOUND_METADATA;
+}
 
 export default async function BrowsePage({
   params,
@@ -34,7 +48,7 @@ export default async function BrowsePage({
   const sortRaw = firstSearchParam(sp.sort);
   const sort: SortKey = SORT_KEYS.includes(sortRaw)
     ? (sortRaw as SortKey)
-    : "trending";
+    : DEFAULT_SORT;
 
   const typeRaw = firstSearchParam(sp.type);
   const type = TYPE_VALUES.includes(typeRaw as CatalogRow["type"])
@@ -76,9 +90,24 @@ export default async function BrowsePage({
       />
       {rows.length === 0 ? (
         <p className={styles.empty}>
-          {filtersActive
-            ? "Nothing matches these filters."
-            : `Nothing available on ${provider.label} yet.`}
+          {filtersActive ? (
+            <>
+              Nothing matches these filters.{" "}
+              <Link
+                href={withUpdatedParam(
+                  "",
+                  `/browse/${provider.slug}`,
+                  "sort",
+                  sort === DEFAULT_SORT ? "" : sort,
+                )}
+                className={styles.emptyLink}
+              >
+                Clear filters
+              </Link>
+            </>
+          ) : (
+            `Nothing available on ${provider.label} yet.`
+          )}
         </p>
       ) : (
         <div className={styles.grid}>

@@ -173,6 +173,10 @@ describe("getCatalogByTmdbId", () => {
     expect(from).toHaveBeenCalledWith("v_catalog");
     expect(builder.eq).toHaveBeenCalledWith("tmdb_id", 1396);
     expect(builder.eq).toHaveBeenCalledTimes(1);
+    expect(builder.order.mock.calls).toEqual([
+      ["provider"],
+      ["availability_type"],
+    ]);
     expect(result).toBe(rows);
   });
 

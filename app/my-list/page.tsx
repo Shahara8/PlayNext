@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -9,6 +10,11 @@ import { getFavoriteTitles, getWatchlistTitles } from "@/lib/user-titles";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import TitleCard from "@/app/components/title-card";
 import styles from "./page.module.css";
+
+export const metadata: Metadata = {
+  title: "My List",
+  robots: { index: false },
+};
 
 export default async function MyListPage({
   searchParams,
@@ -51,8 +57,11 @@ export default async function MyListPage({
       {titles.length === 0 ? (
         <p className={styles.empty}>
           {view === "favorites"
-            ? "No favorites yet."
-            : "Your watchlist is empty."}
+            ? "No favorites yet. Tap ♡ on any title to add it here."
+            : "Your watchlist is empty. Tap + on any title to save it for later."}{" "}
+          <Link href="/" className={styles.emptyLink}>
+            Find something to watch
+          </Link>
         </p>
       ) : (
         <div className={styles.grid}>

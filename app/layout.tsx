@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/seo";
 import Header from "./components/header";
 import "./globals.css";
 
@@ -14,9 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlayNext",
-  description:
-    "Find where to watch any movie or show across streaming services.",
+  metadataBase: new URL(siteUrl()),
+  // The template applies to child pages; the home page gets the default.
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: { siteName: SITE_NAME, type: "website" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

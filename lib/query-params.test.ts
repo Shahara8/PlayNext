@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { firstSearchParam, withUpdatedParam } from "./query-params";
+import {
+  firstSearchParam,
+  MAX_TMDB_ID,
+  parseTmdbId,
+  withUpdatedParam,
+} from "./query-params";
+
+describe("parseTmdbId", () => {
+  it("parses a plain positive id", () => {
+    expect(parseTmdbId("456")).toBe(456);
+    expect(parseTmdbId(String(MAX_TMDB_ID))).toBe(MAX_TMDB_ID);
+  });
+
+  it("rejects non-canonical forms, so a title has one URL", () => {
+    for (const raw of ["0x1c8", "4.56e2", "456.0", "+456", "0456", " 456", ""])
+      expect(parseTmdbId(raw)).toBeNull();
+  });
+
+  it("rejects zero, negatives, and ids past Postgres integer", () => {
+    expect(parseTmdbId("0")).toBeNull();
+    expect(parseTmdbId("-1")).toBeNull();
+    expect(parseTmdbId(String(MAX_TMDB_ID + 1))).toBeNull();
+  });
+});
 
 describe("firstSearchParam", () => {
   it("returns the value unchanged for a single string", () => {

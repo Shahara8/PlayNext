@@ -11,6 +11,9 @@ export const SPARSE_RECOMMENDATIONS = 10;
 // One budget for a seed's whole lookup (both calls), since recommendations
 // render on the page: a hung TMDB fails the seed rather than the page.
 export const RELATED_TIMEOUT_MS = 5000;
+// Retries fit inside that budget: a longer Retry-After (or rate-limit
+// cooldown) fails the seed at once, and the page falls back to trending.
+export const RELATED_MAX_RETRY_DELAY_MS = 1000;
 
 /**
  * TMDB ids related to one title (same media type as the title): its
@@ -27,12 +30,15 @@ export async function getRelatedTmdbIds(
   cacheLife("hours");
 
   const base = `/${mediaType}/${tmdbId}`;
-  const signal = AbortSignal.timeout(RELATED_TIMEOUT_MS);
+  const options = {
+    signal: AbortSignal.timeout(RELATED_TIMEOUT_MS),
+    maxRetryDelayMs: RELATED_MAX_RETRY_DELAY_MS,
+  };
   try {
     const recommendations = await tmdbFetch<TmdbListResponse>(
       `${base}/recommendations`,
       {},
-      signal,
+      options,
     );
     const ids = recommendations.results.map((r) => r.id);
     if (ids.length >= SPARSE_RECOMMENDATIONS) return ids;
@@ -40,7 +46,7 @@ export async function getRelatedTmdbIds(
     const similar = await tmdbFetch<TmdbListResponse>(
       `${base}/similar`,
       {},
-      signal,
+      options,
     );
     return Array.from(new Set([...ids, ...similar.results.map((r) => r.id)]));
   } catch (error) {

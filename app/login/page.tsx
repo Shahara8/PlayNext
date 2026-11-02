@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase-server";
 import { firstSearchParam } from "@/lib/query-params";
@@ -16,6 +17,11 @@ import styles from "./page.module.css";
 // this case ("allow a blocking route") — confirmed by removing it and
 // reproducing the build failure.
 export const instant = false;
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  robots: { index: false },
+};
 
 export default async function LoginPage({
   searchParams,
