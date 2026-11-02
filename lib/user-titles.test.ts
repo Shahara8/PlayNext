@@ -10,9 +10,9 @@ import {
   setInWatchlist,
   setRating,
   setSentiment,
-  STATE_QUERY_CHUNK_SIZE,
   titleStateKey,
 } from "./user-titles";
+import { ID_CHUNK_SIZE } from "./id-chunks";
 
 type Result = { data?: unknown; error: { message: string } | null };
 
@@ -151,10 +151,7 @@ describe("getTitleStates", () => {
       user_title_feedback: { data: [], error: null },
       user_watchlist: { data: [], error: null },
     });
-    const ids = Array.from(
-      { length: STATE_QUERY_CHUNK_SIZE * 2 + 1 },
-      (_, i) => i + 1,
-    );
+    const ids = Array.from({ length: ID_CHUNK_SIZE * 2 + 1 }, (_, i) => i + 1);
 
     await getTitleStates(client, "u1", ids);
 
@@ -165,8 +162,8 @@ describe("getTitleStates", () => {
       ][]
     ).map(([, chunk]) => chunk);
     expect(chunks.map((c) => c.length)).toEqual([
-      STATE_QUERY_CHUNK_SIZE,
-      STATE_QUERY_CHUNK_SIZE,
+      ID_CHUNK_SIZE,
+      ID_CHUNK_SIZE,
       1,
     ]);
     expect(chunks.flat()).toEqual(ids);

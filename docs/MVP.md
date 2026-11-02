@@ -14,6 +14,34 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-02 — M7 complete: recommendations
+- Did: added `lib/recommendations.ts` (`getRecommendations(viewer, limit)`, where `viewer` is `{ supabase, userId }` or null when signed out, plus pure `isSeed`/`hasOpinion`/`pickSeeds`/`scoreCandidates`/`parseLimit`), `lib/tmdb-related.ts` (`getRelatedTmdbIds`: `/recommendations`, plus `/similar` when it returns under 10 results, cached with `use cache` + `cacheLife("hours")`, one 5s timeout per seed, a TMDB 404 cached as an empty list), and two catalog reads in `lib/catalog.ts` (`getTrendingTitles(limit, excludeIds)` across all providers, paging through `v_catalog` 100 rows at a time until it has `limit` distinct titles; `getCatalogTitlesByIds(ids)`). Moved `tmdbFetch` out of `lib/tmdb-resolve.ts` into a shared `lib/tmdb.ts`. It now throws `TmdbError` (which carries `status`) and accepts an optional `AbortSignal`; the seed script passes none, so it has no timeout, same as before. Extracted the `.in()` id chunking from `lib/user-titles.ts` into `lib/id-chunks.ts` (`chunkIds`, `ID_CHUNK_SIZE`; replaces `STATE_QUERY_CHUNK_SIZE`), now used by both. `app/api/recommendations/route.ts` is `GET ?limit=` (digits only, clamped to 1-20, default 20) and returns `{ hasSeeds, seedLookupsFailed, titles }` (each title has `source: "seeds" | "trending"`), or a generic 500. The home page has a "For You" section (`app/components/for-you.tsx`, 12 cards, behind `<Suspense>` with a skeleton, so the rest of `/` stays prerendered), with a caption for each state: signed out ("Trending" + sign-in prompt), cold start, seed-based, no catalog matches, TMDB lookups failing, and a load error. Added a `@` alias to `vitest.config.ts` so `app/` code using `@/` imports can be tested. New tests: `lib/recommendations.test.ts`, `lib/tmdb-related.test.ts`, `lib/tmdb.test.ts`, `lib/id-chunks.test.ts`, `app/api/recommendations/route.test.ts`, more in `lib/catalog.test.ts`.
+- Decisions / deviations (Section 6 updated to match):
+  - **Trending top-up.** Before building, I measured TMDB's recommendations+similar against the 26-title mock catalog: only 6 titles have any related title in the catalog (e.g. Loki↔WandaVision, Wednesday→Stranger Things). A seed-only list would be empty for most users, so seed-based picks come first and trending titles fill the rest. Trending is fetched in parallel with the TMDB lookups, not after them.
+  - **Wider exclusion than Section 6 originally said**: any title with a favorite, like, dislike, or *any* rating (not just favorite/watchlist/dislike) is excluded, since recommending something already liked or rated is pointless. All-empty feedback rows (M6 leaves these when every field is cleared) don't count.
+  - **Signed-out viewers get trending** from both the API (no 401) and the home page, under a "Trending" heading. No cookie-bound client is created for them.
+  - **No TTL cache table**: `use cache` covers step 7 without a migration. The cache is per instance, so on Vercel a cold instance refetches. Errors aren't cached, so a failing seed is retried on the next view; `Promise.allSettled` logs and skips it.
+  - "For You" is on the home page only, not the browse page: browse is per-provider, recommendations are cross-provider.
+  - For You cards show the like/favorite/watchlist controls without a state read, since every recommended title has no saved state by construction. Acting on one refreshes the page and the title drops out of the list (verified live via the API).
+  - The viewer's feedback and watchlist reads page in 1000-row pages, so PostgREST's max-rows cap can't silently drop exclusions or seeds. Seeds sort by `Date.parse(updated_at)`, not string comparison (Postgres trims trailing zeros from fractional seconds).
+  - In `for-you.tsx`, `await connection()` must stay **outside** the try/catch: during prerendering it rejects on purpose, and catching that rejection logs "connection() rejects when the prerender is complete" in `next build` (caught and fixed this session). The session lookup and recommendations are inside the try, so a failure shows the section's error state instead of breaking `/`.
+  - Found while scoring: `title_cache.tmdb_id` is the PK alone, but TMDB ids are only unique per media type. Scoring keys candidates on (media type, id), so M7 is safe either way, but the schema could collide at real-feed scale. Noted in `docs/INGESTION.md` Section 5 for the cutover. Not changed now.
+- `/code-review` (three passes before committing). Fixed: PostgREST max-rows truncation and the rows-per-title guess in trending (now pages); no TMDB timeout on the render path (then scoped so it no longer applies to the seed script, and shared across a seed's two calls); TMDB 404s refetched on every view; `localeCompare` on timestamps; unpaged feedback/watchlist reads; a TMDB outage captioned as "nothing in the catalog"; the error-state heading; session failure crashing `/`; `parseLimit` accepting `" "`/`0x5`; duplicated chunking and de-dup code; error messages not naming the table; no tests for `lib/tmdb.ts`.
+- Declined from those passes (revisit in M8 if needed):
+  - Caching the shared signed-out trending list, and replacing the page walk with a per-title RPC/`NOT IN` query. Both are performance work: the walk takes one 100-row page at MVP size, and it only takes many pages for a user with hundreds of exclusions among top titles.
+  - `getCatalogTitlesByIds` can exceed max-rows in theory: 100 ids × providers rows per chunk, so 400 today. Becomes possible only past 10 providers; lower `ID_CHUNK_SIZE` or page it if the real feed gets there.
+  - `hasSeeds` counting a seed row whose `title_cache` embed is null. That can't happen: the FK cascades on delete and `title_cache` is public-readable. Two review passes also asked for opposite fixes here.
+  - `scoreCandidates` re-checking `excluded` after the caller already filtered: kept so the pure function is correct on its own.
+- Verified: `npm test` (172 passing), `npm run lint`/`format:check`/`build` clean (build log has no errors; `/` partial-prerendered, `/api/recommendations` dynamic). A throwaway script (not committed) ran against the final production build on port 3100 and the live project, using a confirmed account created via the admin API and deleted afterwards (0 rows left). 16/16 passing:
+  - Signed out: the API returns 20 popularity-ordered, de-duplicated trending titles, and the home page shows "Trending" with the sign-in prompt.
+  - Cold start: with one dislike and one watchlisted title, both are excluded.
+  - Seeded: liking Wednesday and rating Loki 8 yields Stranger Things + WandaVision as seed picks ahead of trending, never the seeds themselves.
+  - Watchlisting a pick removes it, and `?limit=3` is honored.
+- Notes on that verification: the script's first run reported 3 failures from a bug in the script itself (a plain upsert on `user_watchlist`, which has no UPDATE grant; the app passes `ignoreDuplicates`). Also, stopping `npx next start` through the task runner on Windows left the `next` child process running on the port, so one rerun hit the old build. Start `node node_modules/next/dist/bin/next start` directly and stop it by PID.
+- **Not verified**: the For You section in a real browser (layout, skeleton, clicking a control on a recommended card). Still also pending from M6: the browser click-through of the M6 controls.
+- Noticed: a stale `next start` from an earlier session is still holding port 3000 (PID 23488), so it serves an old build. Left running in case it's the user's; kill it before the next smoke test on 3000.
+- Next step: browser click-through of M6 + M7 (like two titles on the home page, see For You update). Then M8 — Polish & production hardening (Section 9), starting with TMDB error/rate-limit handling, which now matters for recommendations too (see the declined items above).
+
 ### 2026-10-31 — M6 built: favorites, watchlist, like/dislike, rating (browser click-through still pending)
 - Did: added `lib/user-titles.ts` (`getTitleStates`, `setFavorite`/`setSentiment`/`setRating`, `setInWatchlist`, `getWatchlistTitles`/`getFavoriteTitles`, pure `nextSentiment`/`parseRating`; every function takes the Supabase client as a parameter so the same module works from Client and Server Components) and `lib/viewer-titles.ts` (`getViewerTitleStates`, server-only, returns the viewer's id + states or null + empty when signed out), with `lib/user-titles.test.ts` (25 tests) and `lib/viewer-titles.test.ts` (2 tests). Built `app/components/title-actions.tsx` (client component: favorite, watchlist, like, dislike, 1-10 rating select) and put it on `title-card.tsx` and `app/title/[tmdb_id]/page.tsx`. Added `app/my-list/` (`?view=favorites` or the default watchlist, redirects to `/login` when signed out, per-view empty state, `loading.tsx`) and made the header's "My List" placeholder a real link. No migration needed: M1's tables, RLS and grants already cover this.
 - Decisions / deviations:
@@ -218,13 +246,15 @@ MVP scale doesn't justify Algolia/Elasticsearch. Use **Postgres trigram similari
 
 Simple content-based, computed **on-demand** (no batch/precompute job — consistent with avoiding Edge Functions/pg_cron):
 
-1. Seed set = user's favorited/liked/highly-rated (≥7) `tmdb_id`s (most recent ~20).
-2. **Cold start** (no seeds yet) → fall back to the same "Trending" query used for browse.
-3. Per seed, call TMDB `/recommendations` (falling back to `/similar` when sparse).
-4. Merge + score by (# seeds recommending it) + a small genre-overlap boost.
-5. **Filter to our actual catalog** — only keep candidates with a currently-available `provider_availability` row. At MVP catalog size most TMDB suggestions won't be carried locally; that's an accepted, explicitly-stated MVP limitation.
-6. Exclude anything already favorited/watchlisted/disliked. Return top 10-20.
-7. Optional lightweight TTL cache table for TMDB recommendation responses (not a cron job — just avoids refetching on every page view).
+1. Seed set = user's favorited/liked/highly-rated (≥7) `tmdb_id`s (most recent 20 by `updated_at`).
+2. **Cold start** (no seeds yet, or signed out) → fall back to the "Trending" order used for browse (`popularity desc`), across every provider in the region.
+3. Per seed, call TMDB `/recommendations` (also fetching `/similar` when it returns fewer than 10 results).
+4. Merge + score by (# seeds recommending it) + a genre-overlap boost (0.5 × the share of the candidate's genres the seeds have), so overlap only breaks ties between equal seed counts. Candidates key on (media type, TMDB id).
+5. **Filter to our actual catalog**: only keep candidates with a currently-available `provider_availability` row. At MVP catalog size most TMDB suggestions won't be carried locally (measured in M7: only 6 of 26 mock titles have any related title in the catalog). That's an accepted MVP limitation, so when the picks run short, the list is **topped up with trending titles** (marked `source: "trending"`) after the seed-based ones (`source: "seeds"`).
+6. Exclude anything the user has an opinion on (favorite, like, dislike, any rating) or has watchlisted. Return up to 20 (`?limit=`); the home page shows 12.
+7. TMDB responses are cached per seed with Next's `use cache` + `cacheLife("hours")` (`lib/tmdb-related.ts`) instead of a TTL table: no migration, no cron. The cache is per server instance, so a cold serverless instance refetches.
+
+Code: `lib/recommendations.ts` (scoring + orchestration), `lib/tmdb-related.ts` (cached TMDB calls, 5s timeout per seed), `lib/catalog.ts` (`getTrendingTitles`, `getCatalogTitlesByIds`). Response: `{ hasSeeds, seedLookupsFailed, titles }`. `GET /api/recommendations` and the home page's "For You" section (`app/components/for-you.tsx`) both call `getRecommendations()`; the page calls it directly rather than fetching its own API.
 
 **Explicit non-goal**: collaborative filtering — a clear post-MVP step once there's a real user base with enough interaction density to make it outperform content-based.
 
@@ -343,15 +373,15 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 ### M7 — Recommendations
 **Story:** As a signed-in user, I want to see titles recommended to me based on what I've liked or rated highly, so I can discover something new to watch.
 
-- [ ] `/api/recommendations` route handler
-- [ ] Seed-set gathering from `user_title_feedback` (favorites/likes/rating ≥ 7)
-- [ ] Cold-start fallback to the Trending query when there's no seed data yet
-- [ ] Per-seed TMDB `/recommendations` (fallback `/similar`) calls
-- [ ] Merge + score candidates (seed count + genre overlap)
-- [ ] Filter results to titles currently available in our catalog
-- [ ] Exclude already favorited/watchlisted/disliked titles
-- [ ] "For You" UI section on the home/browse page
-- [ ] (Optional) TTL cache table for TMDB recommendation responses
+- [x] `/api/recommendations` route handler
+- [x] Seed-set gathering from `user_title_feedback` (favorites/likes/rating ≥ 7)
+- [x] Cold-start fallback to the Trending query when there's no seed data yet
+- [x] Per-seed TMDB `/recommendations` (fallback `/similar`) calls
+- [x] Merge + score candidates (seed count + genre overlap)
+- [x] Filter results to titles currently available in our catalog
+- [x] Exclude already favorited/watchlisted/disliked titles
+- [x] "For You" UI section on the home/browse page (home page only)
+- [x] (Optional) TTL cache for TMDB recommendation responses (`use cache` + `cacheLife("hours")`, not a table)
 
 *Demo: like two titles, see the "For You" section update accordingly.*
 
@@ -389,3 +419,4 @@ Build and stand up the real daily ingestion pipeline per `docs/INGESTION.md`, th
 - `scripts/seed-mock-data.ts` — resolves mock feed via TMDB, upserts into `title_cache`/`provider_availability`
 - `lib/tmdb-resolve.ts` — shared imdb→tmdb→metadata resolver (reused by mock seed now, real pipeline later)
 - `app/api/recommendations/route.ts` — the one custom backend endpoint
+- `lib/recommendations.ts` — recommendation seeds, scoring, exclusions, trending top-up

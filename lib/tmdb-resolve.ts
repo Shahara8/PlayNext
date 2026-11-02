@@ -3,7 +3,7 @@
 // (docs/INGESTION.md Section 3) will import this same module so mock and
 // real data go through one matching codepath that can never drift.
 
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+import { tmdbFetch } from "./tmdb";
 
 export type FeedMediaType = "movie" | "tv_series";
 
@@ -53,27 +53,6 @@ interface TvDetails {
   vote_average: number;
   popularity: number;
   external_ids?: { imdb_id: string | null };
-}
-
-async function tmdbFetch<T>(
-  path: string,
-  params: Record<string, string> = {},
-): Promise<T> {
-  // TMDB_API_KEY holds the v4 Read Access Token (a JWT), sent as a bearer
-  // token — not the legacy v3 api_key query param.
-  const token = process.env.TMDB_API_KEY;
-  if (!token) throw new Error("TMDB_API_KEY is not set");
-
-  const query = new URLSearchParams(params);
-  const res = await fetch(`${TMDB_BASE_URL}${path}?${query.toString()}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!res.ok) {
-    throw new Error(
-      `TMDB request failed: ${path} -> ${res.status} ${res.statusText}`,
-    );
-  }
-  return res.json() as Promise<T>;
 }
 
 /**

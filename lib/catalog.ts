@@ -1,4 +1,5 @@
 import { createPublicClient } from "./supabase";
+import { chunkIds } from "./id-chunks";
 import { REGION } from "./providers";
 
 // Mirrors public.v_catalog (supabase/migrations/0001_user_data_and_views.sql).
@@ -131,4 +132,97 @@ export async function getCatalogByTmdbId(
 
   if (error) throw new Error(`getCatalogByTmdbId failed: ${error.message}`);
   return data as CatalogRow[];
+}
+
+// What recommendations need per title: enough to render a card, plus the
+// fields scoring uses (genres for overlap, popularity for tie-breaks).
+export type CatalogTitle = Pick<
+  CatalogRow,
+  | "tmdb_id"
+  | "media_type"
+  | "title"
+  | "poster_path"
+  | "release_date"
+  | "genres"
+  | "popularity"
+>;
+
+const CATALOG_TITLE_COLUMNS =
+  "tmdb_id,media_type,title,poster_path,release_date,genres,popularity";
+
+// Rows per page when walking v_catalog in trending order. Kept well below
+// PostgREST's max-rows cap (1000 by default), so a short page reliably means
+// the end of the catalog rather than a truncated response.
+export const TRENDING_PAGE_SIZE = 100;
+
+// v_catalog has one row per provider a title is on; callers want one per title.
+// `seen` (ids to skip) is updated in place, so it can carry across pages.
+function uniqueTitles(
+  rows: CatalogTitle[],
+  seen: Set<number> = new Set(),
+): CatalogTitle[] {
+  return rows.filter((row) => {
+    if (seen.has(row.tmdb_id)) return false;
+    seen.add(row.tmdb_id);
+    return true;
+  });
+}
+
+/**
+ * The most popular titles across every provider (the browse page's
+ * "Trending" order), skipping `excludeIds`. Recommendations' cold-start
+ * fallback and top-up.
+ */
+export async function getTrendingTitles(
+  limit: number,
+  excludeIds: ReadonlySet<number> = new Set(),
+): Promise<CatalogTitle[]> {
+  const supabase = createPublicClient();
+  const { column, ascending } = SORT_COLUMNS.trending;
+  const seen = new Set(excludeIds);
+  const titles: CatalogTitle[] = [];
+
+  // Pages until there are `limit` distinct titles, since how many rows that
+  // takes depends on how many providers carry each title and on exclusions.
+  for (let from = 0; titles.length < limit; from += TRENDING_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("v_catalog")
+      .select(CATALOG_TITLE_COLUMNS)
+      .eq("region", REGION)
+      .order(column, { ascending, nullsFirst: false })
+      // A total order, so pages never overlap or skip rows.
+      .order("tmdb_id", { ascending: true })
+      .order("availability_id", { ascending: true })
+      .range(from, from + TRENDING_PAGE_SIZE - 1);
+
+    if (error) throw new Error(`getTrendingTitles failed: ${error.message}`);
+    titles.push(...uniqueTitles(data as CatalogTitle[], seen));
+    if (data.length < TRENDING_PAGE_SIZE) break;
+  }
+
+  return titles.slice(0, limit);
+}
+
+/** The given titles that are currently available in the region, one row each. */
+export async function getCatalogTitlesByIds(
+  tmdbIds: number[],
+): Promise<CatalogTitle[]> {
+  const supabase = createPublicClient();
+  const results = await Promise.all(
+    chunkIds(Array.from(new Set(tmdbIds))).map((chunk) =>
+      supabase
+        .from("v_catalog")
+        .select(CATALOG_TITLE_COLUMNS)
+        .eq("region", REGION)
+        .in("tmdb_id", chunk),
+    ),
+  );
+
+  return uniqueTitles(
+    results.flatMap(({ data, error }) => {
+      if (error)
+        throw new Error(`getCatalogTitlesByIds failed: ${error.message}`);
+      return data as CatalogTitle[];
+    }),
+  );
 }

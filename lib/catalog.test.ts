@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createPublicClient } from "./supabase";
+import { ID_CHUNK_SIZE } from "./id-chunks";
 
 vi.mock("./supabase", () => ({
   createPublicClient: vi.fn(),
@@ -16,6 +17,7 @@ function makeQueryBuilder(result: {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     contains: vi.fn(() => builder),
+    in: vi.fn(() => builder),
     order: vi.fn(() => builder),
     then: (
       resolve: (value: typeof result) => unknown,
@@ -185,5 +187,174 @@ describe("getCatalogByTmdbId", () => {
     } as never);
 
     await expect(getCatalogByTmdbId(1396)).rejects.toThrow(/timeout/);
+  });
+});
+
+describe("getTrendingTitles", () => {
+  // One result per awaited page, in order.
+  function makePagedBuilder(
+    pages: { data: unknown; error: { message: string } | null }[],
+  ) {
+    let page = 0;
+    const builder = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      order: vi.fn(() => builder),
+      range: vi.fn(() => builder),
+      then: (
+        resolve: (value: unknown) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve(pages[page++]).then(resolve, reject),
+    };
+    return builder;
+  }
+
+  function rowsFor(ids: number[]) {
+    return ids.map((tmdb_id) => ({ tmdb_id }));
+  }
+
+  it("orders the whole region by popularity, one row per title", async () => {
+    const { getTrendingTitles } = await import("./catalog");
+    const builder = makePagedBuilder([
+      { data: rowsFor([1, 1, 2, 3, 4]), error: null },
+    ]);
+    const from = vi.fn(() => builder);
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    const result = await getTrendingTitles(3);
+
+    expect(from).toHaveBeenCalledWith("v_catalog");
+    expect(builder.eq).toHaveBeenCalledWith("region", "IL");
+    expect(builder.eq).toHaveBeenCalledTimes(1);
+    expect(builder.order).toHaveBeenNthCalledWith(1, "popularity", {
+      ascending: false,
+      nullsFirst: false,
+    });
+    expect(builder.order).toHaveBeenNthCalledWith(2, "tmdb_id", {
+      ascending: true,
+    });
+    expect(builder.order).toHaveBeenNthCalledWith(3, "availability_id", {
+      ascending: true,
+    });
+    expect(result.map((row) => row.tmdb_id)).toEqual([1, 2, 3]);
+  });
+
+  it("skips excluded titles", async () => {
+    const { getTrendingTitles } = await import("./catalog");
+    const builder = makePagedBuilder([
+      { data: rowsFor([1, 2, 3, 4]), error: null },
+    ]);
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    const result = await getTrendingTitles(2, new Set([1, 3]));
+
+    expect(result.map((row) => row.tmdb_id)).toEqual([2, 4]);
+  });
+
+  it("pages until it has enough distinct titles", async () => {
+    const { getTrendingTitles, TRENDING_PAGE_SIZE } = await import("./catalog");
+    // A full first page of one title (on every provider), then the rest.
+    const builder = makePagedBuilder([
+      { data: rowsFor(Array(TRENDING_PAGE_SIZE).fill(1)), error: null },
+      { data: rowsFor([2, 3]), error: null },
+    ]);
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    const result = await getTrendingTitles(3);
+
+    expect(builder.range).toHaveBeenNthCalledWith(1, 0, TRENDING_PAGE_SIZE - 1);
+    expect(builder.range).toHaveBeenNthCalledWith(
+      2,
+      TRENDING_PAGE_SIZE,
+      TRENDING_PAGE_SIZE * 2 - 1,
+    );
+    expect(result.map((row) => row.tmdb_id)).toEqual([1, 2, 3]);
+  });
+
+  it("stops at a short page when the catalog runs out", async () => {
+    const { getTrendingTitles } = await import("./catalog");
+    const builder = makePagedBuilder([{ data: rowsFor([1]), error: null }]);
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    expect(await getTrendingTitles(5)).toHaveLength(1);
+    expect(builder.range).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws a descriptive error when the query fails", async () => {
+    const { getTrendingTitles } = await import("./catalog");
+    const builder = makePagedBuilder([
+      { data: null, error: { message: "timeout" } },
+    ]);
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    await expect(getTrendingTitles(5)).rejects.toThrow(/timeout/);
+  });
+});
+
+describe("getCatalogTitlesByIds", () => {
+  it("queries live region rows for the ids, one row per title", async () => {
+    const { getCatalogTitlesByIds } = await import("./catalog");
+    const builder = makeQueryBuilder({
+      data: [{ tmdb_id: 1 }, { tmdb_id: 1 }, { tmdb_id: 2 }],
+      error: null,
+    });
+    const from = vi.fn(() => builder);
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    const result = await getCatalogTitlesByIds([1, 2, 2]);
+
+    expect(from).toHaveBeenCalledWith("v_catalog");
+    expect(builder.eq).toHaveBeenCalledWith("region", "IL");
+    expect(builder.in).toHaveBeenCalledWith("tmdb_id", [1, 2]);
+    expect(result.map((row) => row.tmdb_id)).toEqual([1, 2]);
+  });
+
+  it("splits a long id list into chunks", async () => {
+    const { getCatalogTitlesByIds } = await import("./catalog");
+    const builder = makeQueryBuilder({ data: [], error: null });
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+    const ids = Array.from({ length: ID_CHUNK_SIZE + 1 }, (_, i) => i);
+
+    await getCatalogTitlesByIds(ids);
+
+    expect(builder.in).toHaveBeenCalledTimes(2);
+    expect(builder.in).toHaveBeenNthCalledWith(
+      1,
+      "tmdb_id",
+      ids.slice(0, ID_CHUNK_SIZE),
+    );
+    expect(builder.in).toHaveBeenNthCalledWith(2, "tmdb_id", [ID_CHUNK_SIZE]);
+  });
+
+  it("makes no query for no ids", async () => {
+    const { getCatalogTitlesByIds } = await import("./catalog");
+    const from = vi.fn();
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    expect(await getCatalogTitlesByIds([])).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("throws a descriptive error when a query fails", async () => {
+    const { getCatalogTitlesByIds } = await import("./catalog");
+    const builder = makeQueryBuilder({
+      data: null,
+      error: { message: "timeout" },
+    });
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    await expect(getCatalogTitlesByIds([1])).rejects.toThrow(/timeout/);
   });
 });

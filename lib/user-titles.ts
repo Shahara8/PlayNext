@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CatalogRow } from "./catalog";
+import { chunkIds } from "./id-chunks";
 
 export type Sentiment = "like" | "dislike";
 
@@ -55,10 +56,6 @@ export function titleStateKey(tmdbId: number, state: TitleUserState): string {
   ].join(":");
 }
 
-// Each `.in()` id list goes into the GET URL, so a big browse page is split
-// into chunks to stay well under URL-length limits.
-export const STATE_QUERY_CHUNK_SIZE = 100;
-
 async function selectForIds<T>(
   supabase: SupabaseClient,
   table: string,
@@ -66,12 +63,8 @@ async function selectForIds<T>(
   userId: string,
   tmdbIds: number[],
 ): Promise<T[]> {
-  const chunks: number[][] = [];
-  for (let i = 0; i < tmdbIds.length; i += STATE_QUERY_CHUNK_SIZE)
-    chunks.push(tmdbIds.slice(i, i + STATE_QUERY_CHUNK_SIZE));
-
   const results = await Promise.all(
-    chunks.map((chunk) =>
+    chunkIds(tmdbIds).map((chunk) =>
       supabase
         .from(table)
         .select(columns)

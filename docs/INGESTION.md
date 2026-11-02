@@ -83,6 +83,10 @@ Per provider, per run, in one transaction:
 
 ```sql
 -- TMDB metadata cache, shared across all providers/regions
+-- NOTE (found in MVP M7): TMDB ids are only unique *per media type* (movie 1396
+-- and tv 1396 are different titles), so a lone tmdb_id PK can collide once the
+-- real feed brings in thousands of titles. Consider (tmdb_id, media_type) before
+-- the cutover; it touches every FK to title_cache (user_watchlist, feedback).
 CREATE TABLE title_cache (
   tmdb_id           INTEGER PRIMARY KEY,
   media_type        TEXT NOT NULL CHECK (media_type IN ('movie','tv')),
