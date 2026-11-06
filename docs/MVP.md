@@ -14,6 +14,13 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (end) — M8 (cont.): emulated phone screenshots, full-width `<main>` fix
+- The user asked whether I could check the phone layout myself. There's no `adb` on this machine, but Chrome is installed, so a throwaway script drove headless Chrome over the DevTools Protocol with `Emulation.setDeviceMetricsOverride` (412×915, DPR 2, `mobile: true`). It measured `scrollWidth` and captured each page.
+  - Gotchas: plain `chrome --headless --window-size=412,…` won't go below about 500px on Windows, so its screenshots looked cropped and misleading. Git Bash rewrites `name=/path` arguments into Windows paths (fixed with `MSYS_NO_PATHCONV=1`). The script was deleted afterward; recreate it if needed.
+- Result: home, browse (incl. sort/filter applied), search, title, `/login`, `/reset-password` and not-found have no horizontal overflow at 412px, and browse wraps to two cards a row with the filters wrapping cleanly. One real bug: on content-light pages (`/login`, empty states, not-found) `<main>` was narrower than the screen. `body` is a flex column, and a flex child with `max-width` + `margin: 0 auto` shrinks to its content instead of stretching. Fixed globally in `app/globals.css` with `body > main { width: 100%; }`; `max-width` still caps it on desktop. Verified on a local production build: every page's `<main>` is a direct child of `<body>` and 412px wide.
+- Not covered: signed-in pages (My List with saved titles), since the headless browser has no session.
+- Next step: the user checks signed-in My List on the phone and does the end-to-end smoke test; then check off the responsive item and close M8.
+
 ### 2026-11-06 (latest) — M8 (cont.): reset links via implicit flow (templates are locked on the free plan)
 - The user went to edit the Reset Password template and found it read-only: "Set up custom SMTP to edit templates". On the free plan with Supabase's built-in email sender, templates stay at their defaults, so the previous entry's `/auth/confirm` template change can't be made, and the default link (`{{ .ConfirmationURL }}`) uses whatever flow the request used.
 - Did:
@@ -499,7 +506,7 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 - [x] Loading skeletons across all data-fetching pages
 - [x] Empty states (no search results, no favorites yet, no recommendations yet), plus `error.tsx`/`not-found.tsx`
 - [x] Graceful handling of TMDB errors/rate limits
-- [ ] Responsive layout pass (mobile/tablet/desktop): header and title page fixed from phone screenshots (2026-11-06); browse grid, sort/filter bar, My List and /login still need a look at phone width
+- [ ] Responsive layout pass (mobile/tablet/desktop): header and title page fixed from phone screenshots; home, browse grid + sort/filter bar, search, title, /login, /reset-password and not-found checked at 412px via emulated screenshots, and the narrow-`<main>` bug fixed (all 2026-11-06). Only signed-in My List with saved titles is left (needs the user's session)
 - [x] Basic SEO metadata (titles, OG tags)
 - [x] Forgot-password / reset flow (added 2026-11-06; surfaced by the phone smoke test)
 - [x] Share button on the title page (OS share sheet, clipboard fallback)

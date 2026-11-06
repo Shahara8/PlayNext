@@ -35,6 +35,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Pages center their <main> with `max-width` + `margin: 0 auto`, which in a
+   flex column shrinks it to its content instead of stretching it, so a page
+   with little content (sign-in, empty states) rendered narrower than the
+   screen on phones. */
+body > main {
+  width: 100%;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;
