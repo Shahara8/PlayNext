@@ -9,6 +9,7 @@ import {
   NETWORK_ERROR_MESSAGE,
   newPasswordSchema,
   parseEmailOtpType,
+  parseRecoveryHash,
   RESET_PASSWORD_PATH,
   runAuthCall,
   resetRequestSchema,
@@ -263,5 +264,39 @@ describe("userDisplayName length", () => {
   it("caps a long provider name", () => {
     const name = userDisplayName({ user_metadata: { name: "x".repeat(500) } });
     expect(name?.full).toHaveLength(MAX_DISPLAY_NAME_LENGTH);
+  });
+});
+
+describe("parseRecoveryHash", () => {
+  it("reads a recovery session", () => {
+    expect(
+      parseRecoveryHash(
+        "#access_token=at&expires_in=3600&refresh_token=rt&token_type=bearer&type=recovery",
+      ),
+    ).toEqual({ kind: "session", accessToken: "at", refreshToken: "rt" });
+  });
+
+  it("reads Supabase's error for an expired link", () => {
+    expect(
+      parseRecoveryHash(
+        "#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired",
+      ),
+    ).toEqual({
+      kind: "error",
+      description: "Email link is invalid or has expired",
+    });
+  });
+
+  it("ignores tokens that aren't a recovery session", () => {
+    expect(
+      parseRecoveryHash("#access_token=at&refresh_token=rt&type=signup"),
+    ).toEqual({ kind: "none" });
+    expect(parseRecoveryHash("#access_token=at&type=recovery")).toEqual({
+      kind: "none",
+    });
+  });
+
+  it("is none with no fragment", () => {
+    expect(parseRecoveryHash("")).toEqual({ kind: "none" });
   });
 });

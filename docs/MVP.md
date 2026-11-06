@@ -14,6 +14,30 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (latest) — M8 (cont.): reset links via implicit flow (templates are locked on the free plan)
+- The user went to edit the Reset Password template and found it read-only: "Set up custom SMTP to edit templates". On the free plan with Supabase's built-in email sender, templates stay at their defaults, so the previous entry's `/auth/confirm` template change can't be made, and the default link (`{{ .ConfirmationURL }}`) uses whatever flow the request used.
+- Did:
+  - The reset request now uses implicit flow. `lib/supabase-browser.ts` has `createImplicitFlowClient()`, a plain `supabase-js` client with `flowType: "implicit"` that stores nothing; `@supabase/ssr`'s `createBrowserClient` hard-codes `flowType: "pkce"`, so it can't be used for this. `login-form.tsx` requests the reset with `redirectTo: <origin>/reset-password`.
+  - The default email link then verifies at Supabase and lands on `/reset-password#access_token=…&refresh_token=…&type=recovery`, which works in any browser, Gmail's included.
+  - New `app/components/recovery-session.tsx` wraps the page. It parses the fragment with the new `lib/auth.ts` `parseRecoveryHash` (session, Supabase's `error_code=otp_expired`-style error, or none), clears the fragment from the URL, calls `setSession` on the cookie-backed client, and runs `router.refresh()` inside a transition. Until that server render lands it shows "Checking your reset link…", so if a different account was already signed in, its form never flashes.
+  - The link's session always wins over an existing one, so the right account gets reset.
+  - The setSession work is an async `consumeResetLink()` whose result sets state in a callback (the `react-hooks/set-state-in-effect` lint rule), with a ref guard for Strict Mode's double effect.
+  - `/auth/confirm` stays, documented as the route for a future custom template.
+- `/code-review` (medium) findings, all fixed:
+  - The link-consuming logic moved to `lib/recovery-link.ts` `consumeRecoveryLink(env)`, with location, history and `setSession` injected, and got its own tests.
+  - The fragment is now cleared only after `setSession` succeeds, or on Supabase's error. A failed `setSession` (e.g. offline) returns `"retry"` and keeps the tokens, so "reload to retry" works and a valid link isn't reported as expired.
+  - A URL without a reset link (e.g. `#anchor`) is left alone, and clearing keeps the query string.
+  - A session that's stored but invisible to the server after the refresh is now logged.
+  - `createImplicitFlowClient` is a lazy singleton with its own `storageKey`, so there's no "Multiple GoTrueClient instances" warning.
+  - The component's doc comment is back on the component.
+  - The future `/auth/confirm` template example uses `{{ .RedirectTo }}` again, so localhost resets stay local.
+- Verified:
+  - `npm test` 261 passing (+9: `parseRecoveryHash`, `consumeRecoveryLink`; a follow-up low review split `setSession` failures: `AuthRetryableFetchError`/thrown means "retry", any other auth error means "invalid", so bad tokens never loop on "reload to retry"); `lint`, `tsc` and `build` clean.
+  - A live `resetPasswordForEmail` in implicit flow against the project, for a nonexistent address (so no email is sent): `{ error: null }`.
+  - Not verified: the real email round trip (needs the user).
+- Pre-launch item, recorded here: Supabase's built-in email sender is for development only. It's heavily rate-limited (a few emails an hour) and, per Supabase's docs, only delivers to addresses of the project's team members, so real users' sign-up confirmations and resets wouldn't arrive. Before a public launch, set up custom SMTP (e.g. Resend, or Gmail SMTP with an app password); that also unlocks templates, and `/auth/confirm` is ready for them.
+- Next step: the user requests a new reset email and taps the link from Gmail; then the remaining phone pass and the final smoke test.
+
 ### 2026-11-06 (later) — M8 (cont.): reset links that work from a mail app, name in the header
 - User's results after applying the Supabase URL Configuration fix:
   - **Google sign-in now works on production**, confirming the Redirect URLs/Site URL diagnosis.
@@ -29,7 +53,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - Fixed: recovery routing keyed on `type`, not `next`; `redirectTo`/`{{ .RedirectTo }}` so localhost resets stay local; stale comments on the shared redirect helpers; duplicated route logic (now `completeAuthRedirect`); `EMAIL_OTP_TYPES` is `satisfies` the SDK's `EmailOtpType`; display names capped at 40 chars (`MAX_DISPLAY_NAME_LENGTH`), since `user_metadata` is user-editable.
   - Declined: (1) email link scanners (Outlook Safe Links, corporate gateways) could spend the one-time token with a GET before the user taps. The fix is a GET page with a button that POSTs to `verifyOtp`, at the cost of an extra tap for everyone. Gmail, the user's client, doesn't pre-fetch, so it's left as a known limitation and is the first thing to revisit if a user reports reset links failing on first tap. (2) On phones the full account (email) is only in a `title` tooltip, which touch can't show. The first name plus "Sign out" is enough for MVP; an account menu is post-MVP.
 - Verified: `npm test` 252 passing (+15: `/auth/confirm` route test with mocked Supabase covering success, recovery-ignores-`next`, `next` for other types, expired link, bad type/missing token, thrown `verifyOtp`; `parseEmailOtpType`; `userDisplayName` incl. the length cap). `lint`, `tsc`, `build` clean. Not verified: a real reset round trip through the new template (needs the user's template edit) and the header on a phone.
-- Next step: the user edits the Reset Password template, requests a new reset (old emails still use the old link), and checks the header name on the phone. Then the remaining phone pass (browse grid, sort/filter bar, My List, `/login`) and the final end-to-end smoke test.
+- Next step: (superseded by the next entry: the template turned out to be locked) the user checks the header name on the phone. Then the remaining phone pass (browse grid, sort/filter bar, My List, `/login`) and the final end-to-end smoke test.
 
 ### 2026-11-06 — M8 (cont.): live check, password reset, share button, mobile header/title layout
 - Context: the user did a first phone pass on production and reported (1) "Continue with Google" doesn't work there, plus a forgotten password with no way to reset; (2) screenshots: the header's links wrapped onto two lines ("My / List", "Sign / in") and the title page's poster filled the screen; (3) a WhatsApp link preview of `/title/456` (title, "Where to watch…" description and poster all correct), and a request for a share button "on a title page and to list".

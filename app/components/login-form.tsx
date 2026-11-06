@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
+import {
+  createBrowserSupabaseClient,
+  createImplicitFlowClient,
+} from "@/lib/supabase-browser";
 import {
   firstIssueMessage,
+  RESET_PASSWORD_PATH,
   resetRequestSchema,
   runAuthCall,
   signInSchema,
@@ -45,14 +49,11 @@ export default function LoginForm({
 
     setSubmitting(true);
     const { message } = await runAuthCall(() =>
-      createBrowserSupabaseClient().auth.resetPasswordForEmail(
-        parsed.data.email,
-        {
-          // The email template builds the link from this (see
-          // app/auth/confirm/route.ts), so it comes back to this origin.
-          redirectTo: `${window.location.origin}/auth/confirm`,
-        },
-      ),
+      // Implicit flow, so the link works in any browser (see
+      // createImplicitFlowClient).
+      createImplicitFlowClient().auth.resetPasswordForEmail(parsed.data.email, {
+        redirectTo: `${window.location.origin}${RESET_PASSWORD_PATH}`,
+      }),
     );
     setSubmitting(false);
     if (message) {

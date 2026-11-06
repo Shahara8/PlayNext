@@ -106,6 +106,27 @@ export function userDisplayName(user: {
   return { full, short: full.split(/\s+/)[0] };
 }
 
+export type RecoveryHash =
+  | { kind: "session"; accessToken: string; refreshToken: string }
+  | { kind: "error"; description: string | null }
+  | { kind: "none" };
+
+/**
+ * Reads the #fragment an implicit-flow reset link lands with: the recovery
+ * session's tokens, or Supabase's error (e.g. `error_code=otp_expired` for
+ * an expired or already-used link), or nothing.
+ */
+export function parseRecoveryHash(hash: string): RecoveryHash {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  if (params.get("error") || params.get("error_code"))
+    return { kind: "error", description: params.get("error_description") };
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (accessToken && refreshToken && params.get("type") === "recovery")
+    return { kind: "session", accessToken, refreshToken };
+  return { kind: "none" };
+}
+
 /** A failed form validation's first message, for the form's error line. */
 export function firstIssueMessage(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Invalid input";
