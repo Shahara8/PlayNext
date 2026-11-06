@@ -226,11 +226,13 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 
 ## Status
 
-This pipeline is **not yet built**. `title_cache`/`provider_availability` are currently created and populated via the mock seed path instead (`docs/MVP.md`, Milestone M1). Building this real pipeline is queued as **post-M8** work in `docs/MVP.md`.
+This pipeline is **not yet built**. `title_cache`/`provider_availability` are currently created and populated via the mock seed path instead (`docs/MVP.md`, Milestone M1). As of 2026-11-06 the MVP (M0–M8) is complete and this pipeline is **next** (`docs/MVP.md` Post-M8 task 3).
+
+**First question for the session that starts it:** is the external developer's daily feed ready (a sample file, delivery method, provider list)? If yes, build against the real files. If not, build and test against the agreed schema with sample files, keeping the mock seed live until real files arrive, and record that decision here.
 
 ## Progress Log
 
-_Not started. Do not begin this pipeline until `docs/MVP.md` reaches its "Post-M8" step, and until the external developer's feed is actually ready to receive._
+_Not started._ `docs/MVP.md` reached Post-M8 on 2026-11-06, so the first condition is met. Before building, check the feed's readiness with the user (see Status above).
 
 <!-- Template for future entries — newest entry on top, same convention as docs/MVP.md:
 ### YYYY-MM-DD — <what was worked on>

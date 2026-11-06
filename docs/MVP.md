@@ -14,6 +14,13 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (session end) — Google sign-in confirmed; SMTP deferred; next: real catalog ingestion
+- **The user confirmed "Continue with Google" works** for an account that was never a test user, in an incognito window, on production. Post-M8 task 1 (Google side) is done.
+- SMTP is still blocked: 2-Step Verification on the new Gmail account. At the user's request it moved to a deferred **Post-M8 task 4** with every remaining step written out; the user will come back to it in a few days. Meanwhile, email sign-up confirmations and resets only reach Supabase team members.
+- Docs: Post-M8 reordered (task 3 ingestion is next, task 4 SMTP); `docs/INGESTION.md` Status updated (MVP done, this pipeline is next, the feed's readiness is the first question); `CLAUDE.md` now points at `npm run smoke` for live checks.
+- Verified: no code changes since `3fe6310` (32/32 smoke checks on production after that deploy). `/code-review` clean before this commit.
+- Next step: **Post-M8 task 3, the real catalog ingestion**, in a new session. Start by reading `docs/INGESTION.md` in full, and ask the user whether the external developer's daily feed exists yet (a sample file, the delivery method, which providers). If not, the agreed path is to build against the agreed schema with sample files, keeping the mock seed live. Task 4 (SMTP) when the user returns to it.
+
 ### 2026-11-06 (published) — Google consent screen in production
 - The user saved the Branding links (home page, `/privacy`) and pressed Publish app, earlier than the "together with SMTP" plan. The Audience page shows **In production**, External, with no verification prompt.
 - Still owed for task 1: a Google sign-in from an account that was never a test user (needs the user), and everything SMTP (on hold, see the previous entry).
@@ -369,7 +376,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - **Vercel project** — connected in M0 (`playnext`, team `shahara8's projects`), auto-deploys `main`. Live at https://playnext-beta.vercel.app.
 - **Google OAuth app** — created in M5 (Google Cloud Console, OAuth consent screen + a Web application client; redirect URI `https://qtwozjmpysbrwzynmyoq.supabase.co/auth/v1/callback`, origins `http://localhost:3000` + the production URL). Client ID/Secret entered into the Supabase dashboard under Authentication → Providers → Google and enabled there. Note: the consent screen was published to **In production** on 2026-11-06 (home page and `/privacy` set under Branding, no logo, no verification needed for basic scopes), so any Google account can sign in.
 - **Supabase Auth URL Configuration** — set 2026-11-06: Site URL `https://playnext-beta.vercel.app`; Redirect URLs `https://playnext-beta.vercel.app/**` and `http://localhost:3000/**`. Email/password, Google and password reset all depend on it. "Secure password change" is on.
-- **Email sending** — still Supabase's built-in sender until the user saves the SMTP settings (Post-M8 task 1). The built-in sender is development-only: heavily rate-limited, delivers only to project team members, and locks the email templates. Chosen replacement: Gmail SMTP (`smtp.gmail.com:465`, a dedicated Gmail account with 2-Step Verification and an app password, about 500 emails a day). Move to Resend (or similar) once PlayNext has its own domain.
+- **Email sending** — still Supabase's built-in sender until the user saves the SMTP settings (Post-M8 task 4, deferred). The built-in sender is development-only: heavily rate-limited, delivers only to project team members, and locks the email templates. Chosen replacement: Gmail SMTP (`smtp.gmail.com:465`, a dedicated Gmail account with 2-Step Verification and an app password, about 500 emails a day). Move to Resend (or similar) once PlayNext has its own domain.
 - **Test account** — `playnext-test-bot@example.com` (created 2026-11-06 with the admin API, email pre-confirmed, `full_name` "Test Bot"). Credentials are only in `.env.local` as `TEST_USER_EMAIL`/`TEST_USER_PASSWORD`; never print or commit them. It's for signed-in checks by Claude (headless Chrome over the DevTools Protocol, see Section 8 Testing), and its likes and saved titles don't touch real users'. `admin.auth.admin.generateLink({ type: "recovery" })` mints reset links for it without sending email.
 
 ## Context
@@ -632,18 +639,22 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 *Demo: complete user journey — browse → search → sign up → favorite titles → see recommendations — on the live production URL.*
 
 ### Post-M8 (queued, not MVP work)
-Agreed order (2026-11-06):
-1. **Custom SMTP + Google sign-in for everyone.**
-   - [x] Choose a sender: Gmail SMTP with an app password, from a dedicated Gmail account, until there's a domain (Resend needs a verified domain to send to anyone but the account owner). See the 2026-11-06 (SMTP) Progress Log entry.
+Agreed order (2026-11-06; SMTP moved last the same day, when it got blocked):
+1. [x] **Google sign-in for everyone** (plus the code side of custom email).
+   - [x] Choose an email sender: Gmail SMTP with an app password, from a dedicated Gmail account, until there's a domain (Resend needs a verified domain to send to anyone but the account owner). See the 2026-11-06 (SMTP) Progress Log entry.
    - [x] Code: sign-up confirmation links go to `/auth/confirm` (token hash, works in any browser); the Reset Password template stays at its default (implicit flow already works anywhere).
-   - [ ] User: SMTP settings in Supabase (Authentication → Emails → SMTP Settings) and the auth email rate limit. **On hold (2026-11-06):** the dedicated account `play.next.app8@gmail.com` was created, but Google refused to turn on 2-Step Verification ("We couldn't verify that it's you", a common hold on brand-new accounts), so no app password exists yet. Retry later from the computer the account was made on, on home Wi-Fi; fallback is the user's personal Gmail (then swap the username/password in Supabase).
-   - [ ] User: "Confirm signup" template → `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`.
    - [x] Privacy policy page `/privacy` plus a site footer linking to it (Google's Publish button stays disabled until Branding has a home page and privacy policy link).
    - [x] User: in Google Auth Platform → Branding, set Application home page `https://playnext-beta.vercel.app` and privacy policy link `https://playnext-beta.vercel.app/privacy`, and save. No logo (a logo forces brand verification, which needs an owned domain).
    - [x] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app). Done 2026-11-06: status **In production**, user type External. The 100-user cap shown there only counts unapproved sensitive/restricted scopes, and PlayNext requests none. Reversible ("Back to testing").
-   - [ ] User: a sign-up confirmation and a reset email arrive at a non-team address and their links work; Google sign-in works for an account that isn't a test user.
+   - [x] User: Google sign-in works for an account that was never a test user (confirmed 2026-11-06, incognito window).
 2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
-3. **Real catalog ingestion**, below.
+3. [ ] **Real catalog ingestion**, below. **Next.** First confirm with the user whether the external developer's feed exists yet (`docs/INGESTION.md` Status).
+4. [ ] **Custom SMTP (deferred, the user returns to it in a few days).** Until it's done, email sign-up confirmations and resets only reach Supabase team members; real users should use "Continue with Google".
+   - [ ] User: turn on 2-Step Verification for `play.next.app8@gmail.com` and create an app password. Blocked on 2026-11-06: Google answered "We couldn't verify that it's you" (a common hold on brand-new accounts; the attempt was from a phone). Retry from the computer the account was made on, on home Wi-Fi, after a few days. Fallback: the user's personal Gmail (swap the username/password in Supabase later).
+   - [ ] User: Supabase → Authentication → Emails → SMTP Settings: host `smtp.gmail.com`, port `465`, username = the full Gmail address, password = the app password, sender email = the same address, sender name `PlayNext`. Then raise Authentication → Rate Limits → emails per hour (custom SMTP starts at about 30).
+   - [ ] User: "Confirm signup" template → `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`. Leave Reset Password at its default.
+   - [ ] Code: add Google (Gmail) as the account-email sender in `/privacy`'s "Who else handles it".
+   - [ ] User: a sign-up confirmation and a reset email arrive at an address that isn't a Supabase team member, and their links work from a phone's mail app. Then `npm run smoke`.
 
 Build and stand up the real daily ingestion pipeline per `docs/INGESTION.md`, then swap the mock seed for it. Expected to require zero changes to application code, since both sources populate the exact same `title_cache`/`provider_availability` tables through the same resolver logic. Track this workstream's own progress in `docs/INGESTION.md`'s Progress Log, not here.
 
