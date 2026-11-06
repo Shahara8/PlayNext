@@ -53,7 +53,10 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - Verified:
   - `npm test` 350 passing; lint, `tsc`, `format:check` and `build` clean.
   - Smoke on a local production build against the migrated DB: 38/38, including `308 → /title/tv/456?from=smoke`. Port 3000 was free; only the session's server was stopped.
-- Next step: production smoke after this deploy (next entry), then `docs/INGESTION.md` step 2.
+- **Production, after the deploy of `4310149`:**
+  - `npm run smoke` passed 38/38. Old links get real 308s (`308 → /title/tv/456?from=smoke`), and `/title/tv` gets a real 404. The signed-in watchlist journey works on the new keys.
+  - `npm run seed:mock` against the migrated schema: 32/32 resolved.
+- Next step: `docs/INGESTION.md` step 2: migration `0008` for the pipeline tables, plus the Zod feed schema from `docs/FEED_REQUIREMENTS.md`.
 
 ### 2026-11-06 (feed review) — Post-M8 task 3 started: feed reviewed, Partner TV added
 - **Ingestion:** reviewed and ran the external developer's (Noam's) collector branch. It isn't the agreed feed yet: no IMDb IDs, home and marketing pages instead of full catalogs, YES and Partner TV only. Details are in `docs/INGESTION.md`'s Progress Log. The change requests are in `docs/FEED_REQUIREMENTS.md`, which the user sent him. **He works only on `provider-catalog-fetchers`; we merge through a pull request when we decide it's time.**
