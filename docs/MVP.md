@@ -14,6 +14,27 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (close) — M8 complete
+- At the user's request, created a dedicated test account for signed-in checks: `playnext-test-bot@example.com` (user id `27e2adbb-933d-45b9-a170-653488beabf9`, `full_name` "Test Bot"). It was made with the service-role admin API `createUser({ email_confirm: true })`, so no email was sent. The random password lives only in `.env.local` (gitignored) as `TEST_USER_EMAIL`/`TEST_USER_PASSWORD`, and was never shown in chat. Delete it under Authentication → Users when no longer needed.
+- Signed-in run on production in phone-emulated headless Chrome:
+  - Signed in through the real `/login` form.
+  - Through the real buttons: Breaking Bad favorited + liked, Stranger Things liked, The Witcher watchlisted (all registered).
+  - The title page shows the pressed states, and My List → Watchlist lists The Witcher with ✓.
+  - The header reads "Test · Sign out" on one row.
+  - Home's For You correctly excludes all three, then falls back to trending ("Nothing like your picks is in our catalog yet"): the 26-title mock catalog holds none of TMDB's related ids for those seeds. That's expected until the real feed.
+  - No horizontal overflow on any signed-in page at 412px.
+- End-to-end journey, combined across this day's checks:
+  - Browse, sort/filter and search: emulated screenshots.
+  - Sign up: by the user in M5. Google sign-in: by the user, after today's URL Configuration fix. Password reset: by the user, from Gmail.
+  - Favorite/like/watchlist, My List and recommendations: the test-account run above.
+  - SEO/OG: the live `curl` checks and the user's WhatsApp preview.
+  - **M8 checked off; the MVP plan (M0–M8) is complete.**
+- Still owed before real users (not M8 scope):
+  - Custom SMTP: Supabase's built-in sender only delivers to project team members and is heavily rate-limited, so real users' sign-up confirmations and resets wouldn't arrive.
+  - Publishing the Google OAuth consent screen out of Testing mode.
+  - Enabling "Secure password change".
+- Next step: post-M8 — the real daily ingestion pipeline per `docs/INGESTION.md` (start with its Status/Progress Log), which replaces the mock catalog and gives recommendations real candidates. Custom SMTP can be done any time before inviting users.
+
 ### 2026-11-06 (end) — M8 (cont.): emulated phone screenshots, full-width `<main>` fix
 - The user asked whether I could check the phone layout myself. There's no `adb` on this machine, but Chrome is installed, so a throwaway script drove headless Chrome over the DevTools Protocol with `Emulation.setDeviceMetricsOverride` (412×915, DPR 2, `mobile: true`). It measured `scrollWidth` and captured each page.
   - Gotchas: plain `chrome --headless --window-size=412,…` won't go below about 500px on Windows, so its screenshots looked cropped and misleading. Git Bash rewrites `name=/path` arguments into Windows paths (fixed with `MSYS_NO_PATHCONV=1`). The script was deleted afterward; recreate it if needed.
@@ -506,11 +527,11 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 - [x] Loading skeletons across all data-fetching pages
 - [x] Empty states (no search results, no favorites yet, no recommendations yet), plus `error.tsx`/`not-found.tsx`
 - [x] Graceful handling of TMDB errors/rate limits
-- [ ] Responsive layout pass (mobile/tablet/desktop): header and title page fixed from phone screenshots; home, browse grid + sort/filter bar, search, title, /login, /reset-password and not-found checked at 412px via emulated screenshots, and the narrow-`<main>` bug fixed (all 2026-11-06). Only signed-in My List with saved titles is left (needs the user's session)
+- [x] Responsive layout pass (mobile/tablet/desktop): header and title page fixed from phone screenshots; every page, signed out and signed in, checked at 412px via emulated screenshots; narrow-`<main>` bug fixed (2026-11-06)
 - [x] Basic SEO metadata (titles, OG tags)
 - [x] Forgot-password / reset flow (added 2026-11-06; surfaced by the phone smoke test)
 - [x] Share button on the title page (OS share sheet, clipboard fallback)
-- [ ] Final production deploy + full manual smoke test of the end-to-end journey
+- [x] Final production deploy + full manual smoke test of the end-to-end journey (2026-11-06; see that day's last Progress Log entry)
 
 *Demo: complete user journey — browse → search → sign up → favorite titles → see recommendations — on the live production URL.*
 
