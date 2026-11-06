@@ -49,6 +49,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - `npm test` 319 passing; `lint`, `tsc`, `format:check` and `build` clean.
   - Smoke on a local production build: 34/34. Port 3000 was free first, and only the session's own server was stopped.
   - Screenshots: the home picker with five tiles on a phone, and the Partner TV browse page.
+  - **Production, after the deploy of `14ebb8c`: `npm run smoke` 34/34.** The desktop home screenshot shows five tiles, with Partner TV's green distinct from Prime's cyan.
 - Next step: Noam's YES/Partner work, judged against `docs/FEED_REQUIREMENTS.md` section 7. Meanwhile, our pipeline side can be built against that contract (see `docs/INGESTION.md`).
 
 ### 2026-11-06 (SMTP live) — Post-M8 task 4 done: custom SMTP via Gmail
