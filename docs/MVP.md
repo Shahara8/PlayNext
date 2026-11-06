@@ -36,7 +36,8 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - A live `resetPasswordForEmail` in implicit flow against the project, for a nonexistent address (so no email is sent): `{ error: null }`.
   - Not verified: the real email round trip (needs the user).
 - Pre-launch item, recorded here: Supabase's built-in email sender is for development only. It's heavily rate-limited (a few emails an hour) and, per Supabase's docs, only delivers to addresses of the project's team members, so real users' sign-up confirmations and resets wouldn't arrive. Before a public launch, set up custom SMTP (e.g. Resend, or Gmail SMTP with an app password); that also unlocks templates, and `/auth/confirm` is ready for them.
-- Next step: the user requests a new reset email and taps the link from Gmail; then the remaining phone pass and the final smoke test.
+- **Confirmed by the user on their phone:** the reset email's link, tapped from Gmail, landed on the new-password form and the reset worked. The header shows "shahar" (email account, so the name comes from the email's local part) beside "Sign out" on one row.
+- Next step: the remaining phone pass (a provider's browse page with the sort/filter bar, My List, `/login`); then the final end-to-end smoke test, which closes M8. Then custom SMTP before any real users (see above), then the post-M8 ingestion pipeline (`docs/INGESTION.md`).
 
 ### 2026-11-06 (later) — M8 (cont.): reset links that work from a mail app, name in the header
 - User's results after applying the Supabase URL Configuration fix:
