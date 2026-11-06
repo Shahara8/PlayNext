@@ -153,6 +153,7 @@ CREATE TABLE staging_availability (
   region             TEXT NOT NULL,
   imdb_id            TEXT NOT NULL,
   type               TEXT NOT NULL,
+  media_type         TEXT,                        -- with tmdb_id: both or neither
   tmdb_id            INTEGER,
   title              TEXT NOT NULL,
   original_title     TEXT,
@@ -160,8 +161,10 @@ CREATE TABLE staging_availability (
   availability_type  TEXT NOT NULL,
   watch_url          TEXT,
   seasons_available  INTEGER[],
-  last_verified      DATE
+  last_verified      DATE,
+  PRIMARY KEY (run_id, provider, region, imdb_id, type)  -- run_id → ingestion_runs, ON DELETE CASCADE
 );
+-- As built in migration 0008 (2026-11-06). RLS on with no policies, service role only.
 
 -- Observability / audit log — one row per provider per day
 CREATE TABLE ingestion_runs (
@@ -170,11 +173,13 @@ CREATE TABLE ingestion_runs (
   region          TEXT NOT NULL DEFAULT 'IL',
   file_path       TEXT,
   received_at     TIMESTAMPTZ,
+  coverage        TEXT CHECK (coverage IN ('complete','partial')),  -- from the collector's manifest
   status          TEXT NOT NULL DEFAULT 'pending'
                    CHECK (status IN ('pending','processing','completed','failed','rejected_suspicious')),
   total_lines     INTEGER,
   valid_lines     INTEGER,
   invalid_lines   INTEGER,
+  unmatched_lines INTEGER,   -- valid rows with no imdb_id: counted, not stored
   new_titles      INTEGER,
   removed_titles  INTEGER,
   unchanged_titles INTEGER,
@@ -213,8 +218,10 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 
 ## Critical files
 
-- `ingestion/migrations/001_init.sql` — the schema above
-- `ingestion/src/feed/schema.ts` — Zod schema for the agreed JSONL spec
+- `supabase/migrations/0001`, `0007`, `0008` — the schema above (with the app's migrations, not a separate `ingestion/migrations/`)
+- `ingestion/src/feed/schema.ts` — Zod schema for the agreed JSONL spec (`docs/FEED_REQUIREMENTS.md`) and the collector's `manifest.json`
+- `ingestion/src/feed/read.ts` — line-by-line validation of one provider's file (counts, skipped-line log)
+- `ingestion/src/pipeline/circuit-breaker.ts` — the whole-file reject rules
 - `ingestion/src/pipeline/processProvider.ts` — validate → resolve → diff orchestration per provider
 - `ingestion/src/db/staging.ts` — staging load + upsert + anti-join SQL
 - `ingestion/src/tmdb/resolveImdbToTmdb.ts` — matching/caching logic (shared with the mock seed script — see `lib/tmdb-resolve.ts` in `docs/MVP.md`)
@@ -235,6 +242,59 @@ This pipeline is **not yet built**. `title_cache`/`provider_availability` are cu
 **First question for the session that starts it:** is the external developer's daily feed ready (a sample file, delivery method, provider list)? If yes, build against the real files. If not, build and test against the agreed schema with sample files, keeping the mock seed live until real files arrive, and record that decision here.
 
 ## Progress Log
+
+### 2026-11-06 — pipeline step 2: pipeline tables, feed validation, circuit breaker
+- Did: **migration `0008_ingestion_tables.sql`**:
+  - `ingestion_runs` adds `coverage` (from the manifest) and `unmatched_lines`, plus an index for the baseline query.
+  - `staging_availability` has `media_type`, and its primary key mirrors `provider_availability`'s, scoped to the run (cascade on run delete).
+  - `imdb_tmdb_map` has resolved ⇔ full TMDB key, an imdb format check, a composite FK to `title_cache`, and a retry index.
+  - RLS on, no policies; grants to `service_role` only.
+  - Dry-run on the live DB, rolled back: service-role writes work, each bad case is rejected by its constraint, and `anon`/`authenticated` get "permission denied" on all three tables.
+- Did: TypeScript in `ingestion/src/` (covered by the repo's tsconfig, ESLint and Vitest):
+  - `feed/schema.ts`: the row schema from `docs/FEED_REQUIREMENTS.md`, built per run date (`feedRowSchema(today)`), plus `manifestSchema`. Rules:
+    - Provider codes come from `lib/providers.ts` (a code the app doesn't list would make invisible rows; add a provider there first); region `IL`.
+    - IMDb ids `^tt\d{7,8}$`; ISO dates; `last_verified` and `added_date` at most one day ahead; `removed_date` not before `added_date`; seasons null for movies and without duplicates.
+    - Extra fields are dropped, not fatal. `watch_url` may be null (lenient: only the link is hidden), but must be http(s).
+  - `feed/read.ts`: stream-parses a file a line at a time.
+    - A bad line is counted, logged (line number, reason, raw cut to 200 characters on whole characters, first 50 kept) and skipped.
+    - Rows naming another provider are invalid.
+    - Repeats of a title are merged, not counted invalid (see the second review pass below).
+  - `pipeline/circuit-breaker.ts` judges **matched** rows (valid, with an imdb_id), since only those are stored. It rejects:
+    - an empty file;
+    - more than 20% invalid lines;
+    - no matched rows, or fewer than 50% of valid rows matched;
+    - matched rows under 50% of the baseline.
+  - The baseline is the median matched count of the last 7 completed runs **of the same coverage**; the caller filters, in step 4. There's no size check on a first run.
+  - Rows are also invalid when `last_verified` is more than 3 days old (a stale file re-delivered trips the breaker) or `removed_date` isn't in the future (a listed title must be available now).
+  - The manifest only accepts known provider codes and the file name `<CODE>.jsonl`, so it can never name a path.
+- `/code-review` caught the important case: as first written, a file that was entirely valid but unmatched (exactly today's collector output, 0 of 437 imdb_ids) passed the breaker, and the anti-join would then have "removed" everything. Hence the matched-row rules.
+  - Also fixed: a literal invisible BOM character in two regexes (my editor's escape handling; `scripts/seed-mock-data.ts` had one since this morning). `trim()` already strips a BOM, so both now rely on it, and the tests build the BOM explicitly.
+  - Declined: `imdb_tmdb_map`'s FK means a resolved entry needs its `title_cache` row first. That's the intended write order, and `title_cache` rows are never deleted.
+- Second `/code-review` pass, fixed:
+  - **A title listed several ways** (subscription and rent) is merged into one row keeping its best offer (`OFFER_RANK`: free, subscription, rent, buy), counted as `duplicates`. It's neither valid nor invalid, so it can't trip the 20% limit. `provider_availability` has one row per title per provider anyway.
+  - `removed_date` = today is allowed (its last day).
+  - `feedRowSchema` refuses a malformed run date.
+  - The baseline index includes `coverage`.
+  - **`staging_availability` has a composite FK `(run_id, provider, region)` → `ingestion_runs (id, provider, region)`**, so a staged row can't claim another provider than its run (the anti-join compares by provider).
+  - The feed's `tmdb_id` is documented as a hint only.
+- Second pass, declined:
+  - Read-stream error handling: a missing file is already a clean rejection, and tested.
+  - The mock seed has its own schema: the seed is retired at the cutover.
+- Third `/code-review` pass (now including the new files, via `git add -N`), all fixed:
+  - Unmatched repeats are deduplicated by (title, type, year).
+  - The invalid share is taken over distinct entries (valid + invalid), so repeated good titles can't dilute bad lines.
+  - `mergeOffers` combines rows: the best offer and its link win, seasons are combined, missing fields are filled, and the fresher `last_verified` is kept.
+  - Error snippets are cut on whole characters (a split emoji would break the jsonb write).
+  - An unmatched row with a `match_source` stays valid.
+  - `removed_date` gets the same one-day tolerance as the other dates.
+  - `baselineFrom` takes `{ matched, finishedAt }` runs and sorts them itself.
+  - `staging_availability.last_verified` is `not null`.
+- The dry run was repeated after the second pass's changes (rolled back): the mismatched-provider staging row is refused by the FK, and deleting a run cascades to its staged rows (0 left).
+- **Real-data check:** `readFeedFile` + `evaluateBreaker` on the collector's actual 2026-11-06 output, split per provider. YES 329/329 and Partner 108/108 lines invalid → both rejected before any write. The first reasons are the gaps listed in `docs/FEED_REQUIREMENTS.md`: no `availability_type`; `"Partner TV"` not a code; missing `type`.
+- **Decision, a deviation from Section 3:** a row with `imdb_id: null` (the collector found no confident match) is **valid but unmatched**. It's counted in `unmatched_lines` and not stored, because `provider_availability`'s key needs an imdb_id and such a title can't show in the app anyway (no `title_cache` row). It isn't counted invalid, so a provider just under the 90% IMDb target doesn't trip the breaker.
+- Tests: `npm test` 403 (+53: schema, reader, breaker; the seed test now builds its BOM explicitly). They cover each failure mode Section "Verification" lists: bad imdb_id, unknown provider, future date, inconsistent dates, and a truncated or corrupt file.
+- **Not applied yet** (needs the user's approval).
+- Next step: apply 0008 on its own and confirm it applied (no code depends on it yet, so no deploy ordering). Then step 3: TMDB resolution with the `imdb_tmdb_map` cache (30-day retry for unresolved, 7-day refresh of `title_cache`), reusing `lib/tmdb-resolve.ts`.
 
 ### 2026-11-06 — pipeline step 1: titles keyed on (media_type, tmdb_id)
 - The user's plan for our side (while Noam works on his branch):

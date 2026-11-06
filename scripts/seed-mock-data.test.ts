@@ -113,7 +113,8 @@ describe("loadFeed", () => {
 
   it("ignores a leading UTF-8 BOM", () => {
     const row = JSON.stringify(validRow());
-    expect(loadFeed(feedFile(`﻿${row}\n`))).toHaveLength(1);
+    const bom = String.fromCharCode(0xfeff);
+    expect(loadFeed(feedFile(`${bom}${row}\n`))).toHaveLength(1);
   });
 
   it("skips blank lines and CRLF endings", () => {

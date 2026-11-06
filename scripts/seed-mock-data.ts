@@ -47,7 +47,6 @@ export const MOCK_FEED_PATH = fileURLToPath(
 export function loadFeed(path: string): FeedRow[] {
   const rows: FeedRow[] = [];
   readFileSync(path, "utf-8")
-    .replace(/^﻿/, "") // a BOM some Windows editors add
     .split("\n")
     .forEach((raw, i) => {
       const line = raw.trim();

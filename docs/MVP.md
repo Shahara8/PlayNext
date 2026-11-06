@@ -14,6 +14,15 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (pipeline step 2) — pipeline tables, feed validation, circuit breaker
+- Migration `0008` (the pipeline's own tables, service-role only) plus `ingestion/src/` feed schema, line reader and circuit breaker, with 53 tests (403 total). Details are in `docs/INGESTION.md`'s Progress Log, including:
+  - one deviation: rows with no imdb_id are "unmatched", counted but not stored;
+  - the review fix that makes the breaker judge matched rows;
+  - a real-data check: today's collector output is rejected safely.
+- `scripts/seed-mock-data.ts`: a literal invisible BOM in a regex (from this morning) was replaced by relying on `trim()`.
+- No app code changed, so no smoke run was needed (the site is untouched).
+- Next step: see `docs/INGESTION.md` (apply 0008 with the user's approval, then step 3, TMDB resolution).
+
 ### 2026-11-06 (title keys) — Post-M8 task 3, pipeline step 1: (media_type, tmdb_id) keys
 - Did: migration `0007` plus app changes so titles are keyed on (media type, TMDB id), not TMDB id alone. Title URLs are now `/title/movie/603` / `/title/tv/1396`; old `/title/<id>` links 308-redirect. Details in `docs/INGESTION.md`'s Progress Log; the code is in `lib/title-ref.ts`.
 - `/code-review` (medium), three passes:
