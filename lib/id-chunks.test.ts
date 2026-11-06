@@ -15,6 +15,11 @@ describe("chunkIds", () => {
     expect(chunks.flat()).toEqual(ids);
   });
 
+  it("chunks string ids too (imdb ids)", () => {
+    const ids = Array.from({ length: ID_CHUNK_SIZE + 1 }, (_, i) => `tt${i}`);
+    expect(chunkIds(ids).map((c) => c.length)).toEqual([ID_CHUNK_SIZE, 1]);
+  });
+
   it("returns no chunks for no ids", () => {
     expect(chunkIds([])).toEqual([]);
   });

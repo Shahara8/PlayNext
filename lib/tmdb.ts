@@ -32,8 +32,10 @@ export const MAX_RETRY_JITTER_MS = 250;
 
 export interface TmdbFetchOptions {
   // Callers on a page's render path pass one (e.g. AbortSignal.timeout) so a
-  // hung TMDB request fails instead of holding the page; batch jobs don't.
-  // It also cuts short any wait between retries.
+  // hung TMDB request fails instead of holding the page; the ingestion
+  // pipeline passes a long one so a hung call can't stall the daily run (the
+  // mock seed passes none). It also cuts short any wait between retries, and
+  // its abort is final: not retried.
   signal?: AbortSignal;
   /** Retries after the first attempt, for 429s, 5xx and network errors. */
   maxRetries?: number;

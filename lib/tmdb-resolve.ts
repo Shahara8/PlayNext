@@ -1,9 +1,10 @@
 // Shared imdb_id -> tmdb_id -> metadata resolver.
-// Used by scripts/seed-mock-data.ts today; the real ingestion pipeline
-// (docs/INGESTION.md Section 3) will import this same module so mock and
+// Used by scripts/seed-mock-data.ts and the ingestion pipeline
+// (ingestion/src/tmdb/resolve.ts, docs/INGESTION.md Section 3), so mock and
 // real data go through one matching codepath that can never drift.
 
-import { tmdbFetch } from "./tmdb";
+import { tmdbFetch, type TmdbFetchOptions } from "./tmdb";
+import type { MediaType, TitleRef } from "./title-ref";
 
 export type FeedMediaType = "movie" | "tv_series";
 
@@ -64,16 +65,19 @@ interface TvDetails {
 export async function resolveImdbToTmdb(
   imdbId: string,
   expectedType?: FeedMediaType,
+  options?: TmdbFetchOptions,
 ): Promise<ResolvedTitle | null> {
-  const found = await tmdbFetch<FindResponse>(`/find/${imdbId}`, {
-    external_source: "imdb_id",
-  });
+  const found = await tmdbFetch<FindResponse>(
+    `/find/${imdbId}`,
+    { external_source: "imdb_id" },
+    options,
+  );
 
   const preferMovie = expectedType !== "tv_series";
   const movieHit = found.movie_results[0];
   const tvHit = found.tv_results[0];
 
-  let mediaType: "movie" | "tv";
+  let mediaType: MediaType;
   let tmdbId: number;
   if (preferMovie && movieHit) {
     mediaType = "movie";
@@ -91,12 +95,33 @@ export async function resolveImdbToTmdb(
     return null;
   }
 
-  if (mediaType === "movie") {
-    const details = await tmdbFetch<MovieDetails>(`/movie/${tmdbId}`);
+  return fetchTitleDetails(
+    { media_type: mediaType, tmdb_id: tmdbId },
+    imdbId,
+    options,
+  );
+}
+
+/**
+ * A known TMDB title's current metadata, by its key: the ingestion
+ * pipeline's ~7-day title_cache refresh (no /find needed). `imdbId` fills in
+ * when TMDB's details lack one (null or ""), so a refresh never blanks a stored id.
+ */
+export async function fetchTitleDetails(
+  ref: TitleRef,
+  imdbId: string,
+  options?: TmdbFetchOptions,
+): Promise<ResolvedTitle> {
+  if (ref.media_type === "movie") {
+    const details = await tmdbFetch<MovieDetails>(
+      `/movie/${ref.tmdb_id}`,
+      {},
+      options,
+    );
     return {
       tmdb_id: details.id,
       media_type: "movie",
-      imdb_id: details.imdb_id ?? imdbId,
+      imdb_id: details.imdb_id || imdbId,
       title: details.title,
       original_title: details.original_title || null,
       overview: details.overview || null,
@@ -109,13 +134,15 @@ export async function resolveImdbToTmdb(
     };
   }
 
-  const details = await tmdbFetch<TvDetails>(`/tv/${tmdbId}`, {
-    append_to_response: "external_ids",
-  });
+  const details = await tmdbFetch<TvDetails>(
+    `/tv/${ref.tmdb_id}`,
+    { append_to_response: "external_ids" },
+    options,
+  );
   return {
     tmdb_id: details.id,
     media_type: "tv",
-    imdb_id: details.external_ids?.imdb_id ?? imdbId,
+    imdb_id: details.external_ids?.imdb_id || imdbId,
     title: details.name,
     original_title: details.original_name || null,
     overview: details.overview || null,

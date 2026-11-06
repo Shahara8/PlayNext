@@ -14,6 +14,12 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (pipeline step 3) — TMDB resolution with the imdb_tmdb_map cache
+- `ingestion/src/tmdb/` resolves feed imdb_ids to title keys through `imdb_tmdb_map`: a 30-day retry for unresolved ids, a capped 7-day `title_cache` refresh, and TMDB being down never blocks availability (a failed lookup caches nothing, and the run stops asking TMDB when it looks down). Details and the `/code-review` passes are in `docs/INGESTION.md`'s Progress Log.
+- `lib/tmdb-resolve.ts`: `fetchTitleDetails` is split out, and both functions take optional fetch options. An empty-string imdb_id from TMDB now falls back to the feed's id, for the seed too. New `lib/in-pool.ts`; `chunkIds` is generic.
+- No migration, and no site changes (no smoke needed). 459 tests. A live dry run (nothing written) resolved all 32 mock ids to the same keys production uses.
+- Next step: `docs/INGESTION.md` step 4 (staging + upsert + anti-join).
+
 ### 2026-11-06 (pipeline step 2) — pipeline tables, feed validation, circuit breaker
 - Migration `0008` (the pipeline's own tables, service-role only) plus `ingestion/src/` feed schema, line reader and circuit breaker, with 53 tests (403 total). Details are in `docs/INGESTION.md`'s Progress Log, including:
   - one deviation: rows with no imdb_id are "unmatched", counted but not stored;

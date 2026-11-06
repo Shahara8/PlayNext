@@ -65,10 +65,17 @@ JSON Lines (`.jsonl`), one file per provider:
 
 ### 3. TMDB matching: `imdb_id` → `tmdb_id` → metadata, cached
 
-- If the row already has `tmdb_id`, trust it.
-- Else check `imdb_tmdb_map` cache; on miss, call TMDB `/find/{imdb_id}` (throttled/retried with backoff).
+- The feed's `tmdb_id` is only a hint and is not used (changed 2026-11-06: a bare id has no media type, and TMDB ids are only unique per type). Resolution always goes through `imdb_id`.
+- Check the `imdb_tmdb_map` cache; on a miss, call TMDB `/find/{imdb_id}` (throttled/retried with backoff).
 - No match → record as `unresolved` in `imdb_tmdb_map`; still write the `provider_availability` row with `tmdb_id = NULL`, using the feed's own title/year for display. Re-attempt resolution only after ~30 days (don't burn rate limit re-asking about a permanent gap daily).
 - `title_cache` entries get a ~7-day TTL for refreshing rating/popularity — daily TMDB calls stay bounded to "new titles + stale refresh batch," not a full re-fetch every day.
+- As built (`ingestion/src/tmdb/resolve.ts`, 2026-11-06):
+  - The refresh is one details call by key (`fetchTitleDetails` in `lib/tmdb-resolve.ts`). It runs oldest first, capped at 300 per `resolveTitleKeys` call (so step 4 should resolve every provider's rows in one call, to keep it per run), and only for titles in today's feed. It updates metadata only: a row keeps the `imdb_id` it was first stored with.
+  - A failed TMDB call (5xx, 429 past its retries, the network, a 180 s timeout, a 403) isn't "no match": nothing is cached, and the id is asked about next run. A 404 is TMDB's answer, so it's cached as `unresolved`.
+  - The run stops calling TMDB after 5 failures in a row, a 401, or once at least half of 20+ calls failed. Every remaining row gets a null key, so the availability update goes ahead.
+  - A key is returned only once its `title_cache` row is written, so staging can always reference it.
+  - `ambiguous` means TMDB matched a title whose IMDb id another `title_cache` row already holds (the column is unique), and the feed's own id is taken too. It waits 30 days like `unresolved`. (When only TMDB's id is taken, the title is stored under the feed's.)
+  - **Known limitation:** if TMDB deletes or merges a cached key, the refresh gets a 404. The id keeps that key and its last good metadata, the error is logged, and the title moves to the back of the refresh queue. Moving it to TMDB's new key would clash with the old row's `imdb_id`. It's rare; fix it by hand (delete the map row) if it ever matters.
 - Explicit mapping between the feed's `type` (`movie`/`tv_series`) and TMDB's `media_type` (`movie`/`tv`) — not assumed identical.
 
 ### 4. Diff/reconciliation: staging + upsert + anti-join (SQL, not app-level loops)
@@ -226,7 +233,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 - `ingestion/src/pipeline/circuit-breaker.ts` — the whole-file reject rules
 - `ingestion/src/pipeline/processProvider.ts` — validate → resolve → diff orchestration per provider
 - `ingestion/src/db/staging.ts` — staging load + upsert + anti-join SQL
-- `ingestion/src/tmdb/resolveImdbToTmdb.ts` — matching/caching logic (shared with the mock seed script — see `lib/tmdb-resolve.ts` in `docs/MVP.md`)
+- `ingestion/src/tmdb/resolve.ts` + `store.ts` — the `imdb_tmdb_map` caching, retry and refresh logic and its Supabase store; the matching itself is `lib/tmdb-resolve.ts`, shared with the mock seed
 - `.github/workflows/daily-ingest.yml` — the scheduled trigger
 
 ## Verification
@@ -250,12 +257,56 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 **Our side, step by step:**
 1. [x] Title keys `(media_type, tmdb_id)` (migration 0007, live).
 2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
-3. [ ] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts`. **Next.**
-4. [ ] Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removals only from `coverage: "complete"` runs; the grace period for partial ones is still open with the user.
+3. [x] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts` (`ingestion/src/tmdb/`).
+4. [ ] **Next.** Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removals only from `coverage: "complete"` runs; the grace period for partial ones is still open with the user.
 5. [ ] `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, process. GitHub secrets will be needed from the user.
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
 
 ## Progress Log
+
+### 2026-11-06 — pipeline step 3: TMDB resolution with the imdb_tmdb_map cache
+- Did, in `ingestion/src/tmdb/`:
+  - `resolve.ts`: `resolveTitleKeys(rows, store, tmdb, options)` gives each distinct imdb_id its `(media_type, tmdb_id)` key or null, plus counts and the first 50 errors, for `ingestion_runs`. The rules are in Section 3 ("As built"). In short:
+    - A resolved map entry is used with no TMDB call. Unresolved and ambiguous entries are retried only after 30 days.
+    - On a match, `title_cache` is written before the map row (the map's FK).
+    - The 7-day refresh is capped at 300 per call, oldest first, once per key.
+    - TMDB being down caches nothing and never blocks: the run gives up on TMDB and every row still gets an answer (null). A failed write for one title is logged and skipped. Only database *reads* throw, since the availability writes need the same database.
+    - TMDB calls run 4 at a time, each with a 180 s limit (it covers `/find`, details and any 429 cooldowns).
+  - `withTitleKeys(rows, keys)` sets staging's `media_type`/`tmdb_id`, both or neither, overwriting the feed's `tmdb_id` hint. For step 4.
+  - `store.ts`: the Supabase store. Chunked reads, 4 at a time. A new title is one insert. On a unique violation it updates the existing key's metadata, or reports an IMDb-id clash (`TitleConflictError` → `ambiguous`). Refreshes are updates that leave `imdb_id` alone and stamp `last_refreshed_at`.
+- `lib/tmdb-resolve.ts`:
+  - `fetchTitleDetails(ref, imdbId)` was split out of `resolveImdbToTmdb`. Both take optional `tmdbFetch` options (the pipeline passes a timeout).
+  - An empty-string `imdb_id` from TMDB now falls back to the feed's id (`||`, was `??`). This also applies to the seed, which would otherwise store `""`.
+- `lib/in-pool.ts`: bounded concurrency. `lib/id-chunks.ts`: `chunkIds` is generic, for imdb ids.
+- Section 3 updated: the feed's `tmdb_id` isn't trusted, plus the as-built rules and one known limitation (a key TMDB deletes or merges keeps its old data).
+- No migration: 0008's `imdb_tmdb_map` and `title_cache.last_refreshed_at` were enough. No site code changed, so no smoke run.
+- `/code-review`, several passes. Fixed:
+  - A lasting `title_cache` clash re-asked TMDB daily. Now it's cached as `ambiguous`.
+  - 404s counted as an outage. Now only outage-like errors count, and a 403 counts as one.
+  - A dead key held the front of the refresh queue. Now it moves to the back.
+  - Refreshes could rewrite or clash on `imdb_id`. Now they leave it alone.
+  - A race between two ids inserting the same new key was misread as a clash.
+  - TMDB calls had no timeout.
+  - A partial outage never tripped the give-up rule.
+  - Unbounded parallel reads.
+  - `""` imdb ids from TMDB were stored as they came.
+  - An unparseable refresh stamp was never refreshed.
+  - A refresh that found no row was still counted.
+  - A same-run "remap" of merged keys, added in pass 2, was removed in pass 3: it could never succeed (the old row holds the imdb_id). That's the known limitation above.
+- Declined:
+  - Batching or capping the first run's lookups (a one-time cost).
+  - Reading every cached title's refresh time to pick 300 (bounded by the feed).
+  - One imdb_id listed as two types (a feed bug; one IMDb id is one TMDB title).
+  - A few titles that 5xx forever (unlikely; they're logged).
+  - The seed's own upsert (retired at cutover).
+  - From the last pass (no correctness bugs left): a server-side filter for stale rows, the in-flight calls in the failure-rate denominator, and a per-attempt timeout inside `tmdbFetch` instead of one per pipeline call. Its small items were fixed: an unparseable `last_attempted_at` counts as due, plus a stale comment in `lib/tmdb.ts` and the refresh cap's wording.
+- Tests: `npm test` 459 (+50). They cover resolution (cache hit; the refresh, its cap, order and failures; unresolved and the 30-day retry; ambiguous; the outage rules, 401, 403 and 404; write failures; dedup), the store's queries and clash handling, `fetchTitleDetails`, the timeout signal, `inPool` (its limit and stop-on-failure), and string chunks.
+- **Live checks** (scratch scripts; nothing written):
+  - A dry run with real TMDB, live database reads and writes kept in memory resolved the mock feed's 32 ids in about 1 s. A made-up id was cached as `unresolved`. All 32 keys equal the live `provider_availability` keys.
+  - With a bad token, the run gave up after 4 calls (one batch in flight) and still answered all 33 ids.
+  - A probe insert reusing a stored imdb_id under an unused key came back as `TitleConflictError` ("title_cache_imdb_id_key"), and 0 rows were written.
+- `imdb_tmdb_map` is still empty live: the first real run fills it.
+- Next step: step 4: staging load + upsert + anti-join per provider, with `ingestion_runs` bookkeeping (and the removal grace period for `partial` runs, still open with the user). Call `resolveTitleKeys` once over all providers' matched rows, then `withTitleKeys` per provider.
 
 ### 2026-11-06 (session end) — docs brought up to date; step 3 in a new session
 - At the user's request, step 3 starts in a new session.

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveImdbToTmdb } from "./tmdb-resolve";
+import { fetchTitleDetails, resolveImdbToTmdb } from "./tmdb-resolve";
 
 function jsonResponse(body: unknown, ok = true, status = 200) {
   return {
@@ -172,5 +172,102 @@ describe("resolveImdbToTmdb", () => {
     // 401: not retried (tmdbFetch's retries are covered in lib/tmdb.test.ts).
     fetchMock().mockResolvedValueOnce(jsonResponse({}, false, 401));
     await expect(resolveImdbToTmdb("tt0111161")).rejects.toThrow(/401/);
+  });
+});
+
+describe("fetchTitleDetails", () => {
+  beforeEach(() => {
+    process.env.TMDB_API_KEY = "test-token";
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    delete process.env.TMDB_API_KEY;
+    vi.unstubAllGlobals();
+  });
+
+  const fetchMock = () => fetch as unknown as ReturnType<typeof vi.fn>;
+
+  it("fetches a movie by key alone, with no /find call", async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({
+        id: 603,
+        imdb_id: "tt0133093",
+        title: "The Matrix",
+        original_title: "The Matrix",
+        overview: "",
+        poster_path: "/p.jpg",
+        backdrop_path: null,
+        release_date: "1999-03-31",
+        genres: [],
+        vote_average: 8.2,
+        popularity: 80,
+      }),
+    );
+
+    const result = await fetchTitleDetails(
+      { media_type: "movie", tmdb_id: 603 },
+      "tt0133093",
+    );
+
+    expect(fetchMock()).toHaveBeenCalledTimes(1);
+    expect(fetchMock().mock.calls[0][0]).toContain("/movie/603?");
+    expect(result).toMatchObject({
+      media_type: "movie",
+      tmdb_id: 603,
+      vote_average: 8.2,
+      overview: null,
+    });
+  });
+
+  it("keeps the given imdb_id when TMDB's details have none", async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({
+        id: 1396,
+        name: "Breaking Bad",
+        original_name: "Breaking Bad",
+        overview: "x",
+        poster_path: null,
+        backdrop_path: null,
+        first_air_date: "2008-01-20",
+        genres: [],
+        vote_average: 8.9,
+        popularity: 300,
+        external_ids: { imdb_id: null },
+      }),
+    );
+
+    const result = await fetchTitleDetails(
+      { media_type: "tv", tmdb_id: 1396 },
+      "tt0903747",
+    );
+
+    expect(fetchMock().mock.calls[0][0]).toContain("/tv/1396?");
+    expect(result.imdb_id).toBe("tt0903747");
+  });
+
+  it("treats an empty imdb_id from TMDB as missing", async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({
+        id: 603,
+        imdb_id: "",
+        title: "The Matrix",
+        original_title: "The Matrix",
+        overview: "",
+        poster_path: null,
+        backdrop_path: null,
+        release_date: "",
+        genres: [],
+        vote_average: 0,
+        popularity: 0,
+      }),
+    );
+
+    const result = await fetchTitleDetails(
+      { media_type: "movie", tmdb_id: 603 },
+      "tt0133093",
+    );
+
+    expect(result.imdb_id).toBe("tt0133093");
   });
 });
