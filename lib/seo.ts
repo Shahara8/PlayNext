@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { CatalogRow } from "./catalog";
 import { titleWithYear } from "./format";
 import { getProviderByCode } from "./providers";
+import { titlePath } from "./title-ref";
 import { posterUrl } from "./tmdb-image";
 
 export const SITE_NAME = "PlayNext";
@@ -140,7 +141,7 @@ export function titleMetadata(rows: CatalogRow[]): Metadata {
       .join(" "),
   );
   const poster = posterUrl(title.poster_path, "w500");
-  const path = `/title/${title.tmdb_id}`;
+  const path = titlePath(title);
 
   return {
     title: name,

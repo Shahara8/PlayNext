@@ -8,6 +8,7 @@ import {
   createServerSupabaseClient,
   getCurrentUser,
 } from "@/lib/supabase-server";
+import { titleKey } from "@/lib/title-ref";
 import TitleCard from "./title-card";
 import styles from "./for-you.module.css";
 
@@ -80,7 +81,7 @@ export default async function ForYou() {
         <div className={styles.grid}>
           {recommendations.titles.map((title) => (
             <TitleCard
-              key={title.tmdb_id}
+              key={titleKey(title)}
               row={title}
               userId={user?.id ?? null}
             />

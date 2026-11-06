@@ -82,13 +82,13 @@ Per provider, per run, in one transaction:
 ### 5. Database schema
 
 ```sql
--- TMDB metadata cache, shared across all providers/regions
--- NOTE (found in MVP M7): TMDB ids are only unique *per media type* (movie 1396
--- and tv 1396 are different titles), so a lone tmdb_id PK can collide once the
--- real feed brings in thousands of titles. Consider (tmdb_id, media_type) before
--- the cutover; it touches every FK to title_cache (user_watchlist, feedback).
+-- TMDB metadata cache, shared across all providers/regions.
+-- Keyed on (media_type, tmdb_id): TMDB ids are only unique *per media type*
+-- (movie 1396 and tv 1396 are different titles). Done in migration 0007
+-- (2026-11-06); every table pointing here (provider_availability,
+-- user_watchlist, user_title_feedback, imdb_tmdb_map) carries both columns.
 CREATE TABLE title_cache (
-  tmdb_id           INTEGER PRIMARY KEY,
+  tmdb_id           INTEGER NOT NULL,
   media_type        TEXT NOT NULL CHECK (media_type IN ('movie','tv')),
   imdb_id           TEXT UNIQUE,
   title             TEXT NOT NULL,
@@ -101,15 +101,17 @@ CREATE TABLE title_cache (
   vote_average      NUMERIC(3,1),
   popularity        NUMERIC,
   last_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (media_type, tmdb_id)
 );
 CREATE INDEX idx_title_cache_imdb ON title_cache(imdb_id);
 
 -- imdb_id -> tmdb_id resolution cache (includes orphans)
 CREATE TABLE imdb_tmdb_map (
   imdb_id           TEXT PRIMARY KEY,
-  tmdb_id           INTEGER REFERENCES title_cache(tmdb_id),
+  tmdb_id           INTEGER,
   media_type        TEXT CHECK (media_type IN ('movie','tv')),
+  -- FOREIGN KEY (media_type, tmdb_id) REFERENCES title_cache
   resolution_status TEXT NOT NULL CHECK (resolution_status IN ('resolved','unresolved','ambiguous')),
   last_attempted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   attempt_count     INTEGER NOT NULL DEFAULT 1
@@ -122,7 +124,9 @@ CREATE TABLE provider_availability (
   region             TEXT NOT NULL,               -- ISO 3166-1 alpha-2
   imdb_id            TEXT NOT NULL,
   type               TEXT NOT NULL CHECK (type IN ('movie','tv_series')),
-  tmdb_id            INTEGER REFERENCES title_cache(tmdb_id),  -- NULL until resolved
+  tmdb_id            INTEGER,                     -- NULL until resolved
+  media_type         TEXT,                        -- the TMDB match's type, set with tmdb_id
+                                                  -- (both or neither; FK to title_cache)
   title              TEXT NOT NULL,               -- feed-supplied fallback display name
   original_title     TEXT,
   release_year       INTEGER,
@@ -139,7 +143,7 @@ CREATE TABLE provider_availability (
   UNIQUE (provider, region, imdb_id, type)
 );
 CREATE INDEX idx_pa_active         ON provider_availability (provider, region) WHERE removed_at IS NULL;
-CREATE INDEX idx_pa_tmdb           ON provider_availability (tmdb_id);
+CREATE INDEX idx_pa_title          ON provider_availability (media_type, tmdb_id);
 CREATE INDEX idx_pa_recently_left  ON provider_availability (removed_at) WHERE removed_at IS NOT NULL;
 
 -- Transient per-run load table
@@ -180,7 +184,7 @@ CREATE TABLE ingestion_runs (
 );
 ```
 
-**Forward-compatibility rule**: future user tables (favorites, watchlist, ratings — see `docs/MVP.md`) key on `title_cache.tmdb_id` (falling back to `imdb_id` for unresolved orphans), **not** on `provider_availability.id` — a favorite is "this movie," not "this movie on this specific provider." Keeps `provider_availability` decoupled from user data.
+**Forward-compatibility rule**: future user tables (favorites, watchlist, ratings — see `docs/MVP.md`) key on `title_cache`'s `(media_type, tmdb_id)` (falling back to `imdb_id` for unresolved orphans), **not** on `provider_availability.id` — a favorite is "this movie," not "this movie on this specific provider." Keeps `provider_availability` decoupled from user data.
 
 ### 6. Scheduling: GitHub Actions, not Supabase pg_cron/Edge Functions
 
@@ -231,6 +235,32 @@ This pipeline is **not yet built**. `title_cache`/`provider_availability` are cu
 **First question for the session that starts it:** is the external developer's daily feed ready (a sample file, delivery method, provider list)? If yes, build against the real files. If not, build and test against the agreed schema with sample files, keeping the mock seed live until real files arrive, and record that decision here.
 
 ## Progress Log
+
+### 2026-11-06 — pipeline step 1: titles keyed on (media_type, tmdb_id)
+- The user's plan for our side (while Noam works on his branch):
+  1. The migration (this entry).
+  2. Validation and the circuit breaker.
+  3. TMDB resolution with caching.
+  4. The diff/upsert.
+  5. The GitHub Actions job.
+  6. The cutover once Noam's data is accepted.
+- Did: **migration `0007_title_key_media_type.sql`** fixed the TMDB id collision noted in Section 5 before real data arrives:
+  - `title_cache`'s key is now `(media_type, tmdb_id)`.
+  - `user_watchlist` and `user_title_feedback` carry `media_type` (backfilled), with keys `(user_id, media_type, tmdb_id)` and composite FKs.
+  - `provider_availability` gets its own nullable `media_type`: the TMDB match's type, both-or-neither with `tmdb_id`. It's deliberately not derived from the feed's `type`, since the resolver can fall back to a movie hit for a "series" row.
+  - `v_catalog` and `search_titles()` join on both columns (same output columns).
+  - New `legacy_title_ids` freezes what each old id meant, while ids were still unique.
+  - The feedback backfill disables 0006's touch trigger, so `updated_at` (recommendations' seed order) survives.
+- App: `lib/title-ref.ts` (`TitleRef`, `titleKey` "movie:603", `titlePath`, `parseTitleRef`, `idsByMediaType`). Every data function, map key and page uses the pair.
+  - Title pages moved to `/title/[media_type]/[tmdb_id]` (TMDB's own URL shape).
+  - `/title/<id>` (links shared before) 308-redirects through `legacy_title_ids`, keeping the query string. The route opts out of prerendering (`instant = false`) so the redirect is a real HTTP 308.
+- Section 5's schema block above is updated to match.
+- Verified before applying:
+  - The migration was dry-run twice on the live DB in a rolled-back transaction: 32/32 catalog rows still join, feedback timestamps unchanged, legacy map 32 rows, trigger re-enabled, `anon` can read the map.
+  - `npm test` 351 (+32); lint, `tsc`, build and format clean.
+  - `/code-review` three passes; see `docs/MVP.md`.
+- **Not applied yet**: see the next entry, or the Next step below if none follows.
+- Next step: apply 0007 (`npx supabase db push --db-url`, with the user's approval), then deploy this code right away. Between the two, old code's watchlist/feedback writes and the old seed fail. Then `npm run smoke` on production. After that, step 2: migration `0008` for `imdb_tmdb_map`/`staging_availability`/`ingestion_runs`, and the Zod feed schema from `docs/FEED_REQUIREMENTS.md`.
 
 ### 2026-11-06 — feed check: collector branch reviewed, change requests written
 - Did: reviewed and ran the external developer's (Noam's) `provider-catalog-fetchers` branch (commit `a7e4f16`, a Python package) in a throwaway worktree and venv. 45 tests pass (1 skipped). A live `fetch` gave 329 YES + 108 Partner TV rows in the agreed 14 JSONL fields.

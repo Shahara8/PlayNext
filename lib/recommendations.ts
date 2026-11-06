@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  getCatalogTitlesByIds,
+  getCatalogTitlesByRefs,
   getTrendingTitles,
   type CatalogTitle,
 } from "./catalog";
 import { getRelatedTmdbIds } from "./tmdb-related";
+import { titleKey, type TitleRef } from "./title-ref";
 import type { Sentiment } from "./user-titles";
 
 // Content-based recommendations, computed on demand (docs/MVP.md Section 6).
@@ -16,18 +17,15 @@ export const SEED_MIN_RATING = 7;
 export const GENRE_BOOST = 0.5;
 export const MAX_RECOMMENDATIONS = 20;
 
-export interface FeedbackRow {
-  tmdb_id: number;
+export interface FeedbackRow extends TitleRef {
   is_favorite: boolean;
   sentiment: Sentiment | null;
   rating: number | null;
   updated_at: string;
-  title_cache: Pick<CatalogTitle, "media_type" | "genres"> | null;
+  title_cache: Pick<CatalogTitle, "genres"> | null;
 }
 
-export interface Seed {
-  tmdbId: number;
-  mediaType: CatalogTitle["media_type"];
+export interface Seed extends TitleRef {
   genreIds: number[];
 }
 
@@ -73,42 +71,47 @@ export function pickSeeds(rows: FeedbackRow[]): Seed[] {
       .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
       .slice(0, MAX_SEEDS)
       .map((row) => ({
-        tmdbId: row.tmdb_id,
-        mediaType: row.title_cache!.media_type,
+        media_type: row.media_type,
+        tmdb_id: row.tmdb_id,
         genreIds: (row.title_cache!.genres ?? []).map((g) => g.id),
       }))
   );
 }
 
-function candidateKey(mediaType: string, tmdbId: number): string {
-  return `${mediaType}:${tmdbId}`;
+/** Seed i's related titles: TMDB relates a title only to its own media type. */
+function relatedRefs(seed: Seed, ids: number[] | null): TitleRef[] {
+  return (ids ?? []).map((id) => ({
+    media_type: seed.media_type,
+    tmdb_id: id,
+  }));
 }
 
 /**
  * Ranks catalog titles by how many seeds TMDB relates them to, plus a small
  * boost for the share of their genres the seeds also have. `related[i]` is
  * seed i's related ids (same media type as the seed), or null if that lookup
- * failed. Titles not related to any seed, or in `excluded`, are dropped.
+ * failed. Titles not related to any seed, or in `excluded` (title keys), are
+ * dropped.
  */
 export function scoreCandidates(
   seeds: Seed[],
   related: (number[] | null)[],
   catalog: CatalogTitle[],
-  excluded: ReadonlySet<number>,
+  excluded: ReadonlySet<string>,
 ): CatalogTitle[] {
   // TMDB ids are only unique per media type, so candidates key on both.
   const seedCounts = new Map<string, number>();
   seeds.forEach((seed, i) => {
-    for (const id of new Set(related[i] ?? [])) {
-      const key = candidateKey(seed.mediaType, id);
+    for (const key of new Set(relatedRefs(seed, related[i]).map(titleKey))) {
       seedCounts.set(key, (seedCounts.get(key) ?? 0) + 1);
     }
   });
   const seedGenres = new Set(seeds.flatMap((seed) => seed.genreIds));
 
   const scored = catalog.flatMap((title) => {
-    const count = seedCounts.get(candidateKey(title.media_type, title.tmdb_id));
-    if (!count || excluded.has(title.tmdb_id)) return [];
+    const key = titleKey(title);
+    const count = seedCounts.get(key);
+    if (!count || excluded.has(key)) return [];
     const genres = title.genres ?? [];
     const overlap =
       genres.length === 0
@@ -122,6 +125,7 @@ export function scoreCandidates(
       (a, b) =>
         b.score - a.score ||
         (b.title.popularity ?? 0) - (a.title.popularity ?? 0) ||
+        a.title.media_type.localeCompare(b.title.media_type) ||
         a.title.tmdb_id - b.title.tmdb_id,
     )
     .map(({ title }) => title);
@@ -164,33 +168,33 @@ function getFeedbackRows(
   return selectAllUserRows<FeedbackRow>(
     supabase,
     "user_title_feedback",
-    "tmdb_id,is_favorite,sentiment,rating,updated_at,title_cache(media_type,genres)",
+    "media_type,tmdb_id,is_favorite,sentiment,rating,updated_at,title_cache(genres)",
     userId,
-    ["tmdb_id"],
+    ["media_type", "tmdb_id"],
   );
 }
 
-async function getWatchlistIds(
+async function getWatchlistKeys(
   supabase: SupabaseClient,
   userId: string,
-): Promise<number[]> {
-  const rows = await selectAllUserRows<{ tmdb_id: number }>(
+): Promise<string[]> {
+  const rows = await selectAllUserRows<TitleRef>(
     supabase,
     "user_watchlist",
-    "tmdb_id",
+    "media_type,tmdb_id",
     userId,
-    ["tmdb_id"],
+    ["media_type", "tmdb_id"],
   );
-  return rows.map((row) => row.tmdb_id);
+  return rows.map(titleKey);
 }
 
 async function recommendFromSeeds(
   seeds: Seed[],
-  excluded: ReadonlySet<number>,
+  excluded: ReadonlySet<string>,
 ): Promise<{ titles: CatalogTitle[]; anyFailed: boolean }> {
   // One seed's TMDB failure shouldn't cost the viewer the rest.
   const lookups = await Promise.allSettled(
-    seeds.map((seed) => getRelatedTmdbIds(seed.mediaType, seed.tmdbId)),
+    seeds.map((seed) => getRelatedTmdbIds(seed.media_type, seed.tmdb_id)),
   );
   const related: (number[] | null)[] = [];
   const failures: unknown[] = [];
@@ -208,16 +212,16 @@ async function recommendFromSeeds(
       failures[0],
     );
 
-  const candidateIds = related
-    .flatMap((ids) => ids ?? [])
-    .filter((id) => !excluded.has(id));
-  if (candidateIds.length === 0) return { titles: [], anyFailed };
+  const candidates = seeds
+    .flatMap((seed, i) => relatedRefs(seed, related[i]))
+    .filter((ref) => !excluded.has(titleKey(ref)));
+  if (candidates.length === 0) return { titles: [], anyFailed };
 
   return {
     titles: scoreCandidates(
       seeds,
       related,
-      await getCatalogTitlesByIds(candidateIds),
+      await getCatalogTitlesByRefs(candidates),
       excluded,
     ),
     anyFailed,
@@ -256,10 +260,10 @@ export async function getRecommendations(
 
   const [feedback, watchlist] = await Promise.all([
     getFeedbackRows(viewer.supabase, viewer.userId),
-    getWatchlistIds(viewer.supabase, viewer.userId),
+    getWatchlistKeys(viewer.supabase, viewer.userId),
   ]);
   const excluded = new Set([
-    ...feedback.filter(hasOpinion).map((row) => row.tmdb_id),
+    ...feedback.filter(hasOpinion).map(titleKey),
     ...watchlist,
   ]);
   const seeds = pickSeeds(feedback);
@@ -274,9 +278,9 @@ export async function getRecommendations(
     getTrendingTitles(limit, excluded),
   ]);
   const picks = fromSeeds.titles.slice(0, limit);
-  const pickIds = new Set(picks.map((title) => title.tmdb_id));
+  const pickKeys = new Set(picks.map(titleKey));
   const filler = trending
-    .filter((title) => !pickIds.has(title.tmdb_id))
+    .filter((title) => !pickKeys.has(titleKey(title)))
     .slice(0, limit - picks.length);
 
   return {

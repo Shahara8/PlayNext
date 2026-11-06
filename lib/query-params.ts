@@ -1,3 +1,17 @@
+/** A page's parsed searchParams back as "?a=1&b=2" (repeated keys kept), or "". */
+export function queryString(searchParams: {
+  [key: string]: string | string[] | undefined;
+}): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value === undefined) continue;
+    for (const v of Array.isArray(value) ? value : [value])
+      query.append(key, v);
+  }
+  const text = query.toString();
+  return text ? `?${text}` : "";
+}
+
 /** First value of a Next.js searchParams entry (it's an array when a key repeats in the URL). */
 export function firstSearchParam(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v) ?? "";
@@ -8,8 +22,9 @@ export function firstSearchParam(v: string | string[] | undefined): string {
 export const MAX_TMDB_ID = 2_147_483_647;
 
 /**
- * A `/title/[tmdb_id]` segment as an id, or null for anything else. Canonical
- * digits only (no "0x52b", "1.3e3" or "007"), so one title has one URL.
+ * A title URL's TMDB id segment (`/title/[media_type]/[tmdb_id]`, or the old
+ * `/title/<id>` links) as an id, or null for anything else. Canonical digits
+ * only (no "0x52b", "1.3e3" or "007"), so one title has one URL.
  */
 export function parseTmdbId(raw: string): number | null {
   if (!/^[1-9]\d*$/.test(raw)) return null;

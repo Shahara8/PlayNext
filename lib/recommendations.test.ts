@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getCatalogTitlesByIds,
+  getCatalogTitlesByRefs,
   getTrendingTitles,
   type CatalogTitle,
 } from "./catalog";
@@ -21,7 +21,7 @@ import {
 } from "./recommendations";
 
 vi.mock("./catalog", () => ({
-  getCatalogTitlesByIds: vi.fn(),
+  getCatalogTitlesByRefs: vi.fn(),
   getTrendingTitles: vi.fn(),
 }));
 
@@ -36,7 +36,8 @@ function feedback(overrides: Partial<FeedbackRow> = {}): FeedbackRow {
     sentiment: null,
     rating: null,
     updated_at: "2026-11-01T00:00:00Z",
-    title_cache: { media_type: "tv", genres: [{ id: 18, name: "Drama" }] },
+    media_type: "tv",
+    title_cache: { genres: [{ id: 18, name: "Drama" }] },
     ...overrides,
   };
 }
@@ -58,7 +59,7 @@ function title(
 }
 
 function seed(tmdbId: number, overrides: Partial<Seed> = {}): Seed {
-  return { tmdbId, mediaType: "tv", genreIds: [], ...overrides };
+  return { tmdb_id: tmdbId, media_type: "tv", genreIds: [], ...overrides };
 }
 
 const ids = (titles: { tmdb_id: number }[]) => titles.map((t) => t.tmdb_id);
@@ -103,13 +104,14 @@ describe("pickSeeds", () => {
         tmdb_id: 3,
         rating: 8,
         updated_at: "2026-10-02",
-        title_cache: { media_type: "movie", genres: null },
+        media_type: "movie",
+        title_cache: { genres: null },
       }),
     ]);
 
     expect(seeds).toEqual([
-      { tmdbId: 3, mediaType: "movie", genreIds: [] },
-      { tmdbId: 1, mediaType: "tv", genreIds: [18] },
+      { media_type: "movie", tmdb_id: 3, genreIds: [] },
+      { media_type: "tv", tmdb_id: 1, genreIds: [18] },
     ]);
   });
 
@@ -125,7 +127,7 @@ describe("pickSeeds", () => {
     const seeds = pickSeeds(rows);
 
     expect(seeds).toHaveLength(MAX_SEEDS);
-    expect(seeds[0].tmdbId).toBe(MAX_SEEDS + 4);
+    expect(seeds[0].tmdb_id).toBe(MAX_SEEDS + 4);
   });
 
   it("orders by time, not by string, when fractional seconds differ in length", () => {
@@ -142,7 +144,7 @@ describe("pickSeeds", () => {
       }),
     ]);
 
-    expect(seeds.map((s) => s.tmdbId)).toEqual([2, 1]);
+    expect(seeds.map((s) => s.tmdb_id)).toEqual([2, 1]);
   });
 
   it("skips a row whose title is gone from title_cache", () => {
@@ -195,7 +197,7 @@ describe("scoreCandidates", () => {
 
   it("matches on media type, since TMDB ids repeat across movies and TV", () => {
     const ranked = scoreCandidates(
-      [seed(1, { mediaType: "movie" })],
+      [seed(1, { media_type: "movie" })],
       [[10]],
       [title(10, { media_type: "tv" })],
       new Set(),
@@ -209,10 +211,21 @@ describe("scoreCandidates", () => {
       [seed(1)],
       [[10, 20]],
       [title(10), title(20), title(30)],
-      new Set([20]),
+      new Set(["tv:20"]),
     );
 
     expect(ids(ranked)).toEqual([10]);
+  });
+
+  it("excluding a movie doesn't exclude the show with the same TMDB id", () => {
+    const ranked = scoreCandidates(
+      [seed(1)],
+      [[20]],
+      [title(20)],
+      new Set(["movie:20"]),
+    );
+
+    expect(ids(ranked)).toEqual([20]);
   });
 
   it("tolerates a seed whose lookup failed", () => {
@@ -260,7 +273,10 @@ describe("getRecommendations", () => {
   function makeClient(feedbackRows: FeedbackRow[], watchlistIds: number[]) {
     const results: Record<string, unknown[]> = {
       user_title_feedback: feedbackRows,
-      user_watchlist: watchlistIds.map((tmdb_id) => ({ tmdb_id })),
+      user_watchlist: watchlistIds.map((tmdb_id) => ({
+        media_type: "tv",
+        tmdb_id,
+      })),
     };
     const builders: Record<
       string,
@@ -295,7 +311,7 @@ describe("getRecommendations", () => {
 
   beforeEach(() => {
     vi.mocked(getTrendingTitles).mockReset();
-    vi.mocked(getCatalogTitlesByIds).mockReset();
+    vi.mocked(getCatalogTitlesByRefs).mockReset();
     vi.mocked(getRelatedTmdbIds).mockReset();
   });
 
@@ -329,14 +345,17 @@ describe("getRecommendations", () => {
     );
     expect(builders.user_watchlist.eq).toHaveBeenCalledWith("user_id", "u1");
     expect(getRelatedTmdbIds).not.toHaveBeenCalled();
-    expect(getTrendingTitles).toHaveBeenCalledWith(5, new Set([1, 3]));
+    expect(getTrendingTitles).toHaveBeenCalledWith(
+      5,
+      new Set(["tv:1", "tv:3"]),
+    );
     expect(result.hasSeeds).toBe(false);
     expect(result.titles.map((t) => t.source)).toEqual(["trending"]);
   });
 
   it("puts seed-based picks first and tops up with trending", async () => {
     vi.mocked(getRelatedTmdbIds).mockResolvedValue([10, 11, 3]);
-    vi.mocked(getCatalogTitlesByIds).mockResolvedValue([title(10)]);
+    vi.mocked(getCatalogTitlesByRefs).mockResolvedValue([title(10)]);
     // Trending may include a pick; it's not repeated.
     vi.mocked(getTrendingTitles).mockResolvedValue([title(10), title(20)]);
     const { viewer } = makeClient(
@@ -348,8 +367,14 @@ describe("getRecommendations", () => {
 
     expect(getRelatedTmdbIds).toHaveBeenCalledWith("tv", 1);
     // Excluded ids aren't looked up in the catalog.
-    expect(getCatalogTitlesByIds).toHaveBeenCalledWith([10, 11]);
-    expect(getTrendingTitles).toHaveBeenCalledWith(2, new Set([1, 3]));
+    expect(getCatalogTitlesByRefs).toHaveBeenCalledWith([
+      { media_type: "tv", tmdb_id: 10 },
+      { media_type: "tv", tmdb_id: 11 },
+    ]);
+    expect(getTrendingTitles).toHaveBeenCalledWith(
+      2,
+      new Set(["tv:1", "tv:3"]),
+    );
     expect(result).toEqual({
       hasSeeds: true,
       seedLookupsFailed: false,
@@ -362,7 +387,7 @@ describe("getRecommendations", () => {
 
   it("adds no trending titles when picks fill the limit", async () => {
     vi.mocked(getRelatedTmdbIds).mockResolvedValue([10, 11, 12]);
-    vi.mocked(getCatalogTitlesByIds).mockResolvedValue([
+    vi.mocked(getCatalogTitlesByRefs).mockResolvedValue([
       title(10),
       title(11),
       title(12),
@@ -382,7 +407,7 @@ describe("getRecommendations", () => {
     vi.mocked(getRelatedTmdbIds)
       .mockRejectedValueOnce(new Error("TMDB down"))
       .mockResolvedValueOnce([10]);
-    vi.mocked(getCatalogTitlesByIds).mockResolvedValue([title(10)]);
+    vi.mocked(getCatalogTitlesByRefs).mockResolvedValue([title(10)]);
     vi.mocked(getTrendingTitles).mockResolvedValue([]);
     const { viewer } = makeClient(
       [
@@ -450,7 +475,7 @@ describe("getRecommendations", () => {
       from.mock.calls.filter(([table]) => table === "user_title_feedback"),
     ).toHaveLength(2);
     const excluded = vi.mocked(getTrendingTitles).mock.calls[0][1]!;
-    expect(excluded.has(USER_ROWS_PAGE_SIZE + 1)).toBe(true);
+    expect(excluded.has(`tv:${USER_ROWS_PAGE_SIZE + 1}`)).toBe(true);
   });
 
   it("skips the catalog lookup when TMDB suggests nothing new", async () => {
@@ -460,7 +485,7 @@ describe("getRecommendations", () => {
 
     const result = await getRecommendations(viewer, 5);
 
-    expect(getCatalogTitlesByIds).not.toHaveBeenCalled();
+    expect(getCatalogTitlesByRefs).not.toHaveBeenCalled();
     expect(result.hasSeeds).toBe(true);
     expect(result.titles.map((t) => t.source)).toEqual(["trending"]);
   });

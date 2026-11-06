@@ -1,6 +1,12 @@
 import { createPublicClient } from "./supabase";
 import { chunkIds } from "./id-chunks";
 import { REGION } from "./providers";
+import {
+  idsByMediaType,
+  titleKey,
+  type MediaType,
+  type TitleRef,
+} from "./title-ref";
 
 // Mirrors public.v_catalog (supabase/migrations/0001_user_data_and_views.sql).
 export interface CatalogRow {
@@ -14,7 +20,7 @@ export interface CatalogRow {
   first_seen_date: string;
   last_verified: string | null;
   tmdb_id: number;
-  media_type: "movie" | "tv";
+  media_type: MediaType;
   imdb_id: string | null;
   title: string;
   original_title: string | null;
@@ -60,6 +66,13 @@ export const AVAILABILITY_OPTIONS: {
   { value: "free", label: "Free" },
 ];
 
+// The Type filter's options (the feed's labels, kept for stable URLs) to the
+// TMDB media type they select. A Record, so a new label must be mapped here.
+const TYPE_MEDIA_TYPES: Record<CatalogRow["type"], MediaType> = {
+  movie: "movie",
+  tv_series: "tv",
+};
+
 export interface CatalogFilters {
   type?: CatalogRow["type"];
   availabilityType?: CatalogRow["availability_type"];
@@ -80,7 +93,10 @@ export async function getCatalogByProvider(
     .eq("provider", providerCode)
     .eq("region", REGION);
 
-  if (filters.type) query = query.eq("type", filters.type);
+  // On TMDB's media type, not the feed's `type` label: that's what the card
+  // shows and links by, and the two can differ (migration 0007).
+  if (filters.type)
+    query = query.eq("media_type", TYPE_MEDIA_TYPES[filters.type]);
   if (filters.availabilityType)
     query = query.eq("availability_type", filters.availabilityType);
   if (filters.genre)
@@ -122,22 +138,40 @@ export async function getProviderGenres(
   return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
-/** All live provider rows for one title (same tmdb_id can appear under multiple providers). */
-export async function getCatalogByTmdbId(
-  tmdbId: number,
-): Promise<CatalogRow[]> {
+/** All live provider rows for one title (a title can be on several providers). */
+export async function getCatalogByTitle(ref: TitleRef): Promise<CatalogRow[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("v_catalog")
     .select("*")
-    .eq("tmdb_id", tmdbId)
+    .eq("media_type", ref.media_type)
+    .eq("tmdb_id", ref.tmdb_id)
     // A stable order, so the page and its metadata list providers the same
     // way on every request.
     .order("provider")
     .order("availability_type");
 
-  if (error) throw new Error(`getCatalogByTmdbId failed: ${error.message}`);
+  if (error) throw new Error(`getCatalogByTitle failed: ${error.message}`);
   return data as CatalogRow[];
+}
+
+/**
+ * Where an old `/title/<tmdb_id>` link (from before titles were keyed on
+ * media type too) should go: the title that id meant then, frozen in
+ * legacy_title_ids by migration 0007. Null for an id that was never a title.
+ */
+export async function findLegacyTitle(
+  tmdbId: number,
+): Promise<TitleRef | null> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("legacy_title_ids")
+    .select("media_type,tmdb_id")
+    .eq("tmdb_id", tmdbId)
+    .maybeSingle();
+
+  if (error) throw new Error(`findLegacyTitle failed: ${error.message}`);
+  return data as TitleRef | null;
 }
 
 // What recommendations need per title: enough to render a card, plus the
@@ -162,30 +196,31 @@ const CATALOG_TITLE_COLUMNS =
 export const TRENDING_PAGE_SIZE = 100;
 
 // v_catalog has one row per provider a title is on; callers want one per title.
-// `seen` (ids to skip) is updated in place, so it can carry across pages.
+// `seen` (title keys to skip) is updated in place, so it can carry across pages.
 function uniqueTitles(
   rows: CatalogTitle[],
-  seen: Set<number> = new Set(),
+  seen: Set<string> = new Set(),
 ): CatalogTitle[] {
   return rows.filter((row) => {
-    if (seen.has(row.tmdb_id)) return false;
-    seen.add(row.tmdb_id);
+    const key = titleKey(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
 
 /**
  * The most popular titles across every provider (the browse page's
- * "Trending" order), skipping `excludeIds`. Recommendations' cold-start
- * fallback and top-up.
+ * "Trending" order), skipping `excludeKeys` (see titleKey). Recommendations'
+ * cold-start fallback and top-up.
  */
 export async function getTrendingTitles(
   limit: number,
-  excludeIds: ReadonlySet<number> = new Set(),
+  excludeKeys: ReadonlySet<string> = new Set(),
 ): Promise<CatalogTitle[]> {
   const supabase = createPublicClient();
   const { column, ascending } = SORT_COLUMNS.trending;
-  const seen = new Set(excludeIds);
+  const seen = new Set(excludeKeys);
   const titles: CatalogTitle[] = [];
 
   // Pages until there are `limit` distinct titles, since how many rows that
@@ -210,24 +245,27 @@ export async function getTrendingTitles(
 }
 
 /** The given titles that are currently available in the region, one row each. */
-export async function getCatalogTitlesByIds(
-  tmdbIds: number[],
+export async function getCatalogTitlesByRefs(
+  refs: readonly TitleRef[],
 ): Promise<CatalogTitle[]> {
   const supabase = createPublicClient();
   const results = await Promise.all(
-    chunkIds(Array.from(new Set(tmdbIds))).map((chunk) =>
-      supabase
-        .from("v_catalog")
-        .select(CATALOG_TITLE_COLUMNS)
-        .eq("region", REGION)
-        .in("tmdb_id", chunk),
+    idsByMediaType(refs).flatMap(([mediaType, ids]) =>
+      chunkIds(ids).map((chunk) =>
+        supabase
+          .from("v_catalog")
+          .select(CATALOG_TITLE_COLUMNS)
+          .eq("region", REGION)
+          .eq("media_type", mediaType)
+          .in("tmdb_id", chunk),
+      ),
     ),
   );
 
   return uniqueTitles(
     results.flatMap(({ data, error }) => {
       if (error)
-        throw new Error(`getCatalogTitlesByIds failed: ${error.message}`);
+        throw new Error(`getCatalogTitlesByRefs failed: ${error.message}`);
       return data as CatalogTitle[];
     }),
   );

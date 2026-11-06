@@ -45,7 +45,10 @@ function makeClient(results: Record<string, Result>) {
   return { client: client as never, builders };
 }
 
-const FEEDBACK_CONFLICT = { onConflict: "user_id,tmdb_id" };
+const FEEDBACK_CONFLICT = { onConflict: "user_id,media_type,tmdb_id" };
+
+const movie = (tmdb_id: number) => ({ media_type: "movie" as const, tmdb_id });
+const tv = (tmdb_id: number) => ({ media_type: "tv" as const, tmdb_id });
 
 describe("nextSentiment", () => {
   it("sets a sentiment when there is none", () => {
@@ -74,8 +77,8 @@ describe("parseRating", () => {
 
 describe("titleStateKey", () => {
   it("is stable for equal states", () => {
-    expect(titleStateKey(1, { ...EMPTY_TITLE_STATE })).toBe(
-      titleStateKey(1, EMPTY_TITLE_STATE),
+    expect(titleStateKey(movie(1), { ...EMPTY_TITLE_STATE })).toBe(
+      titleStateKey(movie(1), EMPTY_TITLE_STATE),
     );
   });
 
@@ -85,14 +88,20 @@ describe("titleStateKey", () => {
     { rating: 7 },
     { inWatchlist: true },
   ])("changes when %o changes", (change) => {
-    expect(titleStateKey(1, { ...EMPTY_TITLE_STATE, ...change })).not.toBe(
-      titleStateKey(1, EMPTY_TITLE_STATE),
-    );
+    expect(
+      titleStateKey(movie(1), { ...EMPTY_TITLE_STATE, ...change }),
+    ).not.toBe(titleStateKey(movie(1), EMPTY_TITLE_STATE));
   });
 
   it("differs per title", () => {
-    expect(titleStateKey(1, EMPTY_TITLE_STATE)).not.toBe(
-      titleStateKey(2, EMPTY_TITLE_STATE),
+    expect(titleStateKey(movie(1), EMPTY_TITLE_STATE)).not.toBe(
+      titleStateKey(movie(2), EMPTY_TITLE_STATE),
+    );
+  });
+
+  it("differs between a movie and a show with the same TMDB id", () => {
+    expect(titleStateKey(movie(1), EMPTY_TITLE_STATE)).not.toBe(
+      titleStateKey(tv(1), EMPTY_TITLE_STATE),
     );
   });
 });
@@ -113,37 +122,78 @@ describe("getTitleStates", () => {
     const { client, builders } = makeClient({
       user_title_feedback: {
         data: [
-          { tmdb_id: 1, is_favorite: true, sentiment: "like", rating: 8 },
-          { tmdb_id: 2, is_favorite: false, sentiment: null, rating: null },
+          { ...movie(1), is_favorite: true, sentiment: "like", rating: 8 },
+          { ...movie(2), is_favorite: false, sentiment: null, rating: null },
         ],
         error: null,
       },
       user_watchlist: {
-        data: [{ tmdb_id: 2 }, { tmdb_id: 3 }],
+        data: [movie(2), movie(3)],
         error: null,
       },
     });
 
-    const states = await getTitleStates(client, "u1", [1, 2, 3, 4]);
+    const states = await getTitleStates(client, "u1", [1, 2, 3, 4].map(movie));
 
     expect(builders.user_title_feedback.eq).toHaveBeenCalledWith(
       "user_id",
       "u1",
+    );
+    expect(builders.user_title_feedback.eq).toHaveBeenCalledWith(
+      "media_type",
+      "movie",
     );
     expect(builders.user_title_feedback.in).toHaveBeenCalledWith(
       "tmdb_id",
       [1, 2, 3, 4],
     );
     expect(builders.user_watchlist.eq).toHaveBeenCalledWith("user_id", "u1");
-    expect(states.get(1)).toEqual({
+    expect(states.get("movie:1")).toEqual({
       isFavorite: true,
       sentiment: "like",
       rating: 8,
       inWatchlist: false,
     });
-    expect(states.get(2)).toEqual({ ...EMPTY_TITLE_STATE, inWatchlist: true });
-    expect(states.get(3)).toEqual({ ...EMPTY_TITLE_STATE, inWatchlist: true });
-    expect(states.has(4)).toBe(false);
+    expect(states.get("movie:2")).toEqual({
+      ...EMPTY_TITLE_STATE,
+      inWatchlist: true,
+    });
+    expect(states.get("movie:3")).toEqual({
+      ...EMPTY_TITLE_STATE,
+      inWatchlist: true,
+    });
+    expect(states.has("movie:4")).toBe(false);
+  });
+
+  it("queries each media type separately and keeps same-id titles apart", async () => {
+    const { client, builders } = makeClient({
+      user_title_feedback: {
+        data: [
+          { ...movie(1), is_favorite: true, sentiment: null, rating: null },
+        ],
+        error: null,
+      },
+      user_watchlist: { data: [tv(1)], error: null },
+    });
+
+    const states = await getTitleStates(client, "u1", [movie(1), tv(1)]);
+
+    expect(builders.user_title_feedback.eq).toHaveBeenCalledWith(
+      "media_type",
+      "movie",
+    );
+    expect(builders.user_title_feedback.eq).toHaveBeenCalledWith(
+      "media_type",
+      "tv",
+    );
+    expect(states.get("movie:1")).toEqual({
+      ...EMPTY_TITLE_STATE,
+      isFavorite: true,
+    });
+    expect(states.get("tv:1")).toEqual({
+      ...EMPTY_TITLE_STATE,
+      inWatchlist: true,
+    });
   });
 
   it("splits large id lists into chunked .in() queries", async () => {
@@ -153,7 +203,7 @@ describe("getTitleStates", () => {
     });
     const ids = Array.from({ length: ID_CHUNK_SIZE * 2 + 1 }, (_, i) => i + 1);
 
-    await getTitleStates(client, "u1", ids);
+    await getTitleStates(client, "u1", ids.map(movie));
 
     const chunks = (
       builders.user_title_feedback.in.mock.calls as unknown as [
@@ -179,7 +229,7 @@ describe("getTitleStates", () => {
         [failing]: { data: null, error: { message: "boom" } },
       });
 
-      await expect(getTitleStates(client, "u1", [1])).rejects.toThrow(
+      await expect(getTitleStates(client, "u1", [movie(1)])).rejects.toThrow(
         "getTitleStates failed: boom",
       );
     },
@@ -203,12 +253,12 @@ describe("feedback writes", () => {
       await (getWrite() as (...args: unknown[]) => Promise<void>)(
         client,
         "u1",
-        42,
+        tv(42),
         value,
       );
 
       expect(builders.user_title_feedback.upsert).toHaveBeenCalledWith(
-        { user_id: "u1", tmdb_id: 42, ...fields },
+        { user_id: "u1", media_type: "tv", tmdb_id: 42, ...fields },
         FEEDBACK_CONFLICT,
       );
     },
@@ -219,7 +269,7 @@ describe("feedback writes", () => {
       user_title_feedback: { error: { message: "denied" } },
     });
 
-    await expect(setFavorite(client, "u1", 42, true)).rejects.toThrow(
+    await expect(setFavorite(client, "u1", movie(42), true)).rejects.toThrow(
       "upsertFeedback failed: denied",
     );
   });
@@ -231,11 +281,11 @@ describe("setInWatchlist", () => {
       user_watchlist: { error: null },
     });
 
-    await setInWatchlist(client, "u1", 42, true);
+    await setInWatchlist(client, "u1", tv(42), true);
 
     expect(builders.user_watchlist.upsert).toHaveBeenCalledWith(
-      { user_id: "u1", tmdb_id: 42 },
-      { onConflict: "user_id,tmdb_id", ignoreDuplicates: true },
+      { user_id: "u1", media_type: "tv", tmdb_id: 42 },
+      { onConflict: "user_id,media_type,tmdb_id", ignoreDuplicates: true },
     );
     expect(builders.user_watchlist.delete).not.toHaveBeenCalled();
   });
@@ -245,10 +295,11 @@ describe("setInWatchlist", () => {
       user_watchlist: { error: null },
     });
 
-    await setInWatchlist(client, "u1", 42, false);
+    await setInWatchlist(client, "u1", tv(42), false);
 
     expect(builders.user_watchlist.delete).toHaveBeenCalled();
     expect(builders.user_watchlist.eq).toHaveBeenCalledWith("user_id", "u1");
+    expect(builders.user_watchlist.eq).toHaveBeenCalledWith("media_type", "tv");
     expect(builders.user_watchlist.eq).toHaveBeenCalledWith("tmdb_id", 42);
     expect(builders.user_watchlist.upsert).not.toHaveBeenCalled();
   });
@@ -258,9 +309,9 @@ describe("setInWatchlist", () => {
       user_watchlist: { error: { message: "denied" } },
     });
 
-    await expect(setInWatchlist(client, "u1", 42, false)).rejects.toThrow(
-      "setInWatchlist failed: denied",
-    );
+    await expect(
+      setInWatchlist(client, "u1", movie(42), false),
+    ).rejects.toThrow("setInWatchlist failed: denied");
   });
 });
 

@@ -119,7 +119,7 @@ async function main() {
           vote_average: match.vote_average,
           popularity: match.popularity,
         },
-        { onConflict: "tmdb_id" },
+        { onConflict: "media_type,tmdb_id" },
       );
       if (titleError)
         throw new Error(
@@ -140,6 +140,8 @@ async function main() {
           region: row.region,
           imdb_id: row.imdb_id,
           type: row.type,
+          // The full title key or none (a check constraint enforces both-or-neither).
+          media_type: match?.media_type ?? null,
           tmdb_id: match?.tmdb_id ?? null,
           title: match?.title ?? row.title,
           original_title: match?.original_title ?? row.original_title ?? null,

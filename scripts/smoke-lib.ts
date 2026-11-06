@@ -1,6 +1,8 @@
 // Pure helpers for scripts/smoke.ts (live smoke checks, docs/MVP.md Section 8
 // "Testing"). Kept free of side effects so they can be unit-tested.
 
+import { titleKey, type TitleRef } from "../lib/title-ref";
+
 export const PRODUCTION_URL = "https://playnext-beta.vercel.app";
 
 export type Viewport = {
@@ -126,6 +128,19 @@ export function screenshotName(viewport: string, label: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return `${slug}.png`;
+}
+
+/**
+ * A title to test old `/title/<id>` links with: the first one in the frozen
+ * legacy map (supabase/migrations/0007_title_key_media_type.sql) that is also
+ * live now, so its redirect must land on a working page. Null if none is.
+ */
+export function pickLegacyTitle(
+  legacy: readonly TitleRef[],
+  live: readonly TitleRef[],
+): TitleRef | null {
+  const liveKeys = new Set(live.map(titleKey));
+  return legacy.find((ref) => liveKeys.has(titleKey(ref))) ?? null;
 }
 
 export type CheckResult = {

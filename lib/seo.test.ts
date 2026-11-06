@@ -175,9 +175,9 @@ describe("titleMetadata", () => {
   it("sets canonical, Open Graph type and poster image", () => {
     const metadata = titleMetadata([row()]);
 
-    expect(metadata.alternates?.canonical).toBe("/title/84958");
+    expect(metadata.alternates?.canonical).toBe("/title/tv/84958");
     expect(metadata.openGraph).toMatchObject({
-      url: "/title/84958",
+      url: "/title/tv/84958",
       type: "video.tv_show",
       images: [{ url: "https://image.tmdb.org/t/p/w500/loki.jpg" }],
     });

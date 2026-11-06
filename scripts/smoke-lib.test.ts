@@ -3,12 +3,36 @@ import {
   CdpClient,
   chromeCandidates,
   normalizeBaseUrl,
+  pickLegacyTitle,
   parseDevToolsUrl,
   parseSmokeArgs,
   PRODUCTION_URL,
   screenshotName,
   summarize,
 } from "./smoke-lib";
+
+describe("pickLegacyTitle", () => {
+  const movie = (tmdb_id: number) => ({
+    media_type: "movie" as const,
+    tmdb_id,
+  });
+  const tv = (tmdb_id: number) => ({ media_type: "tv" as const, tmdb_id });
+
+  it("picks the first legacy title that is live", () => {
+    expect(
+      pickLegacyTitle([tv(1), movie(2), tv(3)], [tv(3), movie(2)]),
+    ).toEqual(movie(2));
+  });
+
+  it("needs the media type to match too", () => {
+    expect(pickLegacyTitle([tv(7)], [movie(7)])).toBeNull();
+  });
+
+  it("is null when nothing old is live", () => {
+    expect(pickLegacyTitle([tv(1)], [])).toBeNull();
+    expect(pickLegacyTitle([], [tv(1)])).toBeNull();
+  });
+});
 
 describe("parseSmokeArgs", () => {
   it("defaults to production, .smoke and signed-in checks", () => {

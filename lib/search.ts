@@ -1,6 +1,7 @@
 import { createPublicClient } from "./supabase";
+import type { MediaType } from "./title-ref";
 
-// Mirrors public.search_titles()'s return row (supabase/migrations/0001_user_data_and_views.sql).
+// Mirrors public.search_titles()'s return row (supabase/migrations/0007_title_key_media_type.sql).
 export interface SearchResultProvider {
   provider: string;
   availability_type: "subscription" | "rent" | "buy" | "free";
@@ -9,7 +10,7 @@ export interface SearchResultProvider {
 
 export interface SearchResultRow {
   tmdb_id: number;
-  media_type: "movie" | "tv";
+  media_type: MediaType;
   title: string;
   poster_path: string | null;
   release_date: string | null;

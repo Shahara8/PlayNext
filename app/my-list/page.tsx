@@ -8,6 +8,7 @@ import {
 import { firstSearchParam } from "@/lib/query-params";
 import { getFavoriteTitles, getWatchlistTitles } from "@/lib/user-titles";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
+import { titleKey } from "@/lib/title-ref";
 import TitleCard from "@/app/components/title-card";
 import styles from "./page.module.css";
 
@@ -33,9 +34,7 @@ export default async function MyListPage({
     view === "favorites"
       ? await getFavoriteTitles(supabase, user.id)
       : await getWatchlistTitles(supabase, user.id);
-  const { states, unavailable } = await getViewerTitleStates(
-    titles.map((title) => title.tmdb_id),
-  );
+  const { states, unavailable } = await getViewerTitleStates(titles);
 
   return (
     <main className={styles.main}>
@@ -69,10 +68,10 @@ export default async function MyListPage({
         <div className={styles.grid}>
           {titles.map((title) => (
             <TitleCard
-              key={title.tmdb_id}
+              key={titleKey(title)}
               row={title}
               userId={user.id}
-              state={states.get(title.tmdb_id)}
+              state={states.get(titleKey(title))}
               stateUnavailable={unavailable}
             />
           ))}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
+import type { TitleRef } from "@/lib/title-ref";
 import {
   EMPTY_TITLE_STATE,
   nextSentiment,
@@ -20,12 +21,13 @@ import {
 import styles from "./title-actions.module.css";
 
 export default function TitleActions({
-  tmdbId,
+  titleRef,
   userId,
   initialState = EMPTY_TITLE_STATE,
   unavailable = false,
 }: {
-  tmdbId: number;
+  /** Just the key (not a whole row), so the client props stay small. */
+  titleRef: TitleRef;
   userId: string | null;
   initialState?: TitleUserState;
   /** The viewer's saved state couldn't be loaded — render disabled, not empty. */
@@ -39,11 +41,11 @@ export default function TitleActions({
   const [failed, setFailed] = useState(false);
 
   // Adopt fresh server state (a refresh after another tab's change, a new
-  // tmdbId) when it changes — but not mid-write: a refresh triggered by an
+  // title) when it changes — but not mid-write: a refresh triggered by an
   // earlier write can land then, carrying state that predates the current
   // one. The refresh this write triggers will carry the final state anyway.
   // Adjusting state during render (not an effect), per React's docs.
-  const serverKey = titleStateKey(tmdbId, initialState);
+  const serverKey = titleStateKey(titleRef, initialState);
   const [seenServerKey, setSeenServerKey] = useState(serverKey);
   if (serverKey !== seenServerKey) {
     setSeenServerKey(serverKey);
@@ -85,28 +87,28 @@ export default function TitleActions({
   function toggleFavorite() {
     const isFavorite = !state.isFavorite;
     apply({ ...state, isFavorite }, (supabase, id) =>
-      setFavorite(supabase, id, tmdbId, isFavorite),
+      setFavorite(supabase, id, titleRef, isFavorite),
     );
   }
 
   function toggleWatchlist() {
     const inWatchlist = !state.inWatchlist;
     apply({ ...state, inWatchlist }, (supabase, id) =>
-      setInWatchlist(supabase, id, tmdbId, inWatchlist),
+      setInWatchlist(supabase, id, titleRef, inWatchlist),
     );
   }
 
   function toggleSentiment(clicked: Sentiment) {
     const sentiment = nextSentiment(state.sentiment, clicked);
     apply({ ...state, sentiment }, (supabase, id) =>
-      setSentiment(supabase, id, tmdbId, sentiment),
+      setSentiment(supabase, id, titleRef, sentiment),
     );
   }
 
   function changeRating(value: string) {
     const rating = parseRating(value);
     apply({ ...state, rating }, (supabase, id) =>
-      setRating(supabase, id, tmdbId, rating),
+      setRating(supabase, id, titleRef, rating),
     );
   }
 

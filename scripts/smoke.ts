@@ -20,9 +20,12 @@ import { join } from "path";
 import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { PROVIDERS } from "../lib/providers";
+import { createPublicClient } from "../lib/supabase";
+import { titlePath as newTitlePath, type TitleRef } from "../lib/title-ref";
 import {
   CdpClient,
   chromeCandidates,
+  pickLegacyTitle,
   parseDevToolsUrl,
   parseSmokeArgs,
   screenshotName,
@@ -327,7 +330,10 @@ const has = {
 
 type PageSpec = { label: string; path: string; ready: string };
 
-function signedOutPages(titlePath: string): PageSpec[] {
+function signedOutPages(
+  titlePath: string,
+  legacy: TitleRef | null,
+): PageSpec[] {
   return [
     {
       label: "home",
@@ -360,6 +366,17 @@ function signedOutPages(titlePath: string): PageSpec[] {
       path: titlePath,
       ready: `document.querySelector('main h1') && document.querySelector('[aria-label="Favorite"]')`,
     },
+    // Links shared before 2026-11-06 were /title/<id>: they must redirect to
+    // the title the frozen legacy map names, and land on a working page.
+    ...(legacy
+      ? [
+          {
+            label: "old title link redirects",
+            path: `/title/${legacy.tmdb_id}`,
+            ready: `location.pathname === ${JSON.stringify(newTitlePath(legacy))} && document.querySelector('[aria-label="Favorite"]')`,
+          },
+        ]
+      : []),
     {
       label: "login",
       path: "/login",
@@ -440,6 +457,32 @@ class Runner {
         },
       );
   }
+}
+
+/**
+ * A pre-0007 title id that is live now (see pickLegacyTitle), read with the
+ * public anon key. Null (and the redirect check skipped) if there's none.
+ */
+async function findLiveLegacyTitle(): Promise<TitleRef | null> {
+  const db = createPublicClient();
+  // The whole map: it was frozen at migration time (32 rows) and never grows.
+  const legacy = await db
+    .from("legacy_title_ids")
+    .select("media_type,tmdb_id")
+    .order("tmdb_id");
+  if (legacy.error)
+    throw new Error(`legacy_title_ids: ${legacy.error.message}`);
+  const refs = legacy.data as TitleRef[];
+  if (refs.length === 0) return null;
+  const live = await db
+    .from("v_catalog")
+    .select("media_type,tmdb_id")
+    .in(
+      "tmdb_id",
+      refs.map((r) => r.tmdb_id),
+    );
+  if (live.error) throw new Error(`v_catalog: ${live.error.message}`);
+  return pickLegacyTitle(refs, live.data as TitleRef[]);
 }
 
 /** The first title on Netflix's browse page, so no title id is hard-coded. */
@@ -600,9 +643,17 @@ async function main() {
     if (!titlePath)
       throw new Error("no title found; the remaining checks need one");
 
+    let legacy: TitleRef | null = null;
+    await runner.check("find an old title id to use", async () => {
+      legacy = await findLiveLegacyTitle();
+      return legacy
+        ? `/title/${legacy.tmdb_id}`
+        : "none live; redirect check skipped";
+    });
+
     for (const viewport of VIEWPORTS) {
       await page.setViewport(viewport);
-      await runner.pages(page, "signed-out", signedOutPages(titlePath));
+      await runner.pages(page, "signed-out", signedOutPages(titlePath, legacy));
     }
 
     if (!options.signedOutOnly) {

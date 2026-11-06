@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-image";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
+import { titlePath } from "@/lib/title-ref";
 import type { TitleSummary, TitleUserState } from "@/lib/user-titles";
 import TitleActions from "./title-actions";
 import Poster from "./poster";
@@ -23,7 +24,7 @@ export default function TitleCard({
 
   return (
     <div className={styles.card}>
-      <Link href={`/title/${row.tmdb_id}`} className={styles.link}>
+      <Link href={titlePath(row)} className={styles.link}>
         <div className={styles.posterWrap}>
           <Poster
             src={poster}
@@ -40,7 +41,7 @@ export default function TitleCard({
         </span>
       </Link>
       <TitleActions
-        tmdbId={row.tmdb_id}
+        titleRef={{ media_type: row.media_type, tmdb_id: row.tmdb_id }}
         userId={userId}
         initialState={state}
         unavailable={stateUnavailable}

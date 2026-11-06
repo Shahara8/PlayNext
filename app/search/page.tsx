@@ -4,6 +4,7 @@ import { searchTitles } from "@/lib/search";
 import SearchBar from "@/app/components/search-bar";
 import SearchResultCard from "@/app/components/search-result-card";
 import { firstSearchParam } from "@/lib/query-params";
+import { titleKey } from "@/lib/title-ref";
 import { searchMetadata } from "@/lib/seo";
 import styles from "./page.module.css";
 
@@ -42,7 +43,7 @@ export default async function SearchPage({
       ) : (
         <ul className={styles.results}>
           {results.map((row) => (
-            <li key={row.tmdb_id}>
+            <li key={titleKey(row)}>
               <SearchResultCard row={row} />
             </li>
           ))}

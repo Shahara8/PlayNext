@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { SearchResultRow } from "@/lib/search";
 import { posterUrl } from "@/lib/tmdb-image";
 import { mediaTypeLabel, releaseYear } from "@/lib/format";
+import { titlePath } from "@/lib/title-ref";
 import ProviderBadges from "./provider-badges";
 import Poster from "./poster";
 import styles from "./search-result-card.module.css";
@@ -12,7 +13,7 @@ export default function SearchResultCard({ row }: { row: SearchResultRow }) {
   const typeLabel = mediaTypeLabel(row.media_type);
 
   return (
-    <Link href={`/title/${row.tmdb_id}`} className={styles.card}>
+    <Link href={titlePath(row)} className={styles.card}>
       <div className={styles.posterWrap}>
         <Poster
           src={poster}

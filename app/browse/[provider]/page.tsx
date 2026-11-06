@@ -16,6 +16,7 @@ import TitleCard from "@/app/components/title-card";
 import SortFilterBar from "@/app/components/sort-filter-bar";
 import { firstSearchParam, withUpdatedParam } from "@/lib/query-params";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
+import { titleKey } from "@/lib/title-ref";
 import { browseMetadata, NOT_FOUND_METADATA } from "@/lib/seo";
 import styles from "./page.module.css";
 
@@ -72,9 +73,7 @@ export default async function BrowsePage({
     getProviderGenres(provider.code),
   ]);
 
-  const { userId, states, unavailable } = await getViewerTitleStates(
-    rows.map((row) => row.tmdb_id),
-  );
+  const { userId, states, unavailable } = await getViewerTitleStates(rows);
 
   const filtersActive = Boolean(type || availabilityType || genre);
 
@@ -116,7 +115,7 @@ export default async function BrowsePage({
               key={row.availability_id}
               row={row}
               userId={userId}
-              state={states.get(row.tmdb_id)}
+              state={states.get(titleKey(row))}
               stateUnavailable={unavailable}
             />
           ))}

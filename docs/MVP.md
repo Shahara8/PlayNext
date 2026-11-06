@@ -14,6 +14,37 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (title keys) — Post-M8 task 3, pipeline step 1: (media_type, tmdb_id) keys
+- Did: migration `0007` plus app changes so titles are keyed on (media type, TMDB id), not TMDB id alone. Title URLs are now `/title/movie/603` / `/title/tv/1396`; old `/title/<id>` links 308-redirect. Details in `docs/INGESTION.md`'s Progress Log; the code is in `lib/title-ref.ts`.
+- `/code-review` (medium), three passes:
+  - Fixed:
+    - The migration's feedback backfill would have reset every `updated_at` (0006's trigger), scrambling recommendation seeds. The trigger is now off for the backfill.
+    - The old-link redirect first guessed by popularity, then by oldest row. It's now a frozen `legacy_title_ids` table, so a cached 308 can't go stale.
+    - The redirect keeps the query string (`queryString` in `lib/query-params.ts`, tested).
+    - The smoke check rejects a "Not found" landing.
+    - `Seed` is now a `TitleRef`.
+    - Removed a redundant sort key.
+    - Stale comments fixed.
+  - Fixed in the third pass:
+    - The smoke redirect check picks a title that is both in `legacy_title_ids` and live now (`pickLegacyTitle`, tested). It expects that exact path, and skips with a note if none is live.
+    - Dropped an unused index.
+    - `SearchResultRow` uses `MediaType`.
+    - The browse Type filter now filters on TMDB's media type (what cards show and link by) instead of the feed's label.
+    - `findLegacyTitle` uses `maybeSingle()`.
+  - Fixed in the fourth pass:
+    - An old link to a title no longer on any provider returns not-found directly, instead of a cached 308 to a not-found page.
+    - The smoke lookup reads the whole frozen map (32 rows), not the first 100 ids. It's renamed `findLiveLegacyTitle` and uses `createPublicClient()`.
+    - The Type filter maps labels to media types with an explicit `Record`.
+  - Declined:
+    - `getCatalogByTitle` has no region filter: it didn't before either, and the MVP is IL-only.
+    - A shared helper for the two per-media-type query fan-outs: only two call sites.
+    - Computing related refs twice in recommendations (negligible).
+    - Tabs left open from before the deploy can't save until reloaded: their old bundle's upserts name the dropped key. They show the existing "couldn't save" state, nothing is lost, and the user base is tiny.
+    - `legacy_title_ids` is empty on a freshly built database: old links only exist on production.
+- Smoke: new "old title link redirects" check (signed out, both viewports).
+- Verified: `npm test` 351 passing; lint, `tsc`, `format:check` and `build` clean. The migration was dry-run on the live DB and rolled back. Live checks are in the entry after the migration is applied.
+- Next step: see `docs/INGESTION.md` (apply 0007 with the user's approval, deploy at once, smoke production).
+
 ### 2026-11-06 (feed review) — Post-M8 task 3 started: feed reviewed, Partner TV added
 - **Ingestion:** reviewed and ran the external developer's (Noam's) collector branch. It isn't the agreed feed yet: no IMDb IDs, home and marketing pages instead of full catalogs, YES and Partner TV only. Details are in `docs/INGESTION.md`'s Progress Log. The change requests are in `docs/FEED_REQUIREMENTS.md`, which the user sent him. **He works only on `provider-catalog-fetchers`; we merge through a pull request when we decide it's time.**
 - **The user's decisions:**
@@ -528,7 +559,7 @@ Simple content-based, computed **on-demand** (no batch/precompute job — consis
 6. Exclude anything the user has an opinion on (favorite, like, dislike, any rating) or has watchlisted. Return up to 20 (`?limit=`); the home page shows 12.
 7. TMDB responses are cached per seed with Next's `use cache` + `cacheLife("hours")` (`lib/tmdb-related.ts`) instead of a TTL table: no migration, no cron. The cache is per server instance, so a cold serverless instance refetches.
 
-Code: `lib/recommendations.ts` (scoring + orchestration), `lib/tmdb-related.ts` (cached TMDB calls, 5s timeout per seed; retry waits capped at 1s so a rate limit fails the seed fast and the list falls back to trending), `lib/catalog.ts` (`getTrendingTitles`, `getCatalogTitlesByIds`). Response: `{ hasSeeds, seedLookupsFailed, titles }`. `GET /api/recommendations` and the home page's "For You" section (`app/components/for-you.tsx`) both call `getRecommendations()`; the page calls it directly rather than fetching its own API.
+Code: `lib/recommendations.ts` (scoring + orchestration), `lib/tmdb-related.ts` (cached TMDB calls, 5s timeout per seed; retry waits capped at 1s so a rate limit fails the seed fast and the list falls back to trending), `lib/catalog.ts` (`getTrendingTitles`, `getCatalogTitlesByRefs`). Titles are identified by (media type, TMDB id) throughout (`lib/title-ref.ts`), since TMDB ids repeat across movies and TV. Response: `{ hasSeeds, seedLookupsFailed, titles }`. `GET /api/recommendations` and the home page's "For You" section (`app/components/for-you.tsx`) both call `getRecommendations()`; the page calls it directly rather than fetching its own API.
 
 **Explicit non-goal**: collaborative filtering — a clear post-MVP step once there's a real user base with enough interaction density to make it outperform content-based.
 
@@ -609,7 +640,7 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 - [x] Provider picker component
 - [x] Browse grid page, querying `v_catalog` filtered by provider + region
 - [x] Title card component (poster, title, year, type)
-- [x] Title detail page (`/title/[tmdb_id]`) — overview, genres, rating, list of providers/watch links
+- [x] Title detail page (`/title/[tmdb_id]`, since 2026-11-06 `/title/[media_type]/[tmdb_id]` with old links redirected) — overview, genres, rating, list of providers/watch links
 - [x] Loading and empty states for both pages
 
 *Demo: pick Netflix → see titles → open one → see where to watch it.*

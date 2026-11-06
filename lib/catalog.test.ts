@@ -19,6 +19,7 @@ function makeQueryBuilder(result: {
     contains: vi.fn(() => builder),
     in: vi.fn(() => builder),
     order: vi.fn(() => builder),
+    maybeSingle: vi.fn(() => builder),
     then: (
       resolve: (value: typeof result) => unknown,
       reject?: (reason: unknown) => unknown,
@@ -90,7 +91,7 @@ describe("getCatalogByProvider", () => {
       },
     });
 
-    expect(builder.eq).toHaveBeenCalledWith("type", "movie");
+    expect(builder.eq).toHaveBeenCalledWith("media_type", "movie");
     expect(builder.eq).toHaveBeenCalledWith(
       "availability_type",
       "subscription",
@@ -157,9 +158,9 @@ describe("getProviderGenres", () => {
   });
 });
 
-describe("getCatalogByTmdbId", () => {
-  it("queries v_catalog filtered by tmdb_id only (every provider carrying that title)", async () => {
-    const { getCatalogByTmdbId } = await import("./catalog");
+describe("getCatalogByTitle", () => {
+  it("queries v_catalog by the full title key (every provider carrying it)", async () => {
+    const { getCatalogByTitle } = await import("./catalog");
     const rows = [
       { tmdb_id: 1396, provider: "NETFLIX" },
       { tmdb_id: 1396, provider: "YES" },
@@ -168,11 +169,16 @@ describe("getCatalogByTmdbId", () => {
     const from = vi.fn(() => builder);
     mockedCreatePublicClient.mockReturnValue({ from } as never);
 
-    const result = await getCatalogByTmdbId(1396);
+    const result = await getCatalogByTitle({
+      media_type: "tv",
+      tmdb_id: 1396,
+    });
 
     expect(from).toHaveBeenCalledWith("v_catalog");
-    expect(builder.eq).toHaveBeenCalledWith("tmdb_id", 1396);
-    expect(builder.eq).toHaveBeenCalledTimes(1);
+    expect(builder.eq.mock.calls).toEqual([
+      ["media_type", "tv"],
+      ["tmdb_id", 1396],
+    ]);
     expect(builder.order.mock.calls).toEqual([
       ["provider"],
       ["availability_type"],
@@ -181,7 +187,7 @@ describe("getCatalogByTmdbId", () => {
   });
 
   it("throws a descriptive error when the query fails", async () => {
-    const { getCatalogByTmdbId } = await import("./catalog");
+    const { getCatalogByTitle } = await import("./catalog");
     const builder = makeQueryBuilder({
       data: null,
       error: { message: "timeout" },
@@ -190,7 +196,54 @@ describe("getCatalogByTmdbId", () => {
       from: vi.fn(() => builder),
     } as never);
 
-    await expect(getCatalogByTmdbId(1396)).rejects.toThrow(/timeout/);
+    await expect(
+      getCatalogByTitle({ media_type: "movie", tmdb_id: 1 }),
+    ).rejects.toThrow(/getCatalogByTitle failed: timeout/);
+  });
+});
+
+describe("findLegacyTitle", () => {
+  it("looks the id up in the frozen legacy map", async () => {
+    const { findLegacyTitle } = await import("./catalog");
+    const builder = makeQueryBuilder({
+      data: { media_type: "tv", tmdb_id: 1396 },
+      error: null,
+    });
+    const from = vi.fn(() => builder);
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    await expect(findLegacyTitle(1396)).resolves.toEqual({
+      media_type: "tv",
+      tmdb_id: 1396,
+    });
+    expect(from).toHaveBeenCalledWith("legacy_title_ids");
+    expect(builder.eq).toHaveBeenCalledWith("tmdb_id", 1396);
+    expect(builder.maybeSingle).toHaveBeenCalled();
+  });
+
+  it("returns null when no title has that id", async () => {
+    const { findLegacyTitle } = await import("./catalog");
+    const builder = makeQueryBuilder({ data: null, error: null });
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    await expect(findLegacyTitle(5)).resolves.toBeNull();
+  });
+
+  it("throws a descriptive error when the query fails", async () => {
+    const { findLegacyTitle } = await import("./catalog");
+    const builder = makeQueryBuilder({
+      data: null,
+      error: { message: "timeout" },
+    });
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    await expect(findLegacyTitle(5)).rejects.toThrow(
+      /findLegacyTitle failed: timeout/,
+    );
   });
 });
 
@@ -213,8 +266,8 @@ describe("getTrendingTitles", () => {
     return builder;
   }
 
-  function rowsFor(ids: number[]) {
-    return ids.map((tmdb_id) => ({ tmdb_id }));
+  function rowsFor(ids: number[], media_type: "movie" | "tv" = "movie") {
+    return ids.map((tmdb_id) => ({ media_type, tmdb_id }));
   }
 
   it("orders the whole region by popularity, one row per title", async () => {
@@ -243,7 +296,7 @@ describe("getTrendingTitles", () => {
     expect(result.map((row) => row.tmdb_id)).toEqual([1, 2, 3]);
   });
 
-  it("skips excluded titles", async () => {
+  it("skips excluded titles (by title key)", async () => {
     const { getTrendingTitles } = await import("./catalog");
     const builder = makePagedBuilder([
       { data: rowsFor([1, 2, 3, 4]), error: null },
@@ -252,9 +305,29 @@ describe("getTrendingTitles", () => {
       from: vi.fn(() => builder),
     } as never);
 
-    const result = await getTrendingTitles(2, new Set([1, 3]));
+    const result = await getTrendingTitles(
+      2,
+      new Set(["movie:1", "movie:3", "tv:2"]),
+    );
 
     expect(result.map((row) => row.tmdb_id)).toEqual([2, 4]);
+  });
+
+  it("keeps a movie and a show that share a TMDB id as two titles", async () => {
+    const { getTrendingTitles } = await import("./catalog");
+    const builder = makePagedBuilder([
+      { data: [...rowsFor([7]), ...rowsFor([7], "tv")], error: null },
+    ]);
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    const result = await getTrendingTitles(5);
+
+    expect(result).toEqual([
+      { media_type: "movie", tmdb_id: 7 },
+      { media_type: "tv", tmdb_id: 7 },
+    ]);
   });
 
   it("pages until it has enough distinct titles", async () => {
@@ -303,33 +376,57 @@ describe("getTrendingTitles", () => {
   });
 });
 
-describe("getCatalogTitlesByIds", () => {
+describe("getCatalogTitlesByRefs", () => {
+  const movie = (tmdb_id: number) => ({
+    media_type: "movie" as const,
+    tmdb_id,
+  });
+  const tv = (tmdb_id: number) => ({ media_type: "tv" as const, tmdb_id });
+
   it("queries live region rows for the ids, one row per title", async () => {
-    const { getCatalogTitlesByIds } = await import("./catalog");
+    const { getCatalogTitlesByRefs } = await import("./catalog");
     const builder = makeQueryBuilder({
-      data: [{ tmdb_id: 1 }, { tmdb_id: 1 }, { tmdb_id: 2 }],
+      data: [movie(1), movie(1), movie(2)],
       error: null,
     });
     const from = vi.fn(() => builder);
     mockedCreatePublicClient.mockReturnValue({ from } as never);
 
-    const result = await getCatalogTitlesByIds([1, 2, 2]);
+    const result = await getCatalogTitlesByRefs([movie(1), movie(2), movie(2)]);
 
     expect(from).toHaveBeenCalledWith("v_catalog");
     expect(builder.eq).toHaveBeenCalledWith("region", "IL");
+    expect(builder.eq).toHaveBeenCalledWith("media_type", "movie");
     expect(builder.in).toHaveBeenCalledWith("tmdb_id", [1, 2]);
     expect(result.map((row) => row.tmdb_id)).toEqual([1, 2]);
   });
 
+  it("queries movies and shows separately", async () => {
+    const { getCatalogTitlesByRefs } = await import("./catalog");
+    const builder = makeQueryBuilder({ data: [], error: null });
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => builder),
+    } as never);
+
+    await getCatalogTitlesByRefs([movie(1), tv(1), tv(2)]);
+
+    expect(builder.eq).toHaveBeenCalledWith("media_type", "movie");
+    expect(builder.eq).toHaveBeenCalledWith("media_type", "tv");
+    expect(builder.in.mock.calls).toEqual([
+      ["tmdb_id", [1]],
+      ["tmdb_id", [1, 2]],
+    ]);
+  });
+
   it("splits a long id list into chunks", async () => {
-    const { getCatalogTitlesByIds } = await import("./catalog");
+    const { getCatalogTitlesByRefs } = await import("./catalog");
     const builder = makeQueryBuilder({ data: [], error: null });
     mockedCreatePublicClient.mockReturnValue({
       from: vi.fn(() => builder),
     } as never);
     const ids = Array.from({ length: ID_CHUNK_SIZE + 1 }, (_, i) => i);
 
-    await getCatalogTitlesByIds(ids);
+    await getCatalogTitlesByRefs(ids.map(movie));
 
     expect(builder.in).toHaveBeenCalledTimes(2);
     expect(builder.in).toHaveBeenNthCalledWith(
@@ -341,16 +438,16 @@ describe("getCatalogTitlesByIds", () => {
   });
 
   it("makes no query for no ids", async () => {
-    const { getCatalogTitlesByIds } = await import("./catalog");
+    const { getCatalogTitlesByRefs } = await import("./catalog");
     const from = vi.fn();
     mockedCreatePublicClient.mockReturnValue({ from } as never);
 
-    expect(await getCatalogTitlesByIds([])).toEqual([]);
+    expect(await getCatalogTitlesByRefs([])).toEqual([]);
     expect(from).not.toHaveBeenCalled();
   });
 
   it("throws a descriptive error when a query fails", async () => {
-    const { getCatalogTitlesByIds } = await import("./catalog");
+    const { getCatalogTitlesByRefs } = await import("./catalog");
     const builder = makeQueryBuilder({
       data: null,
       error: { message: "timeout" },
@@ -359,6 +456,8 @@ describe("getCatalogTitlesByIds", () => {
       from: vi.fn(() => builder),
     } as never);
 
-    await expect(getCatalogTitlesByIds([1])).rejects.toThrow(/timeout/);
+    await expect(getCatalogTitlesByRefs([movie(1)])).rejects.toThrow(
+      /getCatalogTitlesByRefs failed: timeout/,
+    );
   });
 });

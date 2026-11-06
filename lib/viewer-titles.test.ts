@@ -12,11 +12,14 @@ vi.mock("./user-titles", () => ({
   getTitleStates: vi.fn(),
 }));
 
+const REF_1 = { media_type: "movie" as const, tmdb_id: 1 };
+const REF_2 = { media_type: "tv" as const, tmdb_id: 2 };
+
 describe("getViewerTitleStates", () => {
   it("returns no user or states when signed out, without querying", async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(null);
 
-    const result = await getViewerTitleStates([1]);
+    const result = await getViewerTitleStates([REF_1]);
 
     expect(result.userId).toBeNull();
     expect(result.states.size).toBe(0);
@@ -31,9 +34,9 @@ describe("getViewerTitleStates", () => {
     vi.mocked(createServerSupabaseClient).mockResolvedValue(client as never);
     vi.mocked(getTitleStates).mockResolvedValue(states);
 
-    const result = await getViewerTitleStates([1, 2]);
+    const result = await getViewerTitleStates([REF_1, REF_2]);
 
-    expect(getTitleStates).toHaveBeenCalledWith(client, "u1", [1, 2]);
+    expect(getTitleStates).toHaveBeenCalledWith(client, "u1", [REF_1, REF_2]);
     expect(result).toEqual({ userId: "u1", states, unavailable: false });
   });
 
@@ -45,7 +48,7 @@ describe("getViewerTitleStates", () => {
     vi.mocked(createServerSupabaseClient).mockResolvedValue({} as never);
     vi.mocked(getTitleStates).mockRejectedValue(new Error("boom"));
 
-    const result = await getViewerTitleStates([1]);
+    const result = await getViewerTitleStates([REF_1]);
 
     expect(result.userId).toBe("u1");
     expect(result.states.size).toBe(0);

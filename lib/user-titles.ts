@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CatalogRow } from "./catalog";
 import { chunkIds } from "./id-chunks";
+import { idsByMediaType, titleKey, type TitleRef } from "./title-ref";
 
 export type Sentiment = "like" | "dislike";
 
@@ -46,9 +47,9 @@ export function parseRating(value: string): number | null {
 }
 
 /** Stable key for a title's controls: changes whenever its saved state does. */
-export function titleStateKey(tmdbId: number, state: TitleUserState): string {
+export function titleStateKey(ref: TitleRef, state: TitleUserState): string {
   return [
-    tmdbId,
+    titleKey(ref),
     state.isFavorite,
     state.sentiment,
     state.rating,
@@ -56,20 +57,23 @@ export function titleStateKey(tmdbId: number, state: TitleUserState): string {
   ].join(":");
 }
 
-async function selectForIds<T>(
+async function selectForRefs<T>(
   supabase: SupabaseClient,
   table: string,
   columns: string,
   userId: string,
-  tmdbIds: number[],
+  refs: readonly TitleRef[],
 ): Promise<T[]> {
   const results = await Promise.all(
-    chunkIds(tmdbIds).map((chunk) =>
-      supabase
-        .from(table)
-        .select(columns)
-        .eq("user_id", userId)
-        .in("tmdb_id", chunk),
+    idsByMediaType(refs).flatMap(([mediaType, ids]) =>
+      chunkIds(ids).map((chunk) =>
+        supabase
+          .from(table)
+          .select(columns)
+          .eq("user_id", userId)
+          .eq("media_type", mediaType)
+          .in("tmdb_id", chunk),
+      ),
     ),
   );
 
@@ -79,39 +83,43 @@ async function selectForIds<T>(
   });
 }
 
-/** The viewer's state per title, keyed by tmdb_id; titles with no rows are absent. */
+/**
+ * The viewer's state per title, keyed by titleKey ("movie:603"); titles with
+ * no rows are absent.
+ */
 export async function getTitleStates(
   supabase: SupabaseClient,
   userId: string,
-  tmdbIds: number[],
-): Promise<Map<number, TitleUserState>> {
-  const states = new Map<number, TitleUserState>();
-  if (tmdbIds.length === 0) return states;
+  refs: readonly TitleRef[],
+): Promise<Map<string, TitleUserState>> {
+  const states = new Map<string, TitleUserState>();
+  if (refs.length === 0) return states;
 
   const [feedback, watchlist] = await Promise.all([
-    selectForIds<{
-      tmdb_id: number;
-      is_favorite: boolean;
-      sentiment: Sentiment | null;
-      rating: number | null;
-    }>(
+    selectForRefs<
+      TitleRef & {
+        is_favorite: boolean;
+        sentiment: Sentiment | null;
+        rating: number | null;
+      }
+    >(
       supabase,
       "user_title_feedback",
-      "tmdb_id,is_favorite,sentiment,rating",
+      "media_type,tmdb_id,is_favorite,sentiment,rating",
       userId,
-      tmdbIds,
+      refs,
     ),
-    selectForIds<{ tmdb_id: number }>(
+    selectForRefs<TitleRef>(
       supabase,
       "user_watchlist",
-      "tmdb_id",
+      "media_type,tmdb_id",
       userId,
-      tmdbIds,
+      refs,
     ),
   ]);
 
   for (const row of feedback) {
-    states.set(row.tmdb_id, {
+    states.set(titleKey(row), {
       isFavorite: row.is_favorite,
       sentiment: row.sentiment,
       rating: row.rating,
@@ -119,8 +127,9 @@ export async function getTitleStates(
     });
   }
   for (const row of watchlist) {
-    states.set(row.tmdb_id, {
-      ...(states.get(row.tmdb_id) ?? EMPTY_TITLE_STATE),
+    const key = titleKey(row);
+    states.set(key, {
+      ...(states.get(key) ?? EMPTY_TITLE_STATE),
       inWatchlist: true,
     });
   }
@@ -133,53 +142,56 @@ export async function getTitleStates(
 async function upsertFeedback(
   supabase: SupabaseClient,
   userId: string,
-  tmdbId: number,
+  ref: TitleRef,
   fields: {
     is_favorite?: boolean;
     sentiment?: Sentiment | null;
     rating?: number | null;
   },
 ): Promise<void> {
-  const { error } = await supabase
-    .from("user_title_feedback")
-    .upsert(
-      { user_id: userId, tmdb_id: tmdbId, ...fields },
-      { onConflict: "user_id,tmdb_id" },
-    );
+  const { error } = await supabase.from("user_title_feedback").upsert(
+    {
+      user_id: userId,
+      media_type: ref.media_type,
+      tmdb_id: ref.tmdb_id,
+      ...fields,
+    },
+    { onConflict: "user_id,media_type,tmdb_id" },
+  );
   if (error) throw new Error(`upsertFeedback failed: ${error.message}`);
 }
 
 export function setFavorite(
   supabase: SupabaseClient,
   userId: string,
-  tmdbId: number,
+  ref: TitleRef,
   isFavorite: boolean,
 ): Promise<void> {
-  return upsertFeedback(supabase, userId, tmdbId, { is_favorite: isFavorite });
+  return upsertFeedback(supabase, userId, ref, { is_favorite: isFavorite });
 }
 
 export function setSentiment(
   supabase: SupabaseClient,
   userId: string,
-  tmdbId: number,
+  ref: TitleRef,
   sentiment: Sentiment | null,
 ): Promise<void> {
-  return upsertFeedback(supabase, userId, tmdbId, { sentiment });
+  return upsertFeedback(supabase, userId, ref, { sentiment });
 }
 
 export function setRating(
   supabase: SupabaseClient,
   userId: string,
-  tmdbId: number,
+  ref: TitleRef,
   rating: number | null,
 ): Promise<void> {
-  return upsertFeedback(supabase, userId, tmdbId, { rating });
+  return upsertFeedback(supabase, userId, ref, { rating });
 }
 
 export async function setInWatchlist(
   supabase: SupabaseClient,
   userId: string,
-  tmdbId: number,
+  ref: TitleRef,
   inWatchlist: boolean,
 ): Promise<void> {
   const table = supabase.from("user_watchlist");
@@ -187,10 +199,14 @@ export async function setInWatchlist(
   // tab) is a no-op, and keeps its original created_at.
   const { error } = inWatchlist
     ? await table.upsert(
-        { user_id: userId, tmdb_id: tmdbId },
-        { onConflict: "user_id,tmdb_id", ignoreDuplicates: true },
+        { user_id: userId, media_type: ref.media_type, tmdb_id: ref.tmdb_id },
+        { onConflict: "user_id,media_type,tmdb_id", ignoreDuplicates: true },
       )
-    : await table.delete().eq("user_id", userId).eq("tmdb_id", tmdbId);
+    : await table
+        .delete()
+        .eq("user_id", userId)
+        .eq("media_type", ref.media_type)
+        .eq("tmdb_id", ref.tmdb_id);
   if (error) throw new Error(`setInWatchlist failed: ${error.message}`);
 }
 

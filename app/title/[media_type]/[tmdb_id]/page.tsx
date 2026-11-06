@@ -1,46 +1,53 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { getCatalogByTmdbId } from "@/lib/catalog";
+import { getCatalogByTitle } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
 import { getProviderByCode } from "@/lib/providers";
 import { mediaTypeLabel, releaseYear, titleWithYear } from "@/lib/format";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { NOT_FOUND_METADATA, titleMetadata } from "@/lib/seo";
-import { parseTmdbId } from "@/lib/query-params";
+import {
+  parseTitleRef,
+  titleKey,
+  titlePath,
+  type MediaType,
+} from "@/lib/title-ref";
 import TitleActions from "@/app/components/title-actions";
 import Poster from "@/app/components/poster";
 import ShareButton from "@/app/components/share-button";
 import styles from "./page.module.css";
 
 // Shared by generateMetadata and the page, so one request reads it once.
-const getTitleRows = cache(getCatalogByTmdbId);
+// Keyed on primitives: cache() compares arguments by identity.
+const getTitleRows = cache((media_type: MediaType, tmdb_id: number) =>
+  getCatalogByTitle({ media_type, tmdb_id }),
+);
+
+type Params = Promise<{ media_type: string; tmdb_id: string }>;
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ tmdb_id: string }>;
+  params: Params;
 }): Promise<Metadata> {
-  const tmdbId = parseTmdbId((await params).tmdb_id);
-  if (tmdbId === null) return NOT_FOUND_METADATA;
-  const rows = await getTitleRows(tmdbId);
+  const { media_type, tmdb_id } = await params;
+  const ref = parseTitleRef(media_type, tmdb_id);
+  if (ref === null) return NOT_FOUND_METADATA;
+  const rows = await getTitleRows(ref.media_type, ref.tmdb_id);
   // No rows: the page calls notFound(), which sets noindex.
   return rows.length > 0 ? titleMetadata(rows) : NOT_FOUND_METADATA;
 }
 
-export default async function TitleDetailPage({
-  params,
-}: {
-  params: Promise<{ tmdb_id: string }>;
-}) {
-  const { tmdb_id } = await params;
-  const tmdbId = parseTmdbId(tmdb_id);
-  if (tmdbId === null) notFound();
+export default async function TitleDetailPage({ params }: { params: Params }) {
+  const { media_type, tmdb_id } = await params;
+  const ref = parseTitleRef(media_type, tmdb_id);
+  if (ref === null) notFound();
 
-  const rows = await getTitleRows(tmdbId);
+  const rows = await getTitleRows(ref.media_type, ref.tmdb_id);
   if (rows.length === 0) notFound();
 
-  const { userId, states, unavailable } = await getViewerTitleStates([tmdbId]);
+  const { userId, states, unavailable } = await getViewerTitleStates([ref]);
 
   const title = rows[0];
   const poster = posterUrl(title.poster_path, "w500");
@@ -72,15 +79,12 @@ export default async function TitleDetailPage({
 
           <div className={styles.actionsRow}>
             <TitleActions
-              tmdbId={tmdbId}
+              titleRef={ref}
               userId={userId}
-              initialState={states.get(tmdbId)}
+              initialState={states.get(titleKey(ref))}
               unavailable={unavailable}
             />
-            <ShareButton
-              path={`/title/${tmdbId}`}
-              title={titleWithYear(title)}
-            />
+            <ShareButton path={titlePath(ref)} title={titleWithYear(title)} />
           </div>
 
           {title.genres && title.genres.length > 0 && (

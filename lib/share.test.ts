@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { shareLink } from "./share";
 
-const data = { title: "The Simpsons (1989)", url: "https://x.test/title/456" };
+const data = {
+  title: "The Simpsons (1989)",
+  url: "https://x.test/title/tv/456",
+};
 
 function domError(name: string): Error {
   const error = new Error(name);

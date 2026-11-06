@@ -3,8 +3,25 @@ import {
   firstSearchParam,
   MAX_TMDB_ID,
   parseTmdbId,
+  queryString,
   withUpdatedParam,
 } from "./query-params";
+
+describe("queryString", () => {
+  it("is empty for no params", () => {
+    expect(queryString({})).toBe("");
+  });
+
+  it("keeps every key, repeated keys and encoding", () => {
+    expect(
+      queryString({ utm_source: "whatsapp", tag: ["a", "b"], q: "a&b c" }),
+    ).toBe("?utm_source=whatsapp&tag=a&tag=b&q=a%26b+c");
+  });
+
+  it("keeps an empty value but skips an undefined one", () => {
+    expect(queryString({ flag: "", gone: undefined })).toBe("?flag=");
+  });
+});
 
 describe("parseTmdbId", () => {
   it("parses a plain positive id", () => {
