@@ -5,9 +5,11 @@ import { firstSearchParam } from "@/lib/query-params";
 import {
   AUTH_CALLBACK_ERROR_MESSAGE,
   AUTH_CALLBACK_ERROR_PARAM,
+  AUTH_RESET_ERROR_MESSAGE,
+  AUTH_RESET_ERROR_PARAM,
 } from "@/lib/auth";
 import LoginForm from "@/app/components/login-form";
-import styles from "./page.module.css";
+import styles from "@/app/components/auth-page.module.css";
 
 // Reads cookies() for the already-signed-in redirect check below, so this
 // route can't be prerendered under cacheComponents — a low-traffic page, so
@@ -32,16 +34,24 @@ export default async function LoginPage({
   if (user) redirect("/");
 
   const sp = await searchParams;
-  // Set by /auth/callback when the Google redirect or email-confirmation
-  // link didn't carry a usable code, or exchanging it failed.
-  const hadCallbackError =
-    firstSearchParam(sp.error) === AUTH_CALLBACK_ERROR_PARAM;
+  // Set by /auth/callback when the Google redirect, email-confirmation link
+  // or password-reset link didn't carry a usable code, or exchanging it
+  // failed. A failed reset link reopens the reset form.
+  const errorParam = firstSearchParam(sp.error);
+  const resetLinkFailed = errorParam === AUTH_RESET_ERROR_PARAM;
+  const initialError = resetLinkFailed
+    ? AUTH_RESET_ERROR_MESSAGE
+    : errorParam === AUTH_CALLBACK_ERROR_PARAM
+      ? AUTH_CALLBACK_ERROR_MESSAGE
+      : null;
 
   return (
     <main className={styles.main}>
       <h1>Sign in</h1>
       <LoginForm
-        initialError={hadCallbackError ? AUTH_CALLBACK_ERROR_MESSAGE : null}
+        key={errorParam ?? ""}
+        initialError={initialError}
+        initialMode={resetLinkFailed ? "reset" : "signin"}
       />
     </main>
   );

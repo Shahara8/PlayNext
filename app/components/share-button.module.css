@@ -1,0 +1,16 @@
+/* Matches title-actions' buttons, which it sits beside. */
+.button {
+  height: 1.9rem;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--foreground);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover {
+  border-color: var(--foreground-muted);
+}

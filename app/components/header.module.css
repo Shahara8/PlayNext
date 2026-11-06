@@ -7,8 +7,10 @@
   margin: 0 auto;
   padding: 1rem 1.5rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem 1rem;
 }
 
 .logo {
@@ -18,12 +20,14 @@
 
 .links {
   display: flex;
+  align-items: center;
   gap: 1.5rem;
 }
 
 .link {
   font-size: 0.95rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .link:hover {
@@ -42,6 +46,7 @@
 }
 
 .signOutButton {
+  white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--foreground);
@@ -59,4 +64,19 @@
   display: inline-block;
   width: 3.5rem;
   height: 0.95rem;
+}
+
+@media (max-width: 600px) {
+  .nav {
+    padding: 0.85rem 1rem;
+  }
+
+  .links {
+    gap: 1.1rem;
+  }
+
+  .browseLink,
+  .userEmail {
+    display: none;
+  }
 }

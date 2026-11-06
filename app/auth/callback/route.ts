@@ -1,15 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { AUTH_CALLBACK_ERROR_PARAM } from "@/lib/auth";
+import { callbackFailureUrl, safeRedirectUrl } from "@/lib/auth";
 
 // Lands both the Google OAuth redirect and the email-confirmation link
 // (both use Supabase's PKCE flow, which hands back a `?code=` to exchange
-// for a session) — one callback covers M5's "both ways" sign-in paths.
+// for a session) — one callback covers M5's "both ways" sign-in paths — and
+// a password-reset link, which passes `?next=` to land on the new-password
+// form instead of the home page.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const next = searchParams.get("next");
   const failureRedirect = NextResponse.redirect(
-    `${origin}/login?error=${AUTH_CALLBACK_ERROR_PARAM}`,
+    callbackFailureUrl(next, origin),
   );
 
   if (!code) {
@@ -35,5 +38,5 @@ export async function GET(request: NextRequest) {
     return failureRedirect;
   }
 
-  return NextResponse.redirect(`${origin}/`);
+  return NextResponse.redirect(safeRedirectUrl(next, origin));
 }

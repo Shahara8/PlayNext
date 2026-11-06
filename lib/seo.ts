@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { CatalogRow } from "./catalog";
-import { releaseYear } from "./format";
+import { titleWithYear } from "./format";
 import { getProviderByCode } from "./providers";
 import { posterUrl } from "./tmdb-image";
 
@@ -114,8 +114,7 @@ export function browseMetadata(provider: {
  */
 export function titleMetadata(rows: CatalogRow[]): Metadata {
   const title = rows[0];
-  const year = releaseYear(title.release_date);
-  const name = year ? `${title.title} (${year})` : title.title;
+  const name = titleWithYear(title);
   const providers = Array.from(
     new Set(
       rows.map((row) => getProviderByCode(row.provider)?.label ?? row.provider),

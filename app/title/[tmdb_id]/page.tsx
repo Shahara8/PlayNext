@@ -4,12 +4,13 @@ import { cache } from "react";
 import { getCatalogByTmdbId } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
 import { getProviderByCode } from "@/lib/providers";
-import { mediaTypeLabel, releaseYear } from "@/lib/format";
+import { mediaTypeLabel, releaseYear, titleWithYear } from "@/lib/format";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { NOT_FOUND_METADATA, titleMetadata } from "@/lib/seo";
 import { parseTmdbId } from "@/lib/query-params";
 import TitleActions from "@/app/components/title-actions";
 import Poster from "@/app/components/poster";
+import ShareButton from "@/app/components/share-button";
 import styles from "./page.module.css";
 
 // Shared by generateMetadata and the page, so one request reads it once.
@@ -53,7 +54,7 @@ export default async function TitleDetailPage({
           <Poster
             src={poster}
             alt={title.title}
-            sizes="(max-width: 700px) 60vw, 300px"
+            sizes="(max-width: 600px) 160px, 260px"
             className={styles.poster}
             fallbackClassName={styles.posterFallback}
           />
@@ -69,12 +70,18 @@ export default async function TitleDetailPage({
             )}
           </div>
 
-          <TitleActions
-            tmdbId={tmdbId}
-            userId={userId}
-            initialState={states.get(tmdbId)}
-            unavailable={unavailable}
-          />
+          <div className={styles.actionsRow}>
+            <TitleActions
+              tmdbId={tmdbId}
+              userId={userId}
+              initialState={states.get(tmdbId)}
+              unavailable={unavailable}
+            />
+            <ShareButton
+              path={`/title/${tmdbId}`}
+              title={titleWithYear(title)}
+            />
+          </div>
 
           {title.genres && title.genres.length > 0 && (
             <div className={styles.genres}>

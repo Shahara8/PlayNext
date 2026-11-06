@@ -4,36 +4,76 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import {
-  friendlyAuthErrorMessage,
+  firstIssueMessage,
+  RESET_PASSWORD_PATH,
+  resetRequestSchema,
+  runAuthCall,
   signInSchema,
   signUpSchema,
 } from "@/lib/auth";
 import styles from "./login-form.module.css";
 
-type Mode = "signin" | "signup";
+// "reset": the forgot-password form, reached from sign-in.
+type Mode = "signin" | "signup" | "reset";
 
 export default function LoginForm({
   initialError = null,
+  initialMode = "signin",
 }: {
   initialError?: string | null;
+  initialMode?: Mode;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setInfo(null);
+  }
+
+  async function handleResetRequest() {
+    const parsed = resetRequestSchema.safeParse({ email });
+    if (!parsed.success) {
+      setError(firstIssueMessage(parsed.error));
+      return;
+    }
+
+    setSubmitting(true);
+    const { message } = await runAuthCall(() =>
+      createBrowserSupabaseClient().auth.resetPasswordForEmail(
+        parsed.data.email,
+        {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(RESET_PASSWORD_PATH)}`,
+        },
+      ),
+    );
+    setSubmitting(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    // Worded the same whether or not the account exists, as Supabase is.
+    setInfo(
+      "If an account exists for that email, a link to reset your password is on its way. Open it in this browser.",
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    if (mode === "reset") return handleResetRequest();
 
     const schema = mode === "signup" ? signUpSchema : signInSchema;
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setError(firstIssueMessage(parsed.error));
       return;
     }
 
@@ -41,17 +81,21 @@ export default function LoginForm({
     const supabase = createBrowserSupabaseClient();
 
     if (mode === "signup") {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: parsed.data.email,
-        password: parsed.data.password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      });
+      const { result, message } = await runAuthCall(() =>
+        supabase.auth.signUp({
+          email: parsed.data.email,
+          password: parsed.data.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        }),
+      );
       setSubmitting(false);
-      if (signUpError) {
-        setError(friendlyAuthErrorMessage(signUpError.message));
+      if (message) {
+        setError(message);
         return;
       }
-      if (data.session) {
+      if (result?.data.session) {
         // `refresh()` after `push()` — the header's auth state (AuthNav) is
         // an async Server Component behind a Suspense boundary, and without
         // this, client-router navigation can serve a cached RSC payload for
@@ -64,13 +108,15 @@ export default function LoginForm({
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
+    const { message } = await runAuthCall(() =>
+      supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      }),
+    );
     setSubmitting(false);
-    if (signInError) {
-      setError(friendlyAuthErrorMessage(signInError.message));
+    if (message) {
+      setError(message);
       return;
     }
     router.push("/");
@@ -79,12 +125,13 @@ export default function LoginForm({
 
   async function handleGoogleSignIn() {
     setError(null);
-    const supabase = createBrowserSupabaseClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (oauthError) setError(friendlyAuthErrorMessage(oauthError.message));
+    const { message } = await runAuthCall(() =>
+      createBrowserSupabaseClient().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      }),
+    );
+    if (message) setError(message);
   }
 
   return (
@@ -93,22 +140,14 @@ export default function LoginForm({
         <button
           type="button"
           className={mode === "signin" ? styles.tabActive : styles.tab}
-          onClick={() => {
-            setMode("signin");
-            setError(null);
-            setInfo(null);
-          }}
+          onClick={() => switchMode("signin")}
         >
           Sign in
         </button>
         <button
           type="button"
           className={mode === "signup" ? styles.tabActive : styles.tab}
-          onClick={() => {
-            setMode("signup");
-            setError(null);
-            setInfo(null);
-          }}
+          onClick={() => switchMode("signup")}
         >
           Sign up
         </button>
@@ -125,25 +164,55 @@ export default function LoginForm({
             required
           />
         </label>
-        <label className={styles.field}>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={
-              mode === "signup" ? "new-password" : "current-password"
-            }
-            required
-          />
-        </label>
+        {mode === "reset" ? (
+          <p className={styles.info}>
+            Enter your account&apos;s email and we&apos;ll send you a link to
+            set a new password.
+          </p>
+        ) : (
+          <label className={styles.field}>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={
+                mode === "signup" ? "new-password" : "current-password"
+              }
+              required
+            />
+          </label>
+        )}
 
         {error && <p className={styles.error}>{error}</p>}
         {info && <p className={styles.info}>{info}</p>}
 
         <button type="submit" className={styles.submit} disabled={submitting}>
-          {mode === "signup" ? "Create account" : "Sign in"}
+          {mode === "signup"
+            ? "Create account"
+            : mode === "reset"
+              ? "Send reset link"
+              : "Sign in"}
         </button>
+
+        {mode === "signin" && (
+          <button
+            type="button"
+            className={styles.textButton}
+            onClick={() => switchMode("reset")}
+          >
+            Forgot password?
+          </button>
+        )}
+        {mode === "reset" && (
+          <button
+            type="button"
+            className={styles.textButton}
+            onClick={() => switchMode("signin")}
+          >
+            Back to sign in
+          </button>
+        )}
       </form>
 
       <div className={styles.divider}>or</div>

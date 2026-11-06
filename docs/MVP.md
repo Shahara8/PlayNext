@@ -14,6 +14,44 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 — M8 (cont.): live check, password reset, share button, mobile header/title layout
+- Context: the user did a first phone pass on production and reported (1) "Continue with Google" doesn't work there, plus a forgotten password with no way to reset; (2) screenshots: the header's links wrapped onto two lines ("My / List", "Sign / in") and the title page's poster filled the screen; (3) a WhatsApp link preview of `/title/456` (title, "Where to watch…" description and poster all correct), and a request for a share button "on a title page and to list".
+- Live check of commit `a63d4c4` on https://playnext-beta.vercel.app via `curl`: canonical and `og:url` use the production domain (not localhost) on title and browse pages; `og:image` is the TMDB poster; search is `noindex`; `/nope` is a 404 and `/title/0456` gets the "Not found" title and `noindex`. The home page has no canonical/`og:url` (it sets none); harmless, left as-is.
+- Did:
+  - Password reset. `lib/auth.ts` now has `RESET_PASSWORD_PATH`, `resetRequestSchema`, `newPasswordSchema` (shares the 8-char rule with sign-up), `safeRedirectUrl(next, origin)` (resolves `?next=` with `new URL` and keeps it only if it's same-origin, so the callback is no open redirect), `callbackFailureUrl` (a failed reset link goes to `/login?error=reset_link`, which opens the reset form with its own message, not the generic sign-in error), `NETWORK_ERROR_MESSAGE`, and a friendly message for Supabase's "should be different from the old password". `login-form.tsx` has a third mode, `"reset"` ("Forgot password?" under sign-in), which calls `resetPasswordForEmail` with `redirectTo: /auth/callback?next=/reset-password`. `/auth/callback` honors `next`. The new `/reset-password` page (`instant = false`, `noindex`, like `/login`) shows `reset-password-form.tsx` (`updateUser({ password })`, then home) when there's a session, or "invalid or expired" otherwise.
+  - Share button: `lib/share.ts` `shareLink(target, data)` uses `navigator.share` (if `canShare` allows it), treats `AbortError` (sheet closed) as cancelled without copying, and otherwise falls back to `clipboard.writeText`. `app/components/share-button.tsx` sits next to `TitleActions` on the title page and shows "Link copied" / "Couldn't share" for 2s. The title text comes from the new `lib/format.ts` `titleWithYear`, which `lib/seo.ts` now uses too.
+  - Mobile: the header `nav` wraps as a fallback, links are `nowrap`, and at ≤600px the padding and gaps are tighter, with "Browse" (same target as the logo) and the signed-in email hidden. Title page at ≤600px: 160px poster (was 260px), less padding, and `sizes` updated to match.
+- Deviations:
+  - Password reset and share weren't in the plan; both are added to M8's checklist.
+  - Sharing My List isn't built. Lists are private under RLS, so a shareable list needs a public, read-only list page (a share token or public profile), which is new schema and privacy design. Post-MVP.
+- `/code-review` (medium) findings, fixed:
+  - `safeNextPath`'s hand-rolled regex became the `new URL` origin check; its tests now include tab-in-path and `javascript:` cases.
+  - A failed reset link landed on the generic sign-in error; it now reopens the reset form.
+  - The share button's timer didn't restart on a repeat outcome; it now stores a fresh object per click.
+  - Both password forms could stay disabled forever if the Supabase call threw. They now use a try/catch with `NETWORK_ERROR_MESSAGE`, and the reset form stays disabled after success while navigating, so it can't be double-submitted.
+  - `titleWithYear` had no tests; tests added.
+  - This log entry and the checklist (also flagged by the review).
+- Second `/code-review` pass, all fixed:
+  - Sign-in, sign-up and Google had the same stuck-on-throw gap. All five Supabase calls now go through `lib/auth.ts` `runAuthCall` (returns the result plus a friendly or network message), and `firstIssueMessage` replaces three copies of the Zod-message expression.
+  - A successful reset now also calls `signOut({ scope: "others" })`, best effort, so a reset after a compromise ends the attacker's sessions.
+  - The expired-link page's "Request a new one" opens the reset form directly (`/login?error=reset_link`).
+  - `LoginForm` is keyed on the error param, so a soft navigation between `/login` variants remounts it.
+  - `ShareButton` ignores taps while a share is in flight, so a second tap's `InvalidStateError` can't copy behind the open sheet.
+  - `/login`'s CSS module moved to `app/components/auth-page.module.css`, shared with `/reset-password` instead of one route importing the other's.
+- `/code-review` findings left as dashboard config (not code):
+  - `/reset-password` accepts any signed-in session, not just a recovery one. Gating the page wouldn't help, because `updateUser({ password })` accepts any session at the API, so the real control is Supabase's **Authentication → Providers → Email → "Secure password change"**. It requires reauthentication for sessions older than 24h, and a fresh recovery session passes. The user should enable it.
+  - The reset `redirectTo` carries a query string, which an exact-match Redirect URL entry may reject. Covered by the Redirect URLs fix below.
+- Google sign-in on production (likely cause, not yet confirmed): Supabase's `/authorize` accepts `redirect_to=https://playnext-beta.vercel.app/auth/callback` and forwards to Google, but its `state` is opaque, so it's impossible to tell from outside whether that URL passed the allow-list. If it didn't, Supabase silently returns the user to its Site URL, presumably still `http://localhost:3000` from M5. The fix is in the Supabase dashboard under **Authentication → URL Configuration**: Site URL `https://playnext-beta.vercel.app`, and Redirect URLs `https://playnext-beta.vercel.app/**` and `http://localhost:3000/**`. The same allow-list governs the reset link and sign-up confirmation emails. The other candidate is the Google consent screen still being in Testing mode (Prerequisites), which blocks any Google account not listed as a test user.
+- Verified:
+  - `npm test`: 237 passing (+22: auth schemas, redirect/failure URLs, `runAuthCall`/`firstIssueMessage`, friendly message, `shareLink`, `titleWithYear`).
+  - `lint`, `format:check`, `tsc` and `build` clean.
+  - Local production server on :3100: `/reset-password` signed out shows the expired-link message with "Set a new password · PlayNext" and `noindex`; `/login` has "Forgot password?"; the title page renders Share; the header markup carries the mobile class.
+  - Not verified (needs a browser and an inbox): the full reset email round trip, the share sheet on a phone, and the new mobile layout.
+- Next step:
+  1. User: apply the Supabase URL Configuration fix (and "Secure password change"), retry Google, and test the reset with the forgotten password.
+  2. User: a phone pass over the browse grid, sort/filter bar, My List and `/login`, plus the new header and title page.
+  3. Fix what that turns up, check off the responsive item, then do the final end-to-end smoke test to close M8.
+
 ### 2026-11-02 — M8 (partial): TMDB errors/rate limits, skeletons, empty/error states, SEO metadata
 - Did:
   - **TMDB errors/rate limits** (`lib/tmdb.ts`). `tmdbFetch(path, params, options)` takes `{ signal, maxRetries, maxRetryDelayMs }`; the third argument was a bare `AbortSignal`. It retries 429/500/502/503/504 and network errors up to 2 times, honoring `Retry-After` (seconds or an HTTP date, `parseRetryAfter`), otherwise backing off 500ms then 1s (never less, even on `Retry-After: 0`), plus up to 250ms of random jitter. Every wait, and so the cooldown after a 429, is capped at 60s. After a 429, a module-level cooldown makes every request on that server instance hold off until the limit should reset, so one page view's 20 seed lookups can't keep hammering TMDB. A caller whose wait would exceed its `maxRetryDelayMs` fails at once (`TmdbError` 429). Recommendations pass 1s, so they fail fast and the page shows trending with the existing "Couldn't fetch personal picks" caption. The seed script uses the 60s default, so it waits instead. Failed response bodies are cancelled so they don't hold sockets. A caller's own abort is never retried. `recommendFromSeeds` now logs failed seed lookups once per call ("N of M ... first: <reason>") instead of once per seed.
@@ -419,8 +457,10 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 - [x] Loading skeletons across all data-fetching pages
 - [x] Empty states (no search results, no favorites yet, no recommendations yet), plus `error.tsx`/`not-found.tsx`
 - [x] Graceful handling of TMDB errors/rate limits
-- [ ] Responsive layout pass (mobile/tablet/desktop)
+- [ ] Responsive layout pass (mobile/tablet/desktop): header and title page fixed from phone screenshots (2026-11-06); browse grid, sort/filter bar, My List and /login still need a look at phone width
 - [x] Basic SEO metadata (titles, OG tags)
+- [x] Forgot-password / reset flow (added 2026-11-06; surfaced by the phone smoke test)
+- [x] Share button on the title page (OS share sheet, clipboard fallback)
 - [ ] Final production deploy + full manual smoke test of the end-to-end journey
 
 *Demo: complete user journey — browse → search → sign up → favorite titles → see recommendations — on the live production URL.*

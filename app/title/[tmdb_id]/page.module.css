@@ -112,3 +112,26 @@
 .watchLink:hover {
   text-decoration: underline;
 }
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Phones: a smaller poster so the title and actions show without scrolling. */
+@media (max-width: 600px) {
+  .main {
+    padding: 1.5rem 1rem;
+  }
+
+  .layout {
+    gap: 1.25rem;
+  }
+
+  .posterWrap {
+    flex-basis: 160px;
+    width: 160px;
+  }
+}

@@ -11,7 +11,8 @@ export default function Header() {
           PlayNext
         </Link>
         <div className={styles.links}>
-          <Link href="/" className={styles.link}>
+          {/* Same target as the logo, so phones drop it to fit one row. */}
+          <Link href="/" className={`${styles.link} ${styles.browseLink}`}>
             Browse
           </Link>
           <Link href="/search" className={styles.link}>

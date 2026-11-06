@@ -6,3 +6,7 @@
   flex-direction: column;
   gap: 1.5rem;
 }
+
+.link {
+  text-decoration: underline;
+}
