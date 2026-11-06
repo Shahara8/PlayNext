@@ -48,6 +48,8 @@ JSON Lines (`.jsonl`), one file per provider:
 
 ### 1. Delivery: Supabase Storage + one signed upload URL per provider
 
+> **Changed 2026-11-06:** the external developer delivers a collector, not files, so the daily GitHub Action runs it itself and archives the output (one `<CODE>.jsonl` per provider plus `manifest.json`, see `docs/FEED_REQUIREMENTS.md` section 2.1) to the private `raw-feeds` bucket under our own timestamp. No signed upload URLs are needed. The archiving idea below still applies; the upload half doesn't.
+
 - Private bucket `raw-feeds`. One long-lived signed upload URL per provider (e.g. `raw-feeds/yes/latest.jsonl`), handed to the external developer once.
 - His automation becomes one `curl -X PUT` line he can cron on anything — he always overwrites the same object, no date logic on his end.
 - **We** archive: at the start of each run, before touching `latest.jsonl`, copy it server-side to `raw-feeds/{provider}/archive/{yyyy-mm-dd}.jsonl` with our own timestamp (never trust his clock). Gives us full history for free.
@@ -237,11 +239,33 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 
 ## Status
 
-This pipeline is **not yet built**. `title_cache`/`provider_availability` are currently created and populated via the mock seed path instead (`docs/MVP.md`, Milestone M1). As of 2026-11-06 the MVP (M0–M8) is complete and this pipeline is **next** (`docs/MVP.md` Post-M8 task 3).
+**In progress** (`docs/MVP.md` Post-M8 task 3). `title_cache`/`provider_availability` are still populated by the mock seed, which stays live until the cutover.
 
-**First question for the session that starts it:** is the external developer's daily feed ready (a sample file, delivery method, provider list)? If yes, build against the real files. If not, build and test against the agreed schema with sample files, keeping the mock seed live until real files arrive, and record that decision here.
+**The feed (as of 2026-11-06):**
+- The external developer's (Noam's) Python collector on branch `provider-catalog-fetchers` isn't the agreed feed yet: no IMDb ids, home and marketing pages instead of full catalogs, YES and Partner TV only.
+- The changes he was asked to make are in **`docs/FEED_REQUIREMENTS.md`**: the contract our code validates against, and an acceptance checklist in its section 7. He works only on his branch; the user decides when to merge it by pull request.
+- **We run his collector ourselves** in the daily GitHub Action. That replaces Section 1's signed upload URLs.
+- Netflix, Disney+ and Prime stay on mock data until his phase 2. Partner TV is in the app (`PARTNER_TV`).
+
+**Our side, step by step:**
+1. [x] Title keys `(media_type, tmdb_id)` (migration 0007, live).
+2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
+3. [ ] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts`. **Next.**
+4. [ ] Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removals only from `coverage: "complete"` runs; the grace period for partial ones is still open with the user.
+5. [ ] `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, process. GitHub secrets will be needed from the user.
+6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
 
 ## Progress Log
+
+### 2026-11-06 (session end) — docs brought up to date; step 3 in a new session
+- At the user's request, step 3 starts in a new session.
+- Docs updated for that session:
+  - This doc's Status now has the step checklist (1–2 done, 3 next) and the feed's state, replacing "not yet built".
+  - Section 1 notes that we run the collector ourselves, so no signed upload URLs.
+  - `docs/MVP.md` Post-M8 task 3 points here.
+  - `CLAUDE.md` lists `docs/FEED_REQUIREMENTS.md` as required reading, makes this doc full reading while it's the current workstream, puts `ingestion/src/` under the unit-test rule, and adds the migration procedure (dry-run, approval, `db push --yes` as its own step).
+- State: everything committed and pushed. Migrations 0007 and 0008 are live. Production smoke 38/38 after both. 409 tests.
+- Next step: step 3 (see Status).
 
 ### 2026-11-06 — pipeline step 2: pipeline tables, feed validation, circuit breaker
 - Did: **migration `0008_ingestion_tables.sql`**:
