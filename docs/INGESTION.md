@@ -293,8 +293,10 @@ This pipeline is **not yet built**. `title_cache`/`provider_availability` are cu
 - **Real-data check:** `readFeedFile` + `evaluateBreaker` on the collector's actual 2026-11-06 output, split per provider. YES 329/329 and Partner 108/108 lines invalid → both rejected before any write. The first reasons are the gaps listed in `docs/FEED_REQUIREMENTS.md`: no `availability_type`; `"Partner TV"` not a code; missing `type`.
 - **Decision, a deviation from Section 3:** a row with `imdb_id: null` (the collector found no confident match) is **valid but unmatched**. It's counted in `unmatched_lines` and not stored, because `provider_availability`'s key needs an imdb_id and such a title can't show in the app anyway (no `title_cache` row). It isn't counted invalid, so a provider just under the 90% IMDb target doesn't trip the breaker.
 - Tests: `npm test` 403 (+53: schema, reader, breaker; the seed test now builds its BOM explicitly). They cover each failure mode Section "Verification" lists: bad imdb_id, unknown provider, future date, inconsistent dates, and a truncated or corrupt file.
-- **Not applied yet** (needs the user's approval).
-- Next step: apply 0008 on its own and confirm it applied (no code depends on it yet, so no deploy ordering). Then step 3: TMDB resolution with the `imdb_tmdb_map` cache (30-day retry for unresolved, 7-day refresh of `title_cache`), reusing `lib/tmdb-resolve.ts`.
+- **Applied 2026-11-06 with the user's approval**, after the code was committed (`ebdd34c`). It ran as its own `db push --yes` step, and its output confirmed "Applying migration 0008".
+  - Verified live: the three tables have RLS on, no policies, no `select` for `anon`/`authenticated`, and `insert` for `service_role`.
+  - Production `npm run smoke` passed 38/38: the site is unaffected.
+- Next step: step 3: TMDB resolution with the `imdb_tmdb_map` cache (30-day retry for unresolved, 7-day refresh of `title_cache`), reusing `lib/tmdb-resolve.ts`.
 
 ### 2026-11-06 — pipeline step 1: titles keyed on (media_type, tmdb_id)
 - The user's plan for our side (while Noam works on his branch):

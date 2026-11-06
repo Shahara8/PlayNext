@@ -21,7 +21,8 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - a real-data check: today's collector output is rejected safely.
 - `scripts/seed-mock-data.ts`: a literal invisible BOM in a regex (from this morning) was replaced by relying on `trim()`.
 - No app code changed, so no smoke run was needed (the site is untouched).
-- Next step: see `docs/INGESTION.md` (apply 0008 with the user's approval, then step 3, TMDB resolution).
+- Migration 0008 applied live with the user's approval; production smoke 38/38.
+- Next step: `docs/INGESTION.md` step 3, TMDB resolution with the `imdb_tmdb_map` cache.
 
 ### 2026-11-06 (title keys) — Post-M8 task 3, pipeline step 1: (media_type, tmdb_id) keys
 - Did: migration `0007` plus app changes so titles are keyed on (media type, TMDB id), not TMDB id alone. Title URLs are now `/title/movie/603` / `/title/tv/1396`; old `/title/<id>` links 308-redirect. Details in `docs/INGESTION.md`'s Progress Log; the code is in `lib/title-ref.ts`.
