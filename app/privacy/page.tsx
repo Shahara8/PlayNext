@@ -66,14 +66,15 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <strong>Supabase</strong> stores the account and activity data above,
-          in the EU (Frankfurt), runs sign-in, and sends account emails.
+          in the EU (Frankfurt), and runs sign-in.
         </li>
         <li>
           <strong>Vercel</strong> hosts the website.
         </li>
         <li>
-          <strong>Google</strong>, only if you choose &ldquo;Continue with
-          Google&rdquo;.
+          <strong>Google</strong>, if you choose &ldquo;Continue with
+          Google&rdquo;, and because our account emails (account confirmation
+          and password reset) are sent through Gmail.
         </li>
         <li>
           <strong>TMDB</strong> provides movie and show information. To find
