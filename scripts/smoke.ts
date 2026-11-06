@@ -19,6 +19,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
+import { PROVIDERS } from "../lib/providers";
 import {
   CdpClient,
   chromeCandidates,
@@ -317,6 +318,11 @@ const has = {
   /** My List with the given tab marked current (so the right view rendered). */
   myList: (href: string) =>
     `document.querySelector(${JSON.stringify(`main a[href="${href}"][aria-current="page"]`)})`,
+  /** A picker tile for every provider in lib/providers.ts. */
+  providerTiles: PROVIDERS.map(
+    (p) =>
+      `document.querySelector(${JSON.stringify(`main a[href="/browse/${p.slug}"]`)})`,
+  ).join(" && "),
 };
 
 type PageSpec = { label: string; path: string; ready: string };
@@ -328,9 +334,16 @@ function signedOutPages(titlePath: string): PageSpec[] {
       path: "/",
       // The footer's privacy link: Google's OAuth review wants the homepage
       // to link to the privacy policy.
-      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]')`,
+      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]') && ${has.providerTiles}`,
     },
     { label: "browse", path: "/browse/netflix", ready: has.titleLinks },
+    {
+      label: "browse partner tv",
+      path: "/browse/partner-tv",
+      // Partner TV (added 2026-11-06) shows its own titles. Yellowstone is a
+      // mock-seed row: switch this to has.titleLinks at the real-feed cutover.
+      ready: has.titleLink("Yellowstone"),
+    },
     {
       label: "browse sorted",
       path: "/browse/netflix?sort=rating",

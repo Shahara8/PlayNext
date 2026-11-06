@@ -14,6 +14,43 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (feed review) — Post-M8 task 3 started: feed reviewed, Partner TV added
+- **Ingestion:** reviewed and ran the external developer's (Noam's) collector branch. It isn't the agreed feed yet: no IMDb IDs, home and marketing pages instead of full catalogs, YES and Partner TV only. Details are in `docs/INGESTION.md`'s Progress Log. The change requests are in `docs/FEED_REQUIREMENTS.md`, which the user sent him. **He works only on `provider-catalog-fetchers`; we merge through a pull request when we decide it's time.**
+- **The user's decisions:**
+  - Netflix, Disney+ and Prime stay on mock data until Noam covers them (phase 2, after YES and Partner TV are signed off).
+  - Add Partner TV to the app.
+- Did:
+  - `lib/providers.ts`: Partner TV (`PARTNER_TV`, slug `partner-tv`, the code agreed in `docs/FEED_REQUIREMENTS.md`). The home page picker and `/browse/partner-tv` follow from the list.
+  - `data/mock-feed.jsonl`: six Partner TV rows (The Bear, Yellowstone, 1883, Downton Abbey: The Grand Finale, Project Hail Mary, Hamnet). The titles appeared in Partner's real listing on 2026-11-06. Their IMDb IDs were checked on TMDB. `watch_url` is `null`: the title page renders it as a per-title "Watch →" link, and there's no real per-title Partner link yet. `npm run seed:mock` was run against Supabase: 32/32 resolved, and the Partner rows were confirmed stored with `watch_url` null.
+  - Tests: Partner TV slug and code lookups. New guard tests over `data/mock-feed.jsonl`, using the seed's own `loadFeed` (now exported): every row passes the seed schema, uses a listed provider code, every listed provider has at least one row, and no duplicate keys. The "every provider has a row" check is deliberate while the mock is the catalog; relax it at the real-feed cutover.
+  - `npm run smoke` covers `/browse/partner-tv` (it waits for Yellowstone), and home checks the Partner TV tile (34 checks).
+  - `/code-review` (medium): fixed the generic Partner watch link (now null), the duplicated feed parsing, a cwd-relative path, the weak smoke check, a stale comment in `lib/providers.ts`, and a stray empty file. Declined: "smoke fails on production before deploy" (expected; run after deploy) and "the every-provider test ties the list to fixtures" (intentional, see above).
+  - Second `/code-review` pass, fixed:
+    - `loadFeed` reports real file line numbers, including for malformed JSON (+3 tests).
+    - The seed resolves `MOCK_FEED_PATH` from its own file, so it works from any directory.
+    - The guard tests load the feed once.
+    - The Bear's `seasons_available` was a guess, so it's now `null`.
+  - Second pass, declined:
+    - The test importing the seed loads `.env.local`. That was true before this change.
+    - A separate smoke check for the home tile (two more page loads for little gain).
+    - FREETV/HOT missing from `PROVIDERS`: the pipeline's allow-list handles it when built.
+    - Smoke's Yellowstone wait stays, with a comment to switch to `has.titleLinks` at the cutover.
+  - Third pass, fixed:
+    - The seed loads `.env.local` inside `main()` (resolved from its own file), so importing it from a test no longer puts real credentials in `process.env`.
+    - Smoke's home check requires a tile for every provider in `PROVIDERS`, not just Partner TV.
+    - The temp-file helper uses a counter.
+  - Third pass, declined: repeats of the items above.
+  - Fourth pass: no correctness bugs. Fixed:
+    - Partner TV's color is now green `#2bb673`; the first pick was nearly Prime's cyan.
+    - `feedRowSchema` accepts only `PROVIDERS` codes and region `IL` (+6 tests).
+    - `loadFeed` strips a UTF-8 BOM (+1 test).
+    - The `getCatalogTitlesByIds` headroom note now says 500 rows per chunk.
+- Verified:
+  - `npm test` 319 passing; `lint`, `tsc`, `format:check` and `build` clean.
+  - Smoke on a local production build: 34/34. Port 3000 was free first, and only the session's own server was stopped.
+  - Screenshots: the home picker with five tiles on a phone, and the Partner TV browse page.
+- Next step: Noam's YES/Partner work, judged against `docs/FEED_REQUIREMENTS.md` section 7. Meanwhile, our pipeline side can be built against that contract (see `docs/INGESTION.md`).
+
 ### 2026-11-06 (SMTP live) — Post-M8 task 4 done: custom SMTP via Gmail
 - The user got 2-Step Verification on for `play.next.app8@gmail.com`, created an app password, and saved Supabase's SMTP settings: `smtp.gmail.com:465`, sender "PlayNext". Supabase shows a "personal rather than transactional provider" warning. That's expected with Gmail and acceptable until there's a domain (then Resend). Rate limit: Supabase's default 30/hour after enabling SMTP, left as is.
 - The user set the Confirm signup template to `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`; Reset Password stays at its default.
@@ -262,7 +299,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - `/code-review` (three passes before committing). Fixed: PostgREST max-rows truncation and the rows-per-title guess in trending (now pages); no TMDB timeout on the render path (then scoped so it no longer applies to the seed script, and shared across a seed's two calls); TMDB 404s refetched on every view; `localeCompare` on timestamps; unpaged feedback/watchlist reads; a TMDB outage captioned as "nothing in the catalog"; the error-state heading; session failure crashing `/`; `parseLimit` accepting `" "`/`0x5`; duplicated chunking and de-dup code; error messages not naming the table; no tests for `lib/tmdb.ts`.
 - Declined from those passes (revisit in M8 if needed):
   - Caching the shared signed-out trending list, and replacing the page walk with a per-title RPC/`NOT IN` query. Both are performance work: the walk takes one 100-row page at MVP size, and it only takes many pages for a user with hundreds of exclusions among top titles.
-  - `getCatalogTitlesByIds` can exceed max-rows in theory: 100 ids × providers rows per chunk, so 400 today. Becomes possible only past 10 providers; lower `ID_CHUNK_SIZE` or page it if the real feed gets there.
+  - `getCatalogTitlesByIds` can exceed max-rows in theory: 100 ids × providers rows per chunk, so 500 today (five providers since Partner TV, 2026-11-06). Becomes possible only past 10 providers; lower `ID_CHUNK_SIZE` or page it if the real feed gets there.
   - `hasSeeds` counting a seed row whose `title_cache` embed is null. That can't happen: the FK cascades on delete and `title_cache` is public-readable. Two review passes also asked for opposite fixes here.
   - `scoreCandidates` re-checking `excluded` after the caller already filtered: kept so the pure function is correct on its own.
 - Verified: `npm test` (172 passing), `npm run lint`/`format:check`/`build` clean (build log has no errors; `/` partial-prerendered, `/api/recommendations` dynamic). A throwaway script (not committed) ran against the final production build on port 3100 and the live project, using a confirmed account created via the admin API and deleted afterwards (0 rows left). 16/16 passing:

@@ -35,6 +35,12 @@ describe("getProviderBySlug", () => {
     );
   });
 
+  it("finds Partner TV by its hyphenated slug", () => {
+    expect(getProviderBySlug("partner-tv")).toEqual(
+      expect.objectContaining({ code: "PARTNER_TV", label: "Partner TV" }),
+    );
+  });
+
   it("returns undefined for an unknown slug", () => {
     expect(getProviderBySlug("hbo-max")).toBeUndefined();
   });
@@ -48,6 +54,12 @@ describe("getProviderByCode", () => {
   it("finds a known provider by its code", () => {
     expect(getProviderByCode("NETFLIX")).toEqual(
       expect.objectContaining({ slug: "netflix", label: "Netflix" }),
+    );
+  });
+
+  it("uses the feed's PARTNER_TV code (docs/FEED_REQUIREMENTS.md)", () => {
+    expect(getProviderByCode("PARTNER_TV")).toEqual(
+      expect.objectContaining({ slug: "partner-tv" }),
     );
   });
 

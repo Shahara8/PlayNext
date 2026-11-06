@@ -8,17 +8,22 @@
 // Usage: npm run seed:mock
 
 import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "fs";
-import { pathToFileURL } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { z } from "zod";
+import { PROVIDERS, REGION } from "../lib/providers";
 import { resolveImdbToTmdb } from "../lib/tmdb-resolve";
 
 export const feedRowSchema = z.object({
-  provider: z.string().min(1),
-  region: z.string().min(1),
+  // Only codes and the region the app queries; anything else would seed fine
+  // but never show (getCatalogByProvider filters on both).
+  provider: z
+    .string()
+    .refine((code) => PROVIDERS.some((p) => p.code === code), {
+      message: "unknown provider code (see lib/providers.ts)",
+    }),
+  region: z.literal(REGION),
   title: z.string().min(1),
   original_title: z.string().nullable().optional(),
   type: z.enum(["movie", "tv_series"]),
@@ -34,24 +39,41 @@ export const feedRowSchema = z.object({
 
 type FeedRow = z.infer<typeof feedRowSchema>;
 
-function loadFeed(path: string): FeedRow[] {
-  const lines = readFileSync(path, "utf-8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+/** The mock feed, resolved from this file so it works from any directory. */
+export const MOCK_FEED_PATH = fileURLToPath(
+  new URL("../data/mock-feed.jsonl", import.meta.url),
+);
 
-  return lines.map((line, i) => {
-    const parsed = feedRowSchema.safeParse(JSON.parse(line));
-    if (!parsed.success) {
-      throw new Error(
-        `Invalid feed row at line ${i + 1}: ${parsed.error.message}`,
-      );
-    }
-    return parsed.data;
-  });
+export function loadFeed(path: string): FeedRow[] {
+  const rows: FeedRow[] = [];
+  readFileSync(path, "utf-8")
+    .replace(/^﻿/, "") // a BOM some Windows editors add
+    .split("\n")
+    .forEach((raw, i) => {
+      const line = raw.trim();
+      if (line.length === 0) return;
+      // i is the real file line (blank lines included), for useful errors.
+      let json: unknown;
+      try {
+        json = JSON.parse(line);
+      } catch (err) {
+        throw new Error(`Invalid JSON at line ${i + 1}: ${String(err)}`);
+      }
+      const parsed = feedRowSchema.safeParse(json);
+      if (!parsed.success) {
+        throw new Error(
+          `Invalid feed row at line ${i + 1}: ${parsed.error.message}`,
+        );
+      }
+      rows.push(parsed.data);
+    });
+  return rows;
 }
 
 async function main() {
+  // Loaded here, not at import, so tests can import this module without
+  // pulling real credentials into process.env (docs/MVP.md Section 8).
+  config({ path: fileURLToPath(new URL("../.env.local", import.meta.url)) });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
@@ -64,7 +86,7 @@ async function main() {
     auth: { persistSession: false },
   });
 
-  const rows = loadFeed("data/mock-feed.jsonl");
+  const rows = loadFeed(MOCK_FEED_PATH);
   console.log(`Loaded ${rows.length} mock feed rows.`);
 
   let resolved = 0;

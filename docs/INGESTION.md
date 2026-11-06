@@ -232,7 +232,24 @@ This pipeline is **not yet built**. `title_cache`/`provider_availability` are cu
 
 ## Progress Log
 
-_Not started._ `docs/MVP.md` reached Post-M8 on 2026-11-06, so the first condition is met. Before building, check the feed's readiness with the user (see Status above).
+### 2026-11-06 — feed check: collector branch reviewed, change requests written
+- Did: reviewed and ran the external developer's (Noam's) `provider-catalog-fetchers` branch (commit `a7e4f16`, a Python package) in a throwaway worktree and venv. 45 tests pass (1 skipped). A live `fetch` gave 329 YES + 108 Partner TV rows in the agreed 14 JSONL fields.
+- Found that it isn't yet the feed this doc assumes:
+  - `imdb_id` and `tmdb_id` are empty on every row.
+  - The sources are the YES home page and Partner's marketing page, not the full VOD catalogs. So the anti-join would wrongly "remove" titles every time those pages rotate.
+  - `watch_url` and `availability_type` are always null; 58 of 108 Partner rows have no `type`.
+  - Dubbed variants and per-season rows are duplicated.
+  - The provider name is `"Partner TV"` rather than a code.
+  - It covers YES and Partner only.
+  - The branch is based on old `main` (`6f8acaf`): it overwrites `README.md`, edits this doc, and its `.gitignore` rule `data/*` would cover `data/mock-feed.jsonl`.
+- Probe: a TMDB title search on that output found an exact title in the top 3 for about 77% of distinct titles (YES 249/325, Partner 83/108), before year or uniqueness checks.
+- Decision (the user's): Noam fixes YES and Partner TV first, then adds the other providers after sign-off. The requested changes, including IMDb IDs, the merge from `main`, the `ingestion/collector/` layout, per-provider files plus a manifest, and an acceptance checklist, are in `docs/FEED_REQUIREMENTS.md`, which the user is sending him. Also agreed there: **we run his collector ourselves in the daily GitHub Action**, replacing the signed-upload-URL delivery in Section 1, and the provider codes `PARTNER_TV`/`FREETV`/`HOT`. Section 1 gets updated when the pipeline is built.
+- No pipeline code yet; the mock seed stays live.
+- Later the same day, the user decided:
+  - Noam works only on his branch. We merge it with a pull request when we decide it's time.
+  - Netflix, Disney+ and Prime stay on the mock data until his phase 2.
+  - Partner TV is in the app now (`PARTNER_TV`, with six mock rows; see `docs/MVP.md`).
+- Next step: wait for Noam's update against `docs/FEED_REQUIREMENTS.md`'s checklist. Meanwhile, the pipeline side can be built against that contract: the processing stage, migration, removal rules and workflow. Still open: a removal grace period, if a provider stays `partial`.
 
 <!-- Template for future entries — newest entry on top, same convention as docs/MVP.md:
 ### YYYY-MM-DD — <what was worked on>
