@@ -19,7 +19,6 @@ function makeQueryBuilder(result: {
     contains: vi.fn(() => builder),
     in: vi.fn(() => builder),
     order: vi.fn(() => builder),
-    maybeSingle: vi.fn(() => builder),
     then: (
       resolve: (value: typeof result) => unknown,
       reject?: (reason: unknown) => unknown,
@@ -199,51 +198,6 @@ describe("getCatalogByTitle", () => {
     await expect(
       getCatalogByTitle({ media_type: "movie", tmdb_id: 1 }),
     ).rejects.toThrow(/getCatalogByTitle failed: timeout/);
-  });
-});
-
-describe("findLegacyTitle", () => {
-  it("looks the id up in the frozen legacy map", async () => {
-    const { findLegacyTitle } = await import("./catalog");
-    const builder = makeQueryBuilder({
-      data: { media_type: "tv", tmdb_id: 1396 },
-      error: null,
-    });
-    const from = vi.fn(() => builder);
-    mockedCreatePublicClient.mockReturnValue({ from } as never);
-
-    await expect(findLegacyTitle(1396)).resolves.toEqual({
-      media_type: "tv",
-      tmdb_id: 1396,
-    });
-    expect(from).toHaveBeenCalledWith("legacy_title_ids");
-    expect(builder.eq).toHaveBeenCalledWith("tmdb_id", 1396);
-    expect(builder.maybeSingle).toHaveBeenCalled();
-  });
-
-  it("returns null when no title has that id", async () => {
-    const { findLegacyTitle } = await import("./catalog");
-    const builder = makeQueryBuilder({ data: null, error: null });
-    mockedCreatePublicClient.mockReturnValue({
-      from: vi.fn(() => builder),
-    } as never);
-
-    await expect(findLegacyTitle(5)).resolves.toBeNull();
-  });
-
-  it("throws a descriptive error when the query fails", async () => {
-    const { findLegacyTitle } = await import("./catalog");
-    const builder = makeQueryBuilder({
-      data: null,
-      error: { message: "timeout" },
-    });
-    mockedCreatePublicClient.mockReturnValue({
-      from: vi.fn(() => builder),
-    } as never);
-
-    await expect(findLegacyTitle(5)).rejects.toThrow(
-      /findLegacyTitle failed: timeout/,
-    );
   });
 });
 

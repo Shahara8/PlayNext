@@ -155,25 +155,6 @@ export async function getCatalogByTitle(ref: TitleRef): Promise<CatalogRow[]> {
   return data as CatalogRow[];
 }
 
-/**
- * Where an old `/title/<tmdb_id>` link (from before titles were keyed on
- * media type too) should go: the title that id meant then, frozen in
- * legacy_title_ids by migration 0007. Null for an id that was never a title.
- */
-export async function findLegacyTitle(
-  tmdbId: number,
-): Promise<TitleRef | null> {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("legacy_title_ids")
-    .select("media_type,tmdb_id")
-    .eq("tmdb_id", tmdbId)
-    .maybeSingle();
-
-  if (error) throw new Error(`findLegacyTitle failed: ${error.message}`);
-  return data as TitleRef | null;
-}
-
 // What recommendations need per title: enough to render a card, plus the
 // fields scoring uses (genres for overlap, popularity for tie-breaks).
 export type CatalogTitle = Pick<

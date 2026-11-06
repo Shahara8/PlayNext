@@ -253,14 +253,26 @@ This pipeline is **not yet built**. `title_cache`/`provider_availability` are cu
   - The feedback backfill disables 0006's touch trigger, so `updated_at` (recommendations' seed order) survives.
 - App: `lib/title-ref.ts` (`TitleRef`, `titleKey` "movie:603", `titlePath`, `parseTitleRef`, `idsByMediaType`). Every data function, map key and page uses the pair.
   - Title pages moved to `/title/[media_type]/[tmdb_id]` (TMDB's own URL shape).
-  - `/title/<id>` (links shared before) 308-redirects through `legacy_title_ids`, keeping the query string. The route opts out of prerendering (`instant = false`) so the redirect is a real HTTP 308.
+  - `/title/<id>` (links shared before) 308-redirects to the title `legacy_title_ids` names, keeping the query string. Done as static `next.config.ts` redirects; see "Found after deploy" below for why a page couldn't.
 - Section 5's schema block above is updated to match.
 - Verified before applying:
   - The migration was dry-run twice on the live DB in a rolled-back transaction: 32/32 catalog rows still join, feedback timestamps unchanged, legacy map 32 rows, trigger re-enabled, `anon` can read the map.
   - `npm test` 351 (+32); lint, `tsc`, build and format clean.
   - `/code-review` three passes; see `docs/MVP.md`.
-- **Not applied yet**: see the next entry, or the Next step below if none follows.
-- Next step: apply 0007 (`npx supabase db push --db-url`, with the user's approval), then deploy this code right away. Between the two, old code's watchlist/feedback writes and the old seed fail. Then `npm run smoke` on production. After that, step 2: migration `0008` for `imdb_tmdb_map`/`staging_availability`/`ingestion_runs`, and the Zod feed schema from `docs/FEED_REQUIREMENTS.md`.
+- **Applied 2026-11-06 with the user's approval** (`npx supabase db push --yes --db-url`; the CLI now refuses to apply from an agent without `--yes`).
+  - Incident: the first attempt lacked `--yes`, so nothing was applied, but my command chain pushed the code anyway. The new code ran against the old schema for about a minute, until the migration went in.
+  - Lesson: run `db push` on its own, check it reports "Applying migration", and only then push.
+- Verified live:
+  - The constraints are the new composite keys.
+  - 32/32 catalog rows join, and 32 legacy ids are recorded.
+  - Feedback `updated_at` keeps the original dates.
+- **Found after deploy: the page-level 308 wasn't real.** The route streamed a 200 shell with a client-side `NEXT_REDIRECT` (`instant = false` doesn't stop the root layout's shell). Browsers followed it; crawlers and link previews wouldn't.
+  - Final fix: **static redirects.** The map is frozen (32 rows) and never changes, so `lib/legacy-title-ids.ts` holds a copy and `next.config.ts` `redirects()` serves each old path as a real 308. Next keeps the query string, and there's no database on the request path.
+  - A middleware version came first (`legacyTitleRedirect`, a live lookup). Review showed it added request-time latency, timeout and outage cases to the auth middleware for no gain, so it was dropped; `middleware.ts` is unchanged.
+  - A title no longer on any provider lands on its new URL's not-found, the same answer its old URL gave.
+  - `/title/<one segment>` has no page, so anything not redirected there is Next's not-found.
+  - Smoke checks that the copy still matches `legacy_title_ids` (`legacyMapDrift`), and that the 308 is real at the HTTP level.
+- Next step: step 2, migration `0008` for `imdb_tmdb_map`/`staging_availability`/`ingestion_runs`, plus the Zod feed schema from `docs/FEED_REQUIREMENTS.md`.
 
 ### 2026-11-06 — feed check: collector branch reviewed, change requests written
 - Did: reviewed and ran the external developer's (Noam's) `provider-catalog-fetchers` branch (commit `a7e4f16`, a Python package) in a throwaway worktree and venv. 45 tests pass (1 skipped). A live `fetch` gave 329 YES + 108 Partner TV rows in the agreed 14 JSONL fields.

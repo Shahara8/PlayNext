@@ -41,9 +41,19 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
     - Computing related refs twice in recommendations (negligible).
     - Tabs left open from before the deploy can't save until reloaded: their old bundle's upserts name the dropped key. They show the existing "couldn't save" state, nothing is lost, and the user base is tiny.
     - `legacy_title_ids` is empty on a freshly built database: old links only exist on production.
-- Smoke: new "old title link redirects" check (signed out, both viewports).
-- Verified: `npm test` 351 passing; lint, `tsc`, `format:check` and `build` clean. The migration was dry-run on the live DB and rolled back. Live checks are in the entry after the migration is applied.
-- Next step: see `docs/INGESTION.md` (apply 0007 with the user's approval, deploy at once, smoke production).
+- Smoke: "old title link is an HTTP 308" (fetch with `redirect: "manual"`) plus "old title link redirects" (both viewports): 38 checks.
+- **Migration 0007 applied live (the user approved)**, then deployed as `eafa191`. See `docs/INGESTION.md` for the `--yes` incident, about a minute of new code on the old schema.
+- After deploy, the old-link "308" turned out to be a 200 shell with a client-side redirect.
+  - First fix: a middleware lookup. Two more `/code-review` passes found request-time latency, timeout and outage cases in the auth middleware.
+  - Final fix: the frozen map (32 rows, never changes) is a static copy in `lib/legacy-title-ids.ts`, served by `next.config.ts` `redirects()` as real 308s, with no database on the request path.
+  - `middleware.ts` is unchanged, and `/title/<one segment>` has no page (Next's not-found).
+  - Declined from the last review: a 308 to a title that has left every provider. Its new URL is still that title's canonical one, it works again if the title returns, and the old URL was a not-found too. Also declined: the map living in two places, since the table is frozen and smoke checks the copy.
+  - Smoke checks the copy against the DB (`legacyMapDrift`, tested) and the 308 at the HTTP level.
+  - Removed the now-unused `queryString` and `parseLegacyTitlePath`.
+- Verified:
+  - `npm test` 350 passing; lint, `tsc`, `format:check` and `build` clean.
+  - Smoke on a local production build against the migrated DB: 38/38, including `308 → /title/tv/456?from=smoke`. Port 3000 was free; only the session's server was stopped.
+- Next step: production smoke after this deploy (next entry), then `docs/INGESTION.md` step 2.
 
 ### 2026-11-06 (feed review) — Post-M8 task 3 started: feed reviewed, Partner TV added
 - **Ingestion:** reviewed and ran the external developer's (Noam's) collector branch. It isn't the agreed feed yet: no IMDb IDs, home and marketing pages instead of full catalogs, YES and Partner TV only. Details are in `docs/INGESTION.md`'s Progress Log. The change requests are in `docs/FEED_REQUIREMENTS.md`, which the user sent him. **He works only on `provider-catalog-fetchers`; we merge through a pull request when we decide it's time.**

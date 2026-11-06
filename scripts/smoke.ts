@@ -21,10 +21,12 @@ import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { PROVIDERS } from "../lib/providers";
 import { createPublicClient } from "../lib/supabase";
+import { LEGACY_TITLE_IDS } from "../lib/legacy-title-ids";
 import { titlePath as newTitlePath, type TitleRef } from "../lib/title-ref";
 import {
   CdpClient,
   chromeCandidates,
+  legacyMapDrift,
   pickLegacyTitle,
   parseDevToolsUrl,
   parseSmokeArgs,
@@ -461,7 +463,9 @@ class Runner {
 
 /**
  * A pre-0007 title id that is live now (see pickLegacyTitle), read with the
- * public anon key. Null (and the redirect check skipped) if there's none.
+ * public anon key, after checking lib/legacy-title-ids.ts (the static
+ * redirects' copy) still matches the database's frozen map. Null (and the
+ * redirect checks skipped) if no old title is live.
  */
 async function findLiveLegacyTitle(): Promise<TitleRef | null> {
   const db = createPublicClient();
@@ -473,7 +477,10 @@ async function findLiveLegacyTitle(): Promise<TitleRef | null> {
   if (legacy.error)
     throw new Error(`legacy_title_ids: ${legacy.error.message}`);
   const refs = legacy.data as TitleRef[];
+  // Empty on a database built from migrations alone (no old links exist there).
   if (refs.length === 0) return null;
+  const drift = legacyMapDrift(refs, LEGACY_TITLE_IDS);
+  if (drift) throw new Error(`lib/legacy-title-ids.ts ≠ the DB: ${drift}`);
   const live = await db
     .from("v_catalog")
     .select("media_type,tmdb_id")
@@ -643,13 +650,33 @@ async function main() {
     if (!titlePath)
       throw new Error("no title found; the remaining checks need one");
 
-    let legacy: TitleRef | null = null;
+    // Cast so TS doesn't narrow it to null (it's set inside the callback).
+    let legacy = null as TitleRef | null;
     await runner.check("find an old title id to use", async () => {
       legacy = await findLiveLegacyTitle();
       return legacy
         ? `/title/${legacy.tmdb_id}`
-        : "none live; redirect check skipped";
+        : "none live; redirect checks skipped";
     });
+    {
+      // At the HTTP level, since a browser would also follow a client-side
+      // redirect but crawlers and link previews only follow a real 308. The
+      // redirects are static, so any entry works, live or not.
+      await runner.check("old title link is an HTTP 308", async () => {
+        if (LEGACY_TITLE_IDS.length === 0) throw new Error("no old ids");
+        const [tmdb_id, media_type] = LEGACY_TITLE_IDS[0];
+        const ref: TitleRef = { media_type, tmdb_id };
+        const res = await fetch(
+          `${options.baseUrl}/title/${ref.tmdb_id}?from=smoke`,
+          { redirect: "manual" },
+        );
+        const location = res.headers.get("location") ?? "";
+        const expected = `${newTitlePath(ref)}?from=smoke`;
+        if (res.status !== 308 || !location.endsWith(expected))
+          throw new Error(`got ${res.status} → ${location || "(none)"}`);
+        return `308 → ${expected}`;
+      });
+    }
 
     for (const viewport of VIEWPORTS) {
       await page.setViewport(viewport);

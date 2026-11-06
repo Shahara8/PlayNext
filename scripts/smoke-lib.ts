@@ -1,7 +1,7 @@
 // Pure helpers for scripts/smoke.ts (live smoke checks, docs/MVP.md Section 8
 // "Testing"). Kept free of side effects so they can be unit-tested.
 
-import { titleKey, type TitleRef } from "../lib/title-ref";
+import { titleKey, type MediaType, type TitleRef } from "../lib/title-ref";
 
 export const PRODUCTION_URL = "https://playnext-beta.vercel.app";
 
@@ -141,6 +141,29 @@ export function pickLegacyTitle(
 ): TitleRef | null {
   const liveKeys = new Set(live.map(titleKey));
   return legacy.find((ref) => liveKeys.has(titleKey(ref))) ?? null;
+}
+
+/**
+ * How the database's frozen legacy map differs from the static copy the
+ * redirects use (lib/legacy-title-ids.ts), or null if they match.
+ */
+export function legacyMapDrift(
+  db: readonly TitleRef[],
+  copy: readonly (readonly [number, MediaType])[],
+): string | null {
+  const dbKeys = new Set(db.map(titleKey));
+  const copyKeys = new Set(
+    copy.map(([tmdb_id, media_type]) => titleKey({ media_type, tmdb_id })),
+  );
+  const onlyDb = [...dbKeys].filter((k) => !copyKeys.has(k));
+  const onlyCopy = [...copyKeys].filter((k) => !dbKeys.has(k));
+  if (onlyDb.length === 0 && onlyCopy.length === 0) return null;
+  return [
+    onlyDb.length ? `only in the DB: ${onlyDb.join(", ")}` : "",
+    onlyCopy.length ? `only in the copy: ${onlyCopy.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 export type CheckResult = {

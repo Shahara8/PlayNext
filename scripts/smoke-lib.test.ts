@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CdpClient,
   chromeCandidates,
+  legacyMapDrift,
   normalizeBaseUrl,
   pickLegacyTitle,
   parseDevToolsUrl,
@@ -10,6 +11,28 @@ import {
   screenshotName,
   summarize,
 } from "./smoke-lib";
+
+describe("legacyMapDrift", () => {
+  const tv = (tmdb_id: number) => ({ media_type: "tv" as const, tmdb_id });
+
+  it("is null when the copy matches the DB, in any order", () => {
+    expect(
+      legacyMapDrift(
+        [tv(2), tv(1)],
+        [
+          [1, "tv"],
+          [2, "tv"],
+        ],
+      ),
+    ).toBeNull();
+  });
+
+  it("names entries on either side only", () => {
+    expect(legacyMapDrift([tv(1), tv(2)], [[1, "movie"]])).toBe(
+      "only in the DB: tv:1, tv:2; only in the copy: movie:1",
+    );
+  });
+});
 
 describe("pickLegacyTitle", () => {
   const movie = (tmdb_id: number) => ({
