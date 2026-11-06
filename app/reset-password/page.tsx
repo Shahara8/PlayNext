@@ -13,8 +13,9 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-// Landed on via /auth/callback?next=/reset-password, which has already
-// signed the visitor in with the reset link's recovery session.
+// Landed on via the reset email: /auth/confirm (or, for links sent before
+// the email template change, /auth/callback) with next=/reset-password,
+// which has already signed the visitor in with a recovery session.
 export default async function ResetPasswordPage() {
   const user = await getCurrentUser();
 

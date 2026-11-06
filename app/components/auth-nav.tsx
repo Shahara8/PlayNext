@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/supabase-server";
+import { userDisplayName } from "@/lib/auth";
 import { signOutAction } from "@/app/auth/actions";
 import styles from "./header.module.css";
 
@@ -17,9 +18,18 @@ export default async function AuthNav() {
     );
   }
 
+  const name = userDisplayName(user);
+
   return (
     <form action={signOutAction} className={styles.userGroup}>
-      <span className={styles.userEmail}>{user.email}</span>
+      {name && (
+        // Full name on wide screens, first name on phones; the tooltip
+        // always says which account it is.
+        <span className={styles.userName} title={user.email ?? name.full}>
+          <span className={styles.nameFull}>{name.full}</span>
+          <span className={styles.nameShort}>{name.short}</span>
+        </span>
+      )}
       <button type="submit" className={styles.signOutButton}>
         Sign out
       </button>

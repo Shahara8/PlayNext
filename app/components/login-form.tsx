@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import {
   firstIssueMessage,
-  RESET_PASSWORD_PATH,
   resetRequestSchema,
   runAuthCall,
   signInSchema,
@@ -49,7 +48,9 @@ export default function LoginForm({
       createBrowserSupabaseClient().auth.resetPasswordForEmail(
         parsed.data.email,
         {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(RESET_PASSWORD_PATH)}`,
+          // The email template builds the link from this (see
+          // app/auth/confirm/route.ts), so it comes back to this origin.
+          redirectTo: `${window.location.origin}/auth/confirm`,
         },
       ),
     );
@@ -60,7 +61,7 @@ export default function LoginForm({
     }
     // Worded the same whether or not the account exists, as Supabase is.
     setInfo(
-      "If an account exists for that email, a link to reset your password is on its way. Open it in this browser.",
+      "If an account exists for that email, a link to reset your password is on its way.",
     );
   }
 

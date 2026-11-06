@@ -5,14 +5,17 @@ import {
   callbackFailureUrl,
   firstIssueMessage,
   friendlyAuthErrorMessage,
+  MAX_DISPLAY_NAME_LENGTH,
   NETWORK_ERROR_MESSAGE,
   newPasswordSchema,
+  parseEmailOtpType,
   RESET_PASSWORD_PATH,
   runAuthCall,
   resetRequestSchema,
   safeRedirectUrl,
   signInSchema,
   signUpSchema,
+  userDisplayName,
 } from "./auth";
 
 describe("signUpSchema", () => {
@@ -207,5 +210,58 @@ describe("runAuthCall", () => {
         throw new TypeError("Failed to fetch");
       }),
     ).toEqual({ result: null, message: NETWORK_ERROR_MESSAGE });
+  });
+});
+
+describe("parseEmailOtpType", () => {
+  it("accepts the types Supabase sends", () => {
+    expect(parseEmailOtpType("recovery")).toBe("recovery");
+    expect(parseEmailOtpType("signup")).toBe("signup");
+  });
+
+  it("rejects anything else", () => {
+    expect(parseEmailOtpType(null)).toBeNull();
+    expect(parseEmailOtpType("sms")).toBeNull();
+    expect(parseEmailOtpType("")).toBeNull();
+  });
+});
+
+describe("userDisplayName", () => {
+  it("prefers the provider's full name", () => {
+    expect(
+      userDisplayName({
+        email: "s@example.com",
+        user_metadata: { full_name: " Shahar Avital ", name: "Other" },
+      }),
+    ).toEqual({ full: "Shahar Avital", short: "Shahar" });
+  });
+
+  it("falls back to name, then the email's local part", () => {
+    expect(userDisplayName({ user_metadata: { name: "Dana" } })?.full).toBe(
+      "Dana",
+    );
+    expect(
+      userDisplayName({ email: "movie.fan@example.com", user_metadata: {} }),
+    ).toEqual({ full: "movie.fan", short: "movie.fan" });
+  });
+
+  it("ignores blank or non-string metadata", () => {
+    expect(
+      userDisplayName({
+        email: "a@example.com",
+        user_metadata: { full_name: "  ", name: 42 },
+      })?.full,
+    ).toBe("a");
+  });
+
+  it("is null with nothing to show", () => {
+    expect(userDisplayName({})).toBeNull();
+  });
+});
+
+describe("userDisplayName length", () => {
+  it("caps a long provider name", () => {
+    const name = userDisplayName({ user_metadata: { name: "x".repeat(500) } });
+    expect(name?.full).toHaveLength(MAX_DISPLAY_NAME_LENGTH);
   });
 });

@@ -40,9 +40,17 @@
   gap: 0.75rem;
 }
 
-.userEmail {
+.userName {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--foreground-muted);
   font-size: 0.9rem;
+}
+
+.nameShort {
+  display: none;
 }
 
 .signOutButton {
@@ -71,12 +79,25 @@
     padding: 0.85rem 1rem;
   }
 
-  .links {
-    gap: 1.1rem;
+  .logo {
+    font-size: 1.1rem;
+  }
+
+  .links,
+  .userGroup {
+    gap: 0.9rem;
   }
 
   .browseLink,
-  .userEmail {
+  .nameFull {
     display: none;
+  }
+
+  .nameShort {
+    display: inline;
+  }
+
+  .userName {
+    max-width: 5.5rem;
   }
 }
