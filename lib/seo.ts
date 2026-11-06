@@ -8,6 +8,20 @@ export const SITE_NAME = "PlayNext";
 export const SITE_DESCRIPTION =
   "Find where to watch any movie or show across streaming services.";
 
+// Contact for privacy and account questions: the Google OAuth consent
+// screen's support address, so users see the same one everywhere.
+export const SUPPORT_EMAIL = "play.next.app8@gmail.com";
+
+// Linked from the footer and from the Google OAuth consent screen's
+// Branding page ("Application privacy policy link"), so keep the path stable.
+export const PRIVACY_PATH = "/privacy";
+
+export const PRIVACY_METADATA: Metadata = {
+  title: "Privacy policy",
+  description: `What ${SITE_NAME} stores about you, why, and how to have it deleted.`,
+  alternates: { canonical: PRIVACY_PATH },
+};
+
 // For pages that call notFound(): the page's own metadata wins over
 // app/not-found.tsx's, so they return this themselves.
 export const NOT_FOUND_METADATA: Metadata = { title: "Not found" };

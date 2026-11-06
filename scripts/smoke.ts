@@ -326,7 +326,9 @@ function signedOutPages(titlePath: string): PageSpec[] {
     {
       label: "home",
       path: "/",
-      ready: `${has.heading2("Trending")} && ${has.titleLinks}`,
+      // The footer's privacy link: Google's OAuth review wants the homepage
+      // to link to the privacy policy.
+      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]')`,
     },
     { label: "browse", path: "/browse/netflix", ready: has.titleLinks },
     {
@@ -354,6 +356,11 @@ function signedOutPages(titlePath: string): PageSpec[] {
       label: "reset password",
       path: "/reset-password",
       ready: has.text("open the link in your reset email"),
+    },
+    {
+      label: "privacy",
+      path: "/privacy",
+      ready: `${has.h1("Privacy policy")} && ${has.text("Supabase")}`,
     },
     { label: "not found", path: "/no-such-page", ready: has.h1("Not found") },
   ];

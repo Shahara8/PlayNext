@@ -14,6 +14,26 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (privacy) — Post-M8 1 (cont.): SMTP on hold, privacy policy for Google publishing
+- SMTP is on hold. The user created the dedicated Gmail `play.next.app8@gmail.com`, but Google refused to turn on 2-Step Verification ("We couldn't verify that it's you"; the attempt was from a phone, on a brand-new account), so there's no app password. Plan: retry from the computer the account was made on, on home Wi-Fi, possibly after a few days; fallback is the user's personal Gmail. The Confirm signup template edit waits too, since templates stay locked until custom SMTP.
+- Google consent screen, from the user's screenshots:
+  - Data access lists no scopes (Supabase's default openid/email/profile needn't be declared).
+  - Branding has the name, the support and developer emails (`play.next.app8@gmail.com`), no logo, and authorised domains `playnext-beta.vercel.app` and the Supabase project domain.
+  - **Publish app was disabled**: "complete your configuration on the Branding page". The home page and privacy policy links were empty, so Google requires both before publishing.
+- The user asked whether publishing is premature. Explained: it lists nothing anywhere, it only lets any Google account use "Continue with Google" (the site and email sign-up are already public), and it's reversible. **The user chose to publish later**, together with SMTP, before inviting real users.
+- Did:
+  - New `/privacy` page (`app/privacy/page.tsx`): what's stored, why, who handles it (Supabase EU/Frankfurt, Vercel, Google only for Google sign-in, TMDB gets only title ids for recommendations), session-only cookies, no ads or trackers, and deletion or copy by email to `SUPPORT_EMAIL`.
+    - Each statement was checked against the code: the schema's user tables; no analytics; posters go through Next's image proxy, so TMDB never sees visitors.
+    - Not legal advice. **If what's stored or who handles it changes, update the page in the same change.** For example, when Gmail SMTP goes live, add Google as the account email sender.
+  - A site-wide footer (`app/components/footer.tsx`): Privacy, plus a TMDB credit. The home page must link the policy for Google's review. `margin-top: auto` keeps it at the bottom of short pages.
+  - `lib/seo.ts`: `SUPPORT_EMAIL`, `PRIVACY_PATH`, `PRIVACY_METADATA` (indexable, canonical `/privacy`).
+  - `npm run smoke` covers `/privacy` and the footer link: 32 checks.
+- Verified:
+  - `npm test` 303 passing (+1, the privacy metadata and its stable path); `lint`, `tsc` and `build` clean.
+  - Smoke on a local production build: 32/32. Port 3000 was free first, and only the session's own server was stopped.
+  - Screenshots: `/privacy` on a phone, and the footer at the bottom of `/login` on desktop.
+- Next step (user): Branding → home page `https://playnext-beta.vercel.app`, privacy policy link `https://playnext-beta.vercel.app/privacy` → Save; Publish then becomes available, to use when inviting users. Retry 2-Step Verification for the SMTP account. Then Post-M8 task 3 (real ingestion, `docs/INGESTION.md`) can start regardless.
+
 ### 2026-11-06 (SMTP) — Post-M8 1 (code side) and 2: sign-up links via `/auth/confirm`, `npm run smoke`
 - **SMTP choice: Gmail SMTP with an app password, from a dedicated Gmail account** (a new address just for PlayNext, so the user's personal address isn't the sender).
   - Resend was ruled out for now: without a verified domain it only sends to the Resend account's own address (a 403 for anyone else), so it can't reach real users. It's the better choice once there's a domain (DKIM/SPF on our own domain, a proper From).
@@ -476,7 +496,7 @@ Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering rec
 **Live smoke checks (`npm run smoke`, built 2026-11-06):** the user wants Claude to check the real platform itself, signed in, instead of asking for phone screenshots. `scripts/smoke.ts` (helpers and their unit tests in `scripts/smoke-lib.ts`) is a separate command, not part of `npm test`:
 - Headless Chrome over the DevTools Protocol, with no new dependency: Chrome is installed (or `CHROME_PATH`), and Node 24 has `WebSocket` and `fetch` built in. It starts its own Chrome on a random debugging port with a throwaway profile, and only ever stops that Chrome.
 - Two viewports via `Emulation.setDeviceMetricsOverride`: phone (412×915, DPR 2, `mobile: true`) and desktop (1280×800).
-- Signed out, at both widths: home, a provider's browse page (plain and sorted), a typo search (`strnger` → Stranger Things), a title page (the first title on Netflix's browse page, so no id is hard-coded), `/login`, `/reset-password` and a 404.
+- Signed out, at both widths: home, a provider's browse page (plain and sorted), a typo search (`strnger` → Stranger Things), a title page (the first title on Netflix's browse page, so no id is hard-coded), `/login`, `/reset-password`, `/privacy` and a 404. Home must link to `/privacy` in the footer (Google's OAuth review expects it).
 - Then it signs in as the test account through the real `/login` form and checks home (For You), My List (both views), the title page and `/reset-password` (a password session must get no form), at both widths.
 - The watchlist journey: toggles the title's watchlist button through the real UI, checks My List agrees, toggles it back (restored in a `finally`).
 - The reset gate: an admin `generateLink({ type: "recovery" })` link (no email sent) must show the new-password form once and be refused on reuse. No password is ever submitted.
@@ -611,11 +631,13 @@ Agreed order (2026-11-06):
 1. **Custom SMTP + Google sign-in for everyone.**
    - [x] Choose a sender: Gmail SMTP with an app password, from a dedicated Gmail account, until there's a domain (Resend needs a verified domain to send to anyone but the account owner). See the 2026-11-06 (SMTP) Progress Log entry.
    - [x] Code: sign-up confirmation links go to `/auth/confirm` (token hash, works in any browser); the Reset Password template stays at its default (implicit flow already works anywhere).
-   - [ ] User: SMTP settings in Supabase (Authentication → Emails → SMTP Settings) and the auth email rate limit.
+   - [ ] User: SMTP settings in Supabase (Authentication → Emails → SMTP Settings) and the auth email rate limit. **On hold (2026-11-06):** the dedicated account `play.next.app8@gmail.com` was created, but Google refused to turn on 2-Step Verification ("We couldn't verify that it's you", a common hold on brand-new accounts), so no app password exists yet. Retry later from the computer the account was made on, on home Wi-Fi; fallback is the user's personal Gmail (then swap the username/password in Supabase).
    - [ ] User: "Confirm signup" template → `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`.
-   - [ ] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app).
+   - [x] Privacy policy page `/privacy` plus a site footer linking to it (Google's Publish button stays disabled until Branding has a home page and privacy policy link).
+   - [ ] User: in Google Auth Platform → Branding, set Application home page `https://playnext-beta.vercel.app` and privacy policy link `https://playnext-beta.vercel.app/privacy`, and save. No logo (a logo forces brand verification, which needs an owned domain).
+   - [ ] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app). **Deferred by choice:** the user will publish together with SMTP, before inviting real users. Until then, add Google accounts under Audience → Test users. Reversible ("Back to testing").
    - [ ] User: a sign-up confirmation and a reset email arrive at a non-team address and their links work; Google sign-in works for an account that isn't a test user.
-2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30).
+2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
 3. **Real catalog ingestion**, below.
 
 Build and stand up the real daily ingestion pipeline per `docs/INGESTION.md`, then swap the mock seed for it. Expected to require zero changes to application code, since both sources populate the exact same `title_cache`/`provider_availability` tables through the same resolver logic. Track this workstream's own progress in `docs/INGESTION.md`'s Progress Log, not here.

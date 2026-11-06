@@ -4,7 +4,10 @@ import {
   browseMetadata,
   MAX_DESCRIPTION_LENGTH,
   MAX_SEARCH_TITLE_QUERY,
+  PRIVACY_METADATA,
+  PRIVACY_PATH,
   searchMetadata,
+  SITE_NAME,
   siteUrl,
   titleMetadata,
   truncateDescription,
@@ -191,5 +194,16 @@ describe("titleMetadata", () => {
     expect(metadata.title).toBe("Loki");
     expect(metadata.description).toBe("Where to watch Loki: Disney+.");
     expect(metadata.openGraph).not.toHaveProperty("images");
+  });
+});
+
+describe("PRIVACY_METADATA", () => {
+  it("is indexable with a stable canonical path", () => {
+    // The path is pasted into Google's OAuth Branding page; changing it
+    // breaks the consent screen's privacy link.
+    expect(PRIVACY_PATH).toBe("/privacy");
+    expect(PRIVACY_METADATA.alternates?.canonical).toBe(PRIVACY_PATH);
+    expect(PRIVACY_METADATA.robots).toBeUndefined();
+    expect(PRIVACY_METADATA.description).toContain(SITE_NAME);
   });
 });
