@@ -10,18 +10,18 @@ import {
 import { NETWORK_ERROR_MESSAGE } from "@/lib/auth";
 
 // Wraps /reset-password's content. A reset link (implicit flow, see
-// createImplicitFlowClient) carries the recovery session in the URL's
+// getImplicitFlowClient) carries the recovery session in the URL's
 // #fragment, which never reaches the server: consumeRecoveryLink stores it in
 // the cookie-backed client, then the page re-renders server-side, finds the
-// session and passes `signedIn`. The link's session always wins, so someone
-// already signed in as another account resets the right one.
-// Otherwise: `children` (the form) when signed in, else `fallback`.
+// email-link session and passes `canReset`. The link's session always wins,
+// so someone already signed in as another account resets the right one.
+// Otherwise: `children` (the form) when `canReset`, else `fallback`.
 export default function RecoverySession({
-  signedIn,
+  canReset,
   children,
   fallback,
 }: {
-  signedIn: boolean;
+  canReset: boolean;
   children: React.ReactNode;
   fallback: React.ReactNode;
 }) {
@@ -51,12 +51,12 @@ export default function RecoverySession({
   const settled = outcome === "signed-in" && !refreshing;
   useEffect(() => {
     // The session was stored, but the server still didn't see it.
-    if (settled && !signedIn)
+    if (settled && !canReset)
       console.error("reset link: session not visible after refresh");
-  }, [settled, signedIn]);
+  }, [settled, canReset]);
 
   if (outcome === null || refreshing) return <p>Checking your reset link…</p>;
   if (outcome === "retry")
     return <p>{NETWORK_ERROR_MESSAGE} Reload this page to retry the link.</p>;
-  return outcome !== "invalid" && signedIn ? children : fallback;
+  return outcome !== "invalid" && canReset ? children : fallback;
 }

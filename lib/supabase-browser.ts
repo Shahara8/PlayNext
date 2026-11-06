@@ -21,7 +21,7 @@ export function createBrowserSupabaseClient() {
 // cookie-backed client above.
 let implicitFlowClient: SupabaseClient | null = null;
 
-export function createImplicitFlowClient() {
+export function getImplicitFlowClient() {
   if (implicitFlowClient) return implicitFlowClient;
   const { url, anonKey } = getSupabaseEnv();
   implicitFlowClient = createClient(url, anonKey, {

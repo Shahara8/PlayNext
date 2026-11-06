@@ -1,6 +1,7 @@
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { parseRecoveryHash } from "./auth";
 
-// What an implicit-flow reset link (see createImplicitFlowClient) needs from
+// What an implicit-flow reset link (see getImplicitFlowClient) needs from
 // the browser, injected so tests can fake it.
 export interface RecoveryLinkEnv {
   location: { hash: string; pathname: string; search: string };
@@ -47,8 +48,7 @@ export async function consumeRecoveryLink(
     // supabase-js returns network failures as AuthRetryableFetchError; any
     // other error means the tokens themselves are bad, and retrying them
     // would only fail again.
-    retryable =
-      error instanceof Error && error.name === "AuthRetryableFetchError";
+    retryable = isAuthRetryableFetchError(error);
   } catch (thrown) {
     error = thrown;
     retryable = true;

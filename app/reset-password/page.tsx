@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/supabase-server";
-import { AUTH_RESET_ERROR_PARAM } from "@/lib/auth";
+import {
+  getCurrentUser,
+  hasRecentEmailLinkSession,
+} from "@/lib/supabase-server";
+import { RESET_MODE_PARAM } from "@/lib/auth";
 import ResetPasswordForm from "@/app/components/reset-password-form";
 import RecoverySession from "@/app/components/recovery-session";
 import styles from "@/app/components/auth-page.module.css";
@@ -16,26 +19,33 @@ export const metadata: Metadata = {
 
 // Landed on by the reset email's link, which carries the recovery session in
 // its #fragment (implicit flow; RecoverySession picks it up). A custom email
-// template could instead route through /auth/confirm, and links sent before
-// either change went through /auth/callback; both arrive already signed in.
+// template could instead route through /auth/confirm, which arrives already
+// signed in. Either way the form only shows for a session that came from an
+// email link recently, never for an ordinary signed-in one.
 export default async function ResetPasswordPage() {
-  const user = await getCurrentUser();
+  // Independent auth reads, so in parallel.
+  const [user, recentEmailLink] = await Promise.all([
+    getCurrentUser(),
+    hasRecentEmailLinkSession(),
+  ]);
+  const canReset = user !== null && recentEmailLink;
 
   return (
     <main className={styles.main}>
       <h1>Set a new password</h1>
       <RecoverySession
-        signedIn={user !== null}
+        canReset={canReset}
         fallback={
           <p>
-            This reset link is invalid or has expired.{" "}
+            To set a new password, open the link in your reset email (links work
+            once, for an hour).{" "}
             <Link
-              href={`/login?error=${AUTH_RESET_ERROR_PARAM}`}
+              href={`/login?mode=${RESET_MODE_PARAM}`}
               className={styles.link}
             >
               Request a new one
             </Link>{" "}
-            to reset your password.
+            if yours is missing or expired.
           </p>
         }
       >

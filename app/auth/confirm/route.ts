@@ -2,12 +2,14 @@ import type { NextRequest } from "next/server";
 import { parseEmailOtpType, RESET_PASSWORD_PATH } from "@/lib/auth";
 import { completeAuthRedirect } from "@/lib/auth-redirect";
 
-// For Supabase email links built from a custom template (needs custom SMTP
-// on the free plan; not set up yet, so resets use the implicit flow, see
-// createImplicitFlowClient), e.g. Reset Password as
-// `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery`, requested
-// with `redirectTo: <origin>/auth/confirm` so a reset asked for on localhost
-// comes back to localhost. Unlike
+// Not used by any live email yet. It's for Supabase email links built from a
+// custom template, which needs custom SMTP on the free plan (until then,
+// resets use the implicit flow and land on /reset-password directly; see
+// getImplicitFlowClient). To switch: set the Reset Password template to
+// `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` AND change
+// login-form.tsx to the cookie-backed client with
+// `redirectTo: <origin>/auth/confirm`, so a reset asked for on localhost comes
+// back to localhost. Unlike
 // /auth/callback's PKCE `?code=`, a token hash needs no verifier cookie from
 // the browser that asked for it, so the link also works in a mail app's
 // built-in browser or on another device.

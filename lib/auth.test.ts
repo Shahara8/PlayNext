@@ -4,6 +4,8 @@ import {
   AUTH_RESET_ERROR_PARAM,
   callbackFailureUrl,
   firstIssueMessage,
+  isRecentEmailLinkSession,
+  RECOVERY_SESSION_MAX_AGE_S,
   friendlyAuthErrorMessage,
   MAX_DISPLAY_NAME_LENGTH,
   NETWORK_ERROR_MESSAGE,
@@ -298,5 +300,36 @@ describe("parseRecoveryHash", () => {
 
   it("is none with no fragment", () => {
     expect(parseRecoveryHash("")).toEqual({ kind: "none" });
+  });
+});
+
+describe("isRecentEmailLinkSession", () => {
+  const now = 1_800_000_000;
+
+  it("accepts a fresh email-link (otp) session", () => {
+    expect(
+      isRecentEmailLinkSession([{ method: "otp", timestamp: now - 60 }], now),
+    ).toBe(true);
+  });
+
+  it("rejects password and OAuth sessions", () => {
+    for (const method of ["password", "oauth"])
+      expect(isRecentEmailLinkSession([{ method, timestamp: now }], now)).toBe(
+        false,
+      );
+  });
+
+  it("rejects an email-link session older than the window", () => {
+    expect(
+      isRecentEmailLinkSession(
+        [{ method: "otp", timestamp: now - RECOVERY_SESSION_MAX_AGE_S - 1 }],
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects missing or malformed amr", () => {
+    for (const amr of [undefined, null, "otp", [{ method: "otp" }], [null]])
+      expect(isRecentEmailLinkSession(amr, now)).toBe(false);
   });
 });

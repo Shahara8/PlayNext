@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "./supabase-env";
+import { isRecentEmailLinkSession } from "./auth";
 
 // Cookie-aware client for Server Components, Route Handlers, and Server
 // Actions — reads/refreshes the auth session via request cookies. Server
@@ -43,3 +44,18 @@ export const getCurrentUser = cache(async () => {
   const { data } = await supabase.auth.getUser();
   return data.user;
 });
+
+/**
+ * Whether the signed-in session came from an email link (a password reset)
+ * recently enough to set a new password: its JWT `amr` claim, verified by
+ * getClaims, checked by isRecentEmailLinkSession. False when signed out.
+ */
+export async function hasRecentEmailLinkSession(): Promise<boolean> {
+  await connection();
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getClaims();
+  return isRecentEmailLinkSession(
+    data?.claims.amr,
+    Math.floor(Date.now() / 1000),
+  );
+}

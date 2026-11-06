@@ -11,13 +11,17 @@ export const AUTH_CALLBACK_ERROR_MESSAGE =
 export const NETWORK_ERROR_MESSAGE =
   "Couldn't reach the server — please try again.";
 // The same, for a password-reset link: /login opens on the reset form.
+// (`?mode=reset` opens it with no error, e.g. from /reset-password without a
+// usable link.)
 export const AUTH_RESET_ERROR_PARAM = "reset_link";
+export const RESET_MODE_PARAM = "reset";
 export const AUTH_RESET_ERROR_MESSAGE =
   "That reset link is invalid or has expired (each link works only once). Request a new one below.";
 
-// Where a password-reset link ends up (via /auth/confirm, or /auth/callback
-// for links sent before the email template change), so the recovery session
-// it signs in with lands on the set-a-new-password form.
+// Where a password-reset link ends up, so the recovery session it signs in
+// with lands on the set-a-new-password form. Live reset emails come here
+// directly (implicit flow, see getImplicitFlowClient); /auth/confirm would
+// send recovery links here too once a custom email template points at it.
 export const RESET_PASSWORD_PATH = "/reset-password";
 
 const emailField = z
@@ -104,6 +108,36 @@ export function userDisplayName(user: {
   );
   if (!full) return null;
   return { full, short: full.split(/\s+/)[0] };
+}
+
+// How long after opening a reset link the new-password form stays open.
+export const RECOVERY_SESSION_MAX_AGE_S = 60 * 60;
+
+/**
+ * Whether a session's JWT `amr` (authentication methods) shows it came from
+ * an email link within RECOVERY_SESSION_MAX_AGE_S. Supabase records any
+ * verified email link (reset, but also a sign-up confirmation; this app sends
+ * no magic links) as method "otp" — checked live against the project — and a
+ * normal sign-in as "password"/"oauth". Every one of those proves control of
+ * the inbox, the same thing a reset proves, so they all qualify.
+ *
+ * This only decides whether /reset-password shows its form. It is a UI guard,
+ * not enforcement: the session cookies are readable by page scripts, so a
+ * borrowed session could call Supabase's updateUser directly. The real
+ * backstop is Supabase's "Secure password change" setting (on), which demands
+ * reauthentication for password changes from sessions that aren't recent.
+ */
+export function isRecentEmailLinkSession(
+  amr: unknown,
+  nowSeconds: number,
+): boolean {
+  if (!Array.isArray(amr)) return false;
+  return amr.some(
+    (entry) =>
+      entry?.method === "otp" &&
+      typeof entry.timestamp === "number" &&
+      nowSeconds - entry.timestamp <= RECOVERY_SESSION_MAX_AGE_S,
+  );
 }
 
 export type RecoveryHash =

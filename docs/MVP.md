@@ -14,6 +14,36 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (wrap-up) — session-end review fixes; next-session plan
+- The user confirmed **"Secure password change" was already on** in Supabase; that item was struck from the pre-launch list.
+- `/code-review` (medium) over the session's commits (`a63d4c4..HEAD`):
+  - Fixed: `/reset-password` showed the new-password form to any signed-in session, even with no reset link.
+    - It's now gated server-side on how the session authenticated: `lib/supabase-server.ts` `hasRecentEmailLinkSession()` reads the JWT `amr` via `getClaims()`, and `lib/auth.ts` `isRecentEmailLinkSession(amr, now)` requires an `"otp"` entry no older than `RECOVERY_SESSION_MAX_AGE_S` (1h).
+    - The method name was checked live: an admin `generateLink({ type: "recovery" })` session, followed with no email sent, has `amr: [{ method: "otp" }]`, while a password sign-in has `"password"`.
+    - `RecoverySession`'s prop is now `canReset`.
+  - Fixed: `/login` redirected a signed-in visitor home even when sent back from a failed reset link, so they couldn't request a new one. It now stays on the reset form for `?error=reset_link`.
+  - Fixed: `/auth/callback` had no route test. Added `app/auth/callback/route.test.ts` (success, same-origin vs. off-site `next`, reset failure → reset form, other failures, no code → no Supabase call).
+  - Fixed: the retryable-error check now uses supabase-js's `isAuthRetryableFetchError`, and the test builds a real `AuthRetryableFetchError`.
+  - Fixed: stale comments on `/auth/confirm` and `RESET_PASSWORD_PATH`. `/auth/confirm` is documented as unused until custom SMTP, with both switch-over steps (template and `login-form.tsx`).
+  - Fixed: `createImplicitFlowClient` renamed `getImplicitFlowClient`, since it returns a singleton.
+  - Declined: if `setSession` succeeds but the refreshed server render still can't see the session, the one-time link is already consumed. It's logged; no repro, and retrying can't recover a spent link anyway.
+- Second `/code-review` pass on those fixes:
+  - The `amr` gate only hides the form. It's documented in `isRecentEmailLinkSession` as a UI guard: session cookies are script-readable, so a borrowed session could call `updateUser` directly, and Supabase's "Secure password change" (on) is the real backstop.
+  - The `"otp"` gate also admits sign-up confirmation sessions. Documented as intended: they prove the same inbox control a reset does.
+  - Added `?mode=reset` (`RESET_MODE_PARAM`). `/reset-password`'s fallback, reworded to "open the link in your reset email (links work once, for an hour)", links to the reset form without the misleading "your link expired" error, and a signed-in visitor isn't redirected away from it.
+  - The page's two auth reads run in parallel.
+  - `hasRecentEmailLinkSession` moved below `getCurrentUser`, so `cache()`'s comment sits on its function again, and got `lib/supabase-server.test.ts` (mocked `@supabase/ssr`/`next/*`: fresh, expired and password sessions, signed out, the seconds conversion).
+  - `/auth/callback`'s stale comment fixed.
+- Verified:
+  - `npm test` 274 passing (+13 this round); `lint`, `tsc` and `build` clean.
+  - An end-to-end gate check with the test account in headless Chrome on a local production build (the run actually hit a `next dev` already listening on :3000, serving the same code; see below):
+    - A password session on `/reset-password` gets no form.
+    - A real recovery link (admin `generateLink`, no email) gets the form for the test account.
+    - Reusing that link is refused.
+    - No new password was submitted.
+- Incident: that check found port 3000 already in use (PID 23672, judging by the page text the user's own `next dev` for this repo). The script stopped it at the end, assuming it was the server it had started. Lesson for next time: check the port first and never kill a process the session didn't start, or use a free port. `localhost:3000` is the only local origin in the Redirect URLs allow-list, so use it only when it's free.
+- Next step: see Post-M8 in Section 9. In order: (1) custom SMTP plus publishing the Google OAuth consent screen; (2) live smoke checks against production with the test account; (3) the real catalog ingestion (`docs/INGESTION.md`).
+
 ### 2026-11-06 (close) — M8 complete
 - At the user's request, created a dedicated test account for signed-in checks: `playnext-test-bot@example.com` (user id `27e2adbb-933d-45b9-a170-653488beabf9`, `full_name` "Test Bot"). It was made with the service-role admin API `createUser({ email_confirm: true })`, so no email was sent. The random password lives only in `.env.local` (gitignored) as `TEST_USER_EMAIL`/`TEST_USER_PASSWORD`, and was never shown in chat. Delete it under Authentication → Users when no longer needed.
 - Signed-in run on production in phone-emulated headless Chrome:
@@ -32,7 +62,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - Still owed before real users (not M8 scope):
   - Custom SMTP: Supabase's built-in sender only delivers to project team members and is heavily rate-limited, so real users' sign-up confirmations and resets wouldn't arrive.
   - Publishing the Google OAuth consent screen out of Testing mode.
-  - Enabling "Secure password change".
+  - (Enabling "Secure password change": the user confirmed it was already on.)
 - Next step: post-M8 — the real daily ingestion pipeline per `docs/INGESTION.md` (start with its Status/Progress Log), which replaces the mock catalog and gives recommendations real candidates. Custom SMTP can be done any time before inviting users.
 
 ### 2026-11-06 (end) — M8 (cont.): emulated phone screenshots, full-width `<main>` fix
@@ -287,6 +317,9 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - **GitHub repo** — already initialized, remote set to `github.com/Shahara8/PlayNext`.
 - **Vercel project** — connected in M0 (`playnext`, team `shahara8's projects`), auto-deploys `main`. Live at https://playnext-beta.vercel.app.
 - **Google OAuth app** — created in M5 (Google Cloud Console, OAuth consent screen + a Web application client; redirect URI `https://qtwozjmpysbrwzynmyoq.supabase.co/auth/v1/callback`, origins `http://localhost:3000` + the production URL). Client ID/Secret entered into the Supabase dashboard under Authentication → Providers → Google and enabled there. Note: the consent screen is still in Testing mode, so only accounts added as test users (Google Auth Platform → Audience) can sign in via Google until it's published — fine for MVP development, revisit before a real public launch.
+- **Supabase Auth URL Configuration** — set 2026-11-06: Site URL `https://playnext-beta.vercel.app`; Redirect URLs `https://playnext-beta.vercel.app/**` and `http://localhost:3000/**`. Email/password, Google and password reset all depend on it. "Secure password change" is on.
+- **Email sending** — still Supabase's built-in sender, which is development-only: heavily rate-limited, delivers only to project team members, and locks the email templates. Custom SMTP is the first post-M8 task.
+- **Test account** — `playnext-test-bot@example.com` (created 2026-11-06 with the admin API, email pre-confirmed, `full_name` "Test Bot"). Credentials are only in `.env.local` as `TEST_USER_EMAIL`/`TEST_USER_PASSWORD`; never print or commit them. It's for signed-in checks by Claude (headless Chrome over the DevTools Protocol, see Section 8 Testing), and its likes and saved titles don't touch real users'. `admin.auth.admin.generateLink({ type: "recovery" })` mints reset links for it without sending email.
 
 ## Context
 
@@ -406,13 +439,26 @@ Code: `lib/recommendations.ts` (scoring + orchestration), `lib/tmdb-related.ts` 
 
 ## 8. Explicit out-of-scope for MVP
 
-Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering recommendations; social features (sharing, following, reviews); price comparison/deal alerts; "leaving soon"/availability-change notifications; real usage-based "most watched" (needs watch-event tracking); offline support; admin dashboard/CMS (use Supabase Studio); payments/subscriptions; multiple profiles per account; content moderation; A/B testing; dedicated search service; precomputed/batch recommendation jobs; component/UI/E2E test automation (manual smoke tests cover that layer — see Testing below); full accessibility audit; theming beyond one default look.
+Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering recommendations; social features (sharing, following, reviews); price comparison/deal alerts; "leaving soon"/availability-change notifications; real usage-based "most watched" (needs watch-event tracking); offline support; admin dashboard/CMS (use Supabase Studio); payments/subscriptions; multiple profiles per account; content moderation; A/B testing; dedicated search service; precomputed/batch recommendation jobs; component/UI test automation (rendering tests); browser checks are live smoke checks against the real site instead, see Testing below; full accessibility audit; theming beyond one default look.
 
 ### Testing
 
 **Standing rule (see `CLAUDE.md` Workflow): every feature or bug fix gets unit test(s) in the same session**, scoped to data-access, resolver, API-route, and other pure/testable logic in `lib/`, `scripts/`, and `app/api/` — e.g. `lib/catalog.ts`'s query builders (mocked Supabase client), `lib/tmdb-resolve.ts`'s TMDB mapping (mocked `fetch`), `scripts/seed-mock-data.ts`'s feed-row Zod schema, and (from M7 on) `app/api/recommendations/route.ts`'s scoring/filtering logic. Vitest, `*.test.ts` colocated next to the code they cover, run via `npm test`. Added starting M2; M1's testable logic was backfilled at the same time.
 
-**Still out of scope**, per the "explicit out-of-scope" list above: component/page rendering tests, browser/E2E automation, and any test that talks to a real Supabase/TMDB backend. Manual smoke tests (per Section 9's demo checkpoints) remain the verification method for the UI and integration layer.
+**Still out of scope**, per the "explicit out-of-scope" list above: component/page rendering tests, and any *unit* test (`npm test`) that talks to a real Supabase/TMDB backend.
+
+**Live smoke checks (decided 2026-11-06, not built yet; post-M8 task 2):** the user wants Claude to check the real platform itself, signed in, instead of asking for phone screenshots. This replaces the old "browser/E2E automation is out of scope" line. The approach was proven this session with throwaway scripts and is to become a committed, separate command (not part of `npm test`):
+- Headless Chrome over the DevTools Protocol, with no new dependency: Chrome is installed, and Node 24 has `WebSocket` and `fetch` built in.
+- Phone emulation via `Emulation.setDeviceMetricsOverride` (412×915, DPR 2, `mobile: true`), plus a desktop width.
+- Sign in as the test account through the real `/login` form. React inputs need the native value setter plus an `input` event.
+- Per page: assert there's no horizontal overflow (`scrollWidth <= width`) and that key elements are present, and save a screenshot for review.
+- Covers the signed-in journey (favorite/like/watchlist, then My List and For You) and the reset gate (admin `generateLink`, no email).
+- Defaults to production; a local production build is optional.
+- Known gotchas:
+  - Plain `chrome --headless --window-size` can't go below about 500px on Windows; use device-metrics emulation.
+  - Git Bash rewrites `name=/path` arguments; set `MSYS_NO_PATHCONV=1`.
+  - Only `localhost:3000` is in the Redirect URLs allow-list, so check that it's free before starting a server on it, and never kill a process you didn't start.
+  - Undo the test account's state changes at the end, or tolerate them.
 
 **Safety rule for test files**: never import a script that performs live network/DB calls as a side effect of module import — guard its entrypoint (e.g. `scripts/seed-mock-data.ts`'s `isMainModule` check) so importing it for a pure helper (like its Zod schema) can't trigger a real run. This was discovered the hard way: an early version of `scripts/seed-mock-data.test.ts` imported the un-guarded script and briefly caused a real `main()` run (live TMDB calls + Supabase upserts) during `npm test`, before the guard was added.
 
@@ -536,6 +582,11 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 *Demo: complete user journey — browse → search → sign up → favorite titles → see recommendations — on the live production URL.*
 
 ### Post-M8 (queued, not MVP work)
+Agreed order (2026-11-06):
+1. **Custom SMTP + Google sign-in for everyone.** Set up a real email sender in Supabase (Authentication → Emails → SMTP Settings), e.g. Gmail SMTP with an app password, or Resend; then optionally move the Reset Password template to `/auth/confirm` (steps in that route's header comment). Publish the Google OAuth consent screen out of Testing mode. Verify sign-up confirmation and reset emails arrive at a non-team address.
+2. **Live smoke checks** per Section 8 Testing: a committed script plus an npm command, run against production with the test account.
+3. **Real catalog ingestion**, below.
+
 Build and stand up the real daily ingestion pipeline per `docs/INGESTION.md`, then swap the mock seed for it. Expected to require zero changes to application code, since both sources populate the exact same `title_cache`/`provider_availability` tables through the same resolver logic. Track this workstream's own progress in `docs/INGESTION.md`'s Progress Log, not here.
 
 ---

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createBrowserSupabaseClient,
-  createImplicitFlowClient,
+  getImplicitFlowClient,
 } from "@/lib/supabase-browser";
 import {
   firstIssueMessage,
@@ -50,8 +50,8 @@ export default function LoginForm({
     setSubmitting(true);
     const { message } = await runAuthCall(() =>
       // Implicit flow, so the link works in any browser (see
-      // createImplicitFlowClient).
-      createImplicitFlowClient().auth.resetPasswordForEmail(parsed.data.email, {
+      // getImplicitFlowClient).
+      getImplicitFlowClient().auth.resetPasswordForEmail(parsed.data.email, {
         redirectTo: `${window.location.origin}${RESET_PASSWORD_PATH}`,
       }),
     );

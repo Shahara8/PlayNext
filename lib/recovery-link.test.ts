@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { consumeRecoveryLink, type RecoveryLinkEnv } from "./recovery-link";
 
 const SESSION_HASH = "#access_token=at&refresh_token=rt&type=recovery";
@@ -56,8 +57,7 @@ describe("consumeRecoveryLink", () => {
   });
 
   it("keeps the fragment for a retry on a network failure", async () => {
-    const networkError = new Error("Failed to fetch");
-    networkError.name = "AuthRetryableFetchError";
+    const networkError = new AuthRetryableFetchError("Failed to fetch", 0);
     for (const result of [
       Promise.resolve({ error: networkError }),
       Promise.reject(new TypeError("Failed to fetch")),

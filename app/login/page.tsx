@@ -7,6 +7,7 @@ import {
   AUTH_CALLBACK_ERROR_PARAM,
   AUTH_RESET_ERROR_MESSAGE,
   AUTH_RESET_ERROR_PARAM,
+  RESET_MODE_PARAM,
 } from "@/lib/auth";
 import LoginForm from "@/app/components/login-form";
 import styles from "@/app/components/auth-page.module.css";
@@ -31,14 +32,18 @@ export default async function LoginPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await getCurrentUser();
-  if (user) redirect("/");
-
   const sp = await searchParams;
+  const errorParam = firstSearchParam(sp.error);
+  const resetLinkFailed = errorParam === AUTH_RESET_ERROR_PARAM;
+  const wantsReset =
+    resetLinkFailed || firstSearchParam(sp.mode) === RESET_MODE_PARAM;
+  // A signed-in visitor goes home, except one who needs the reset form to
+  // request a (new) reset link.
+  if (user && !wantsReset) redirect("/");
+
   // Set by /auth/callback when the Google redirect, email-confirmation link
   // or password-reset link didn't carry a usable code, or exchanging it
   // failed. A failed reset link reopens the reset form.
-  const errorParam = firstSearchParam(sp.error);
-  const resetLinkFailed = errorParam === AUTH_RESET_ERROR_PARAM;
   const initialError = resetLinkFailed
     ? AUTH_RESET_ERROR_MESSAGE
     : errorParam === AUTH_CALLBACK_ERROR_PARAM
@@ -49,9 +54,9 @@ export default async function LoginPage({
     <main className={styles.main}>
       <h1>Sign in</h1>
       <LoginForm
-        key={errorParam ?? ""}
+        key={`${errorParam ?? ""}:${wantsReset}`}
         initialError={initialError}
-        initialMode={resetLinkFailed ? "reset" : "signin"}
+        initialMode={wantsReset ? "reset" : "signin"}
       />
     </main>
   );
