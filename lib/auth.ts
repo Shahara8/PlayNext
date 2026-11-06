@@ -20,8 +20,9 @@ export const AUTH_RESET_ERROR_MESSAGE =
 
 // Where a password-reset link ends up, so the recovery session it signs in
 // with lands on the set-a-new-password form. Live reset emails come here
-// directly (implicit flow, see getImplicitFlowClient); /auth/confirm would
-// send recovery links here too once a custom email template points at it.
+// directly (implicit flow, see getImplicitFlowClient). The Reset Password
+// template deliberately stays at its default; /auth/confirm only sends a
+// stray recovery link here as a safety net.
 export const RESET_PASSWORD_PATH = "/reset-password";
 
 const emailField = z

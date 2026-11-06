@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
 import { completeAuthRedirect } from "@/lib/auth-redirect";
 
-// Lands both the Google OAuth redirect and the email-confirmation link
-// (both use Supabase's PKCE flow, which hands back a `?code=` to exchange
-// for a session) — one callback covers M5's "both ways" sign-in paths. It
-// also honors `?next=` (same-origin only), which PKCE password-reset links
-// used before resets moved to the implicit flow (see getImplicitFlowClient).
+// Lands the Google OAuth redirect (Supabase's PKCE flow hands back a
+// `?code=` to exchange for a session). Sign-up confirmation emails moved to
+// /auth/confirm, but confirmation links already sent before that change
+// still point here, so it keeps exchanging any code. It also honors `?next=`
+// (same-origin only), which PKCE password-reset links used before resets
+// moved to the implicit flow (see getImplicitFlowClient).
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");

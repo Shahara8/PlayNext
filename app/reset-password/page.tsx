@@ -18,10 +18,10 @@ export const metadata: Metadata = {
 };
 
 // Landed on by the reset email's link, which carries the recovery session in
-// its #fragment (implicit flow; RecoverySession picks it up). A custom email
-// template could instead route through /auth/confirm, which arrives already
-// signed in. Either way the form only shows for a session that came from an
-// email link recently, never for an ordinary signed-in one.
+// its #fragment (implicit flow; RecoverySession picks it up). A recovery link
+// that went through /auth/confirm instead arrives already signed in. Either
+// way the form only shows for a session that came from an email link
+// recently, never for an ordinary signed-in one.
 export default async function ResetPasswordPage() {
   // Independent auth reads, so in parallel.
   const [user, recentEmailLink] = await Promise.all([

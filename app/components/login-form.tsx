@@ -88,7 +88,8 @@ export default function LoginForm({
           email: parsed.data.email,
           password: parsed.data.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            // Token-hash link, works in any browser (see /auth/confirm).
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
           },
         }),
       );

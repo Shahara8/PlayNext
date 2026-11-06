@@ -13,10 +13,11 @@ export function createBrowserSupabaseClient() {
 
 // For requesting a password-reset email only. @supabase/ssr forces PKCE, and
 // a PKCE link only works in the browser holding the verifier cookie — not in
-// Gmail's in-app browser. Supabase's default email template (locked on the
-// free plan without custom SMTP) then can't be pointed at /auth/confirm, so
-// the reset is requested in implicit flow instead: the link lands on
-// /reset-password with the session in its #fragment, which works anywhere.
+// Gmail's in-app browser. So the reset is requested in implicit flow: the
+// default Reset Password template's link lands on /reset-password with the
+// session in its #fragment, which works anywhere. (Templates were locked
+// before custom SMTP; even with them editable, the reset template is left at
+// its default on purpose. Sign-up confirmations use /auth/confirm instead.)
 // Stores nothing itself; lib/recovery-link.ts hands the session to the
 // cookie-backed client above.
 let implicitFlowClient: SupabaseClient | null = null;

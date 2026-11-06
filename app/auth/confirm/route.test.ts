@@ -13,11 +13,13 @@ function request(query: string) {
 
 describe("GET /auth/confirm", () => {
   const verifyOtp = vi.fn();
+  const exchangeCodeForSession = vi.fn();
 
   beforeEach(() => {
     verifyOtp.mockReset();
+    exchangeCodeForSession.mockReset();
     vi.mocked(createServerSupabaseClient).mockResolvedValue({
-      auth: { verifyOtp },
+      auth: { verifyOtp, exchangeCodeForSession },
     } as never);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -110,6 +112,73 @@ describe("GET /auth/confirm", () => {
 
     expect(res.headers.get("location")).toBe(
       "http://localhost/login?error=auth_callback",
+    );
+  });
+
+  it("verifies a sign-up confirmation link (type=email) and goes home", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const res = await GET(request("?token_hash=abc&type=email"));
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      type: "email",
+      token_hash: "abc",
+    });
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toBe("http://localhost/");
+  });
+
+  it("falls back to the default template's PKCE code", async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const res = await GET(request("?code=xyz"));
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith("xyz");
+    expect(verifyOtp).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toBe("http://localhost/");
+  });
+
+  it("sends a failed code exchange to the sign-in error", async () => {
+    exchangeCodeForSession.mockResolvedValue({
+      error: { message: "no verifier" },
+    });
+
+    const res = await GET(request("?code=xyz"));
+
+    expect(res.headers.get("location")).toBe(
+      "http://localhost/login?error=auth_callback",
+    );
+  });
+
+  it("prefers the token hash and never mixes in a code", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    await GET(request("?token_hash=abc&type=email&code=xyz"));
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+
+    // A token hash with a bad type fails rather than trying the code.
+    const res = await GET(request("?token_hash=abc&type=bogus&code=xyz"));
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toBe(
+      "http://localhost/login?error=auth_callback",
+    );
+  });
+
+  it("logs Supabase's own error when the link carries no token", async () => {
+    const res = await GET(
+      request(
+        "?error=access_denied&error_description=Email+link+is+invalid+or+has+expired",
+      ),
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "http://localhost/login?error=auth_callback",
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/confirm"),
+      expect.objectContaining({
+        error: "Email link is invalid or has expired",
+      }),
     );
   });
 });

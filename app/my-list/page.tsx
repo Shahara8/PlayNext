@@ -43,12 +43,14 @@ export default async function MyListPage({
       <nav className={styles.tabs}>
         <Link
           href="/my-list"
+          aria-current={view === "watchlist" ? "page" : undefined}
           className={view === "watchlist" ? styles.tabActive : styles.tab}
         >
           Watchlist
         </Link>
         <Link
           href="/my-list?view=favorites"
+          aria-current={view === "favorites" ? "page" : undefined}
           className={view === "favorites" ? styles.tabActive : styles.tab}
         >
           Favorites

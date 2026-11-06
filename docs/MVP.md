@@ -14,6 +14,32 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-06 (SMTP) — Post-M8 1 (code side) and 2: sign-up links via `/auth/confirm`, `npm run smoke`
+- **SMTP choice: Gmail SMTP with an app password, from a dedicated Gmail account** (a new address just for PlayNext, so the user's personal address isn't the sender).
+  - Resend was ruled out for now: without a verified domain it only sends to the Resend account's own address (a 403 for anyone else), so it can't reach real users. It's the better choice once there's a domain (DKIM/SPF on our own domain, a proper From).
+  - Gmail: free, no domain, mail is DKIM-signed by Google so it lands in inboxes; about 500 recipients a day, and the From is a `@gmail.com` address. Needs 2-Step Verification on that account to create an app password.
+  - "Verify a single sender" services (e.g. Brevo) were skipped: they'd send a `@gmail.com` From from their own servers, which fails DMARC alignment.
+- **Template decision:**
+  - Reset Password stays at its default. The implicit-flow link already works from any browser (confirmed on the user's phone), and moving it to `/auth/confirm` would need a coordinated template edit and deploy for no user-visible gain. Both spend the one-time token on a GET, so scanner exposure is the same.
+  - Confirm signup moves to `/auth/confirm`. It was still PKCE through `/auth/callback`, so a confirmation opened in a mail app's browser or on another device failed the code exchange (the email still got confirmed, but the user landed on a sign-in error). `login-form.tsx` now sends `emailRedirectTo: <origin>/auth/confirm`; the template should read `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`.
+  - `/auth/confirm` also accepts the default template's `?code=` and exchanges it (the old behaviour), so this deploy is safe before the template edit, and the edit is safe whenever it happens. A token hash wins over a code; a bad `type` fails instead of falling back. Supabase's own `?error=` is logged. `/auth/callback` keeps exchanging codes (Google, and confirmation emails sent before this deploy).
+- **Live smoke checks built** (Post-M8 task 2): `npm run smoke`, see Section 8 Testing.
+  - The first run found a real flake: clicks before React hydration are silently dropped, so the watchlist toggle never flipped (a probe showed sign-in could fail the same way). `click`/`fill` now wait for the element to be hydrated. A stray watchlist add from the first run was undone; the journey itself restores state in a `finally`.
+  - Production: **30/30 passed** (16 signed-out pages across phone and desktop, sign-in, 10 signed-in pages, the watchlist journey, the reset-link gate). Screenshots spot-checked.
+- `/code-review` (medium), all 10 findings fixed:
+  - Chrome is stopped and its profile removed if startup fails, and a spawn `error` no longer crashes the run.
+  - CDP requests time out (30s), and a failed send rejects instead of hanging.
+  - Chrome's stderr listener is detached once the DevTools URL is found (still drained).
+  - The journey's `finally` restores only when the in-line restore didn't happen.
+  - `.env.local` is loaded inside `main()`, so importing the script has no side effects.
+  - `--url` with a path is rejected instead of silently checking the bare origin.
+  - The selector label is escaped.
+  - "My list favorites" now proves the favorites view rendered: My List's active tab got `aria-current="page"` (an accessibility fix too), and the checks wait for it.
+  - Stale comments about moving the reset template to `/auth/confirm` were fixed in `lib/auth.ts`, `lib/supabase-browser.ts`, `app/reset-password/page.tsx` and `app/login/page.tsx`.
+- Verified: `npm test` 302 passing (+28: `/auth/confirm` sign-up, code fallback, precedence and error-logging cases; `scripts/smoke-lib.ts` arguments, Chrome paths, DevTools URL, names, summary, the CDP client incl. timeouts). `lint`, `tsc`, `format:check` and `build` clean. After the fixes, `npm run smoke -- --url http://localhost:3000` against a local production build: 30/30. Port 3000 was free first, and only the server this session started was stopped.
+- **Needs the user** (dashboard steps; see Post-M8 task 1's checklist): SMTP settings and the rate limit, the Confirm signup template, publishing the Google consent screen, then the email round trips at a non-team address and a Google sign-in from an account that isn't a test user. Claude can't check those: they need a real inbox and a real Google account. After the SMTP save, `npm run smoke` re-checks that nothing else moved.
+- Next step: finish Post-M8 task 1 with the user's results; then Post-M8 task 3, the real catalog ingestion (`docs/INGESTION.md`).
+
 ### 2026-11-06 (wrap-up) — session-end review fixes; next-session plan
 - The user confirmed **"Secure password change" was already on** in Supabase; that item was struck from the pre-launch list.
 - `/code-review` (medium) over the session's commits (`a63d4c4..HEAD`):
@@ -318,7 +344,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - **Vercel project** — connected in M0 (`playnext`, team `shahara8's projects`), auto-deploys `main`. Live at https://playnext-beta.vercel.app.
 - **Google OAuth app** — created in M5 (Google Cloud Console, OAuth consent screen + a Web application client; redirect URI `https://qtwozjmpysbrwzynmyoq.supabase.co/auth/v1/callback`, origins `http://localhost:3000` + the production URL). Client ID/Secret entered into the Supabase dashboard under Authentication → Providers → Google and enabled there. Note: the consent screen is still in Testing mode, so only accounts added as test users (Google Auth Platform → Audience) can sign in via Google until it's published — fine for MVP development, revisit before a real public launch.
 - **Supabase Auth URL Configuration** — set 2026-11-06: Site URL `https://playnext-beta.vercel.app`; Redirect URLs `https://playnext-beta.vercel.app/**` and `http://localhost:3000/**`. Email/password, Google and password reset all depend on it. "Secure password change" is on.
-- **Email sending** — still Supabase's built-in sender, which is development-only: heavily rate-limited, delivers only to project team members, and locks the email templates. Custom SMTP is the first post-M8 task.
+- **Email sending** — still Supabase's built-in sender until the user saves the SMTP settings (Post-M8 task 1). The built-in sender is development-only: heavily rate-limited, delivers only to project team members, and locks the email templates. Chosen replacement: Gmail SMTP (`smtp.gmail.com:465`, a dedicated Gmail account with 2-Step Verification and an app password, about 500 emails a day). Move to Resend (or similar) once PlayNext has its own domain.
 - **Test account** — `playnext-test-bot@example.com` (created 2026-11-06 with the admin API, email pre-confirmed, `full_name` "Test Bot"). Credentials are only in `.env.local` as `TEST_USER_EMAIL`/`TEST_USER_PASSWORD`; never print or commit them. It's for signed-in checks by Claude (headless Chrome over the DevTools Protocol, see Section 8 Testing), and its likes and saved titles don't touch real users'. `admin.auth.admin.generateLink({ type: "recovery" })` mints reset links for it without sending email.
 
 ## Context
@@ -447,18 +473,17 @@ Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering rec
 
 **Still out of scope**, per the "explicit out-of-scope" list above: component/page rendering tests, and any *unit* test (`npm test`) that talks to a real Supabase/TMDB backend.
 
-**Live smoke checks (decided 2026-11-06, not built yet; post-M8 task 2):** the user wants Claude to check the real platform itself, signed in, instead of asking for phone screenshots. This replaces the old "browser/E2E automation is out of scope" line. The approach was proven this session with throwaway scripts and is to become a committed, separate command (not part of `npm test`):
-- Headless Chrome over the DevTools Protocol, with no new dependency: Chrome is installed, and Node 24 has `WebSocket` and `fetch` built in.
-- Phone emulation via `Emulation.setDeviceMetricsOverride` (412×915, DPR 2, `mobile: true`), plus a desktop width.
-- Sign in as the test account through the real `/login` form. React inputs need the native value setter plus an `input` event.
-- Per page: assert there's no horizontal overflow (`scrollWidth <= width`) and that key elements are present, and save a screenshot for review.
-- Covers the signed-in journey (favorite/like/watchlist, then My List and For You) and the reset gate (admin `generateLink`, no email).
-- Defaults to production; a local production build is optional.
-- Known gotchas:
-  - Plain `chrome --headless --window-size` can't go below about 500px on Windows; use device-metrics emulation.
-  - Git Bash rewrites `name=/path` arguments; set `MSYS_NO_PATHCONV=1`.
-  - Only `localhost:3000` is in the Redirect URLs allow-list, so check that it's free before starting a server on it, and never kill a process you didn't start.
-  - Undo the test account's state changes at the end, or tolerate them.
+**Live smoke checks (`npm run smoke`, built 2026-11-06):** the user wants Claude to check the real platform itself, signed in, instead of asking for phone screenshots. `scripts/smoke.ts` (helpers and their unit tests in `scripts/smoke-lib.ts`) is a separate command, not part of `npm test`:
+- Headless Chrome over the DevTools Protocol, with no new dependency: Chrome is installed (or `CHROME_PATH`), and Node 24 has `WebSocket` and `fetch` built in. It starts its own Chrome on a random debugging port with a throwaway profile, and only ever stops that Chrome.
+- Two viewports via `Emulation.setDeviceMetricsOverride`: phone (412×915, DPR 2, `mobile: true`) and desktop (1280×800).
+- Signed out, at both widths: home, a provider's browse page (plain and sorted), a typo search (`strnger` → Stranger Things), a title page (the first title on Netflix's browse page, so no id is hard-coded), `/login`, `/reset-password` and a 404.
+- Then it signs in as the test account through the real `/login` form and checks home (For You), My List (both views), the title page and `/reset-password` (a password session must get no form), at both widths.
+- The watchlist journey: toggles the title's watchlist button through the real UI, checks My List agrees, toggles it back (restored in a `finally`).
+- The reset gate: an admin `generateLink({ type: "recovery" })` link (no email sent) must show the new-password form once and be refused on reuse. No password is ever submitted.
+- Per page: waits for its key content, asserts no error page and no horizontal overflow (`scrollWidth <= innerWidth`), and saves a screenshot to `.smoke/` (gitignored). Exit code 1 if any check fails.
+- Defaults to production. `--url http://localhost:3000` checks a local build (only that local origin is in the Redirect URLs allow-list, so the reset check needs it; check the port is free before starting a server, and never stop a process you didn't start). `--signed-out` skips everything that needs the test account.
+- Gotchas it handles: plain `chrome --headless --window-size` can't go below about 500px on Windows (hence device-metrics emulation). Server HTML appears before React hydrates it, and a click or input before hydration is silently lost, so `click`/`fill` first wait for React's `__reactProps$…` key on the element. React inputs need the native value setter plus an `input` event.
+- If you write a one-off DevTools script under Git Bash, set `MSYS_NO_PATHCONV=1` (it rewrites `name=/path` arguments).
 
 **Safety rule for test files**: never import a script that performs live network/DB calls as a side effect of module import — guard its entrypoint (e.g. `scripts/seed-mock-data.ts`'s `isMainModule` check) so importing it for a pure helper (like its Zod schema) can't trigger a real run. This was discovered the hard way: an early version of `scripts/seed-mock-data.test.ts` imported the un-guarded script and briefly caused a real `main()` run (live TMDB calls + Supabase upserts) during `npm test`, before the guard was added.
 
@@ -583,8 +608,14 @@ Ordered the way we intend to build it. Each milestone is independently demoable,
 
 ### Post-M8 (queued, not MVP work)
 Agreed order (2026-11-06):
-1. **Custom SMTP + Google sign-in for everyone.** Set up a real email sender in Supabase (Authentication → Emails → SMTP Settings), e.g. Gmail SMTP with an app password, or Resend; then optionally move the Reset Password template to `/auth/confirm` (steps in that route's header comment). Publish the Google OAuth consent screen out of Testing mode. Verify sign-up confirmation and reset emails arrive at a non-team address.
-2. **Live smoke checks** per Section 8 Testing: a committed script plus an npm command, run against production with the test account.
+1. **Custom SMTP + Google sign-in for everyone.**
+   - [x] Choose a sender: Gmail SMTP with an app password, from a dedicated Gmail account, until there's a domain (Resend needs a verified domain to send to anyone but the account owner). See the 2026-11-06 (SMTP) Progress Log entry.
+   - [x] Code: sign-up confirmation links go to `/auth/confirm` (token hash, works in any browser); the Reset Password template stays at its default (implicit flow already works anywhere).
+   - [ ] User: SMTP settings in Supabase (Authentication → Emails → SMTP Settings) and the auth email rate limit.
+   - [ ] User: "Confirm signup" template → `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email`.
+   - [ ] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app).
+   - [ ] User: a sign-up confirmation and a reset email arrive at a non-team address and their links work; Google sign-in works for an account that isn't a test user.
+2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30).
 3. **Real catalog ingestion**, below.
 
 Build and stand up the real daily ingestion pipeline per `docs/INGESTION.md`, then swap the mock seed for it. Expected to require zero changes to application code, since both sources populate the exact same `title_cache`/`provider_availability` tables through the same resolver logic. Track this workstream's own progress in `docs/INGESTION.md`'s Progress Log, not here.

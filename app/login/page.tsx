@@ -41,9 +41,10 @@ export default async function LoginPage({
   // request a (new) reset link.
   if (user && !wantsReset) redirect("/");
 
-  // Set by /auth/callback when the Google redirect, email-confirmation link
-  // or password-reset link didn't carry a usable code, or exchanging it
-  // failed. A failed reset link reopens the reset form.
+  // Set by /auth/callback (Google redirect, older confirmation links) or
+  // /auth/confirm (sign-up confirmation links) when the link didn't carry a
+  // usable code/token or the exchange/verification failed. A failed reset
+  // link reopens the reset form.
   const initialError = resetLinkFailed
     ? AUTH_RESET_ERROR_MESSAGE
     : errorParam === AUTH_CALLBACK_ERROR_PARAM
