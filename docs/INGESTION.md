@@ -83,7 +83,10 @@ JSON Lines (`.jsonl`), one file per provider:
 Per provider, per run, in one transaction:
 1. Bulk-load today's valid rows into `staging_availability`.
 2. **Upsert** into live `provider_availability` on `(provider, region, imdb_id, type)` — new rows get `first_seen_date = today`; existing rows get `last_seen_date = today`, `removed_at = NULL` (handles "came back"), refreshed fields, and `first_seen_date` preserved via `COALESCE`.
-3. **Anti-join** marks rows missing from today's staging as `removed_at = now()` (only those not already removed).
+3. **Anti-join** marks rows missing from today's staging as `removed_at = now()` (only those not already removed). Which missing rows count depends on the run's `coverage` (the user's decision, 2026-11-07):
+   - **`complete`:** every missing row is removed right away.
+   - **`partial`:** a row missing today is *not* removed just for that. It's removed only once it has been missing from the provider's **last 7 completed runs** (any coverage), i.e. its `last_seen_date` is before the 7th-latest completed run's date. With daily runs that's 7 days. The count is in runs, not calendar days, so a week of failed or skipped runs can't age every title out at once when a partial run finally arrives. A provider with fewer than 7 completed runs removes nothing from partial runs.
+   - The circuit breaker (Section 2) still gates both: a suspicious file writes nothing.
 4. "Unchanged" needs no special code — it's a no-op branch of the same upsert.
 5. Circuit breaker gates before step 1 commits.
 6. Each provider's transaction is independent; idempotent by design, so a manual re-run safely reproduces the correct end state.
@@ -258,7 +261,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 1. [x] Title keys `(media_type, tmdb_id)` (migration 0007, live).
 2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
 3. [x] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts` (`ingestion/src/tmdb/`).
-4. [ ] **Next.** Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removals only from `coverage: "complete"` runs; the grace period for partial ones is still open with the user.
+4. [ ] **Next.** Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removal rules per Section 4 step 3: immediate on `complete` runs; on `partial` runs only after a title has been missing from the last 7 completed runs (decided 2026-11-07).
 5. [ ] `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, process. GitHub secrets will be needed from the user.
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
 
@@ -306,7 +309,8 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - With a bad token, the run gave up after 4 calls (one batch in flight) and still answered all 33 ids.
   - A probe insert reusing a stored imdb_id under an unused key came back as `TitleConflictError` ("title_cache_imdb_id_key"), and 0 rows were written.
 - **2026-11-07, with the user's approval: `imdb_tmdb_map` filled live** for the 32 mock-feed ids, by `resolveTitleKeys` with the real Supabase store (a scratch script). 32/32 were resolved and written, with 0 failures. The map keys equal the live `provider_availability` keys (0 mismatches), and the 32 `title_cache` rows were re-stamped with the same data. A second run was all cache hits (32 cached, 0 TMDB lookups). Production `npm run smoke` passed 38/38 afterwards.
-- Next step: step 4: staging load + upsert + anti-join per provider, with `ingestion_runs` bookkeeping (and the removal grace period for `partial` runs, still open with the user). Call `resolveTitleKeys` once over all providers' matched rows, then `withTitleKeys` per provider.
+- **2026-11-07, decided by the user: the removal grace period.** A `complete` run removes missing titles at once. A `partial` run removes a title only after it has been missing for 7 days, which I've specified as **the provider's last 7 completed runs**, so a stretch of failed runs can't age everything out at once. Written into Section 4 step 3.
+- Next step: step 4: staging load + upsert + anti-join per provider, with `ingestion_runs` bookkeeping and the removal rules in Section 4 step 3. Call `resolveTitleKeys` once over all providers' matched rows, then `withTitleKeys` per provider.
 
 ### 2026-11-06 (session end) — docs brought up to date; step 3 in a new session
 - At the user's request, step 3 starts in a new session.
