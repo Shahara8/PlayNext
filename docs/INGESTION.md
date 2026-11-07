@@ -305,7 +305,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - A dry run with real TMDB, live database reads and writes kept in memory resolved the mock feed's 32 ids in about 1 s. A made-up id was cached as `unresolved`. All 32 keys equal the live `provider_availability` keys.
   - With a bad token, the run gave up after 4 calls (one batch in flight) and still answered all 33 ids.
   - A probe insert reusing a stored imdb_id under an unused key came back as `TitleConflictError` ("title_cache_imdb_id_key"), and 0 rows were written.
-- `imdb_tmdb_map` is still empty live: the first real run fills it.
+- **2026-11-07, with the user's approval: `imdb_tmdb_map` filled live** for the 32 mock-feed ids, by `resolveTitleKeys` with the real Supabase store (a scratch script). 32/32 were resolved and written, with 0 failures. The map keys equal the live `provider_availability` keys (0 mismatches), and the 32 `title_cache` rows were re-stamped with the same data. A second run was all cache hits (32 cached, 0 TMDB lookups). Production `npm run smoke` passed 38/38 afterwards.
 - Next step: step 4: staging load + upsert + anti-join per provider, with `ingestion_runs` bookkeeping (and the removal grace period for `partial` runs, still open with the user). Call `resolveTitleKeys` once over all providers' matched rows, then `withTitleKeys` per provider.
 
 ### 2026-11-06 (session end) — docs brought up to date; step 3 in a new session
