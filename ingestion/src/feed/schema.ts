@@ -64,16 +64,28 @@ function addDays(isoDay: string, days: number): string {
 }
 
 /**
+ * The date limits for a run on `today` (YYYY-MM-DD, UTC): the latest date a
+ * row may carry, the oldest last_verified, and the earliest removed_date of
+ * a title still listed. Shared with the reader, which judges invalid lines
+ * by them too.
+ */
+export function feedDateBounds(today: string) {
+  if (!isoDate.safeParse(today).success)
+    throw new Error(`feedRowSchema: today must be YYYY-MM-DD, got ${today}`);
+  return {
+    latest: addDays(today, FUTURE_DATE_TOLERANCE_DAYS),
+    oldest: addDays(today, -MAX_STALE_DAYS),
+    // A collector a day behind ours (time zones) may still list its last day.
+    earliestRemoval: addDays(today, -FUTURE_DATE_TOLERANCE_DAYS),
+  };
+}
+
+/**
  * The row schema with the cross-field rules, for a run on `today`
  * (YYYY-MM-DD, UTC). ISO dates compare correctly as strings.
  */
 export function feedRowSchema(today: string) {
-  if (!isoDate.safeParse(today).success)
-    throw new Error(`feedRowSchema: today must be YYYY-MM-DD, got ${today}`);
-  const latest = addDays(today, FUTURE_DATE_TOLERANCE_DAYS);
-  const oldest = addDays(today, -MAX_STALE_DAYS);
-  // A collector a day behind ours (time zones) may still list its last day.
-  const earliestRemoval = addDays(today, -FUTURE_DATE_TOLERANCE_DAYS);
+  const { latest, oldest, earliestRemoval } = feedDateBounds(today);
   return feedRowBase.superRefine((row, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: "custom", path: [path], message });

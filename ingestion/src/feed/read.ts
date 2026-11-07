@@ -5,7 +5,14 @@
 
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
-import { feedRowSchema, type FeedRow } from "./schema";
+import { REGION } from "../../../lib/providers";
+import {
+  FEED_PROVIDER_CODES,
+  feedRowSchema,
+  IMDB_ID_PATTERN,
+  feedDateBounds,
+  type FeedRow,
+} from "./schema";
 
 /** A feed row with an imdb_id: the only kind provider_availability can key. */
 export type MatchedFeedRow = FeedRow & { imdb_id: string };
@@ -37,6 +44,19 @@ export interface FeedReadResult {
   duplicates: number;
   /** The first MAX_RECORDED_ERRORS rejected lines (`invalid` has the full count). */
   errors: LineError[];
+  /**
+   * Well-formed imdb_ids read off invalid lines (distinct). The title is
+   * still listed today, just not storable, so the anti-join mustn't count it
+   * as missing.
+   */
+  invalidImdbIds: string[];
+  /**
+   * Invalid lines that may hide one of this provider's titles without saying
+   * which: not JSON, the id missing or malformed (an explicit null is
+   * unmatched, not unknown), or labeled with another known provider. A run
+   * with these can't trust what's missing.
+   */
+  unkeyedInvalid: number;
 }
 
 /** Which offer a title keeps when listed more than once: lower is better. */
@@ -49,6 +69,9 @@ export const OFFER_RANK: Record<FeedRow["availability_type"], number> = {
 
 export const RAW_SNIPPET_LENGTH = 200;
 export const MAX_RECORDED_ERRORS = 50;
+
+/** A YYYY-MM-DD string (ISO days compare correctly as strings). */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Zod's issues as one short line: "imdb_id: Invalid string; type: ...". */
 function describeIssues(issues: { path: PropertyKey[]; message: string }[]) {
@@ -66,6 +89,7 @@ export async function validateFeedLines(
   options: { provider: string; today: string },
 ): Promise<FeedReadResult> {
   const schema = feedRowSchema(options.today);
+  const bounds = feedDateBounds(options.today);
   const result: FeedReadResult = {
     total: 0,
     valid: 0,
@@ -74,17 +98,54 @@ export async function validateFeedLines(
     unmatched: 0,
     duplicates: 0,
     errors: [],
+    invalidImdbIds: [],
+    unkeyedInvalid: 0,
   };
+  const invalidIds = new Set<string>();
   /** (imdb_id, type) → its index in result.rows. */
   const seen = new Map<string, number>();
   /** Unmatched titles have no id: (title, type, year) tells repeats apart. */
   const seenUnmatched = new Set<string>();
   let lineNumber = 0;
 
-  const reject = (raw: string, reason: string) => {
+  /**
+   * `json`: the line's parsed value, if it parsed. What the line says about
+   * this provider's catalog today, judged from its own fields (Zod skips the
+   * date rules when another field has a type error):
+   * - a removed_date in the past: the title is gone (nothing kept, nothing
+   *   unknown);
+   * - another known provider, another region, or a stale last_verified: it
+   *   lists nothing of this catalog today, but may be a mislabeled or stale
+   *   block of it, so it counts as unknown (like a line with no readable id);
+   * - otherwise a readable imdb_id is listed today, just not storable.
+   */
+  const reject = (raw: string, reason: string, json?: unknown) => {
     result.invalid++;
     if (result.errors.length < MAX_RECORDED_ERRORS)
       result.errors.push({ line: lineNumber, reason, raw: snippet(raw) });
+    const fields =
+      json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+    const dateField = (name: string) => {
+      const value = fields[name];
+      return typeof value === "string" && ISO_DAY.test(value) ? value : null;
+    };
+    const removed = dateField("removed_date");
+    if (removed !== null && removed < bounds.earliestRemoval) return;
+    const verified = dateField("last_verified");
+    const notListedHere =
+      (typeof fields.provider === "string" &&
+        fields.provider !== options.provider &&
+        FEED_PROVIDER_CODES.includes(fields.provider)) ||
+      (typeof fields.region === "string" && fields.region !== REGION) ||
+      (verified !== null && verified < bounds.oldest);
+    if (
+      !notListedHere &&
+      typeof fields.imdb_id === "string" &&
+      IMDB_ID_PATTERN.test(fields.imdb_id)
+    )
+      invalidIds.add(fields.imdb_id);
+    // An explicit null id is an unmatched title: not in the table anyway.
+    else if (notListedHere || fields.imdb_id !== null) result.unkeyedInvalid++;
   };
 
   for await (const raw of lines) {
@@ -104,12 +165,16 @@ export async function validateFeedLines(
 
     const parsed = schema.safeParse(json);
     if (!parsed.success) {
-      reject(text, describeIssues(parsed.error.issues));
+      reject(text, describeIssues(parsed.error.issues), json);
       continue;
     }
     const row = parsed.data;
     if (row.provider !== options.provider) {
-      reject(text, `provider ${row.provider} in ${options.provider}'s file`);
+      reject(
+        text,
+        `provider ${row.provider} in ${options.provider}'s file`,
+        json,
+      );
       continue;
     }
 
@@ -139,6 +204,7 @@ export async function validateFeedLines(
     result.rows.push(row as MatchedFeedRow);
   }
 
+  result.invalidImdbIds = [...invalidIds];
   return result;
 }
 

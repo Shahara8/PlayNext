@@ -86,10 +86,43 @@ Per provider, per run, in one transaction:
 3. **Anti-join** marks rows missing from today's staging as `removed_at = now()` (only those not already removed). Which missing rows count depends on the run's `coverage` (the user's decision, 2026-11-07):
    - **`complete`:** every missing row is removed right away.
    - **`partial`:** a row missing today is *not* removed just for that. It's removed only once it has been missing from the provider's **last 7 completed runs** (any coverage), i.e. its `last_seen_date` is before the 7th-latest completed run's date. With daily runs that's 7 days. The count is in runs, not calendar days, so a week of failed or skipped runs can't age every title out at once when a partial run finally arrives. A provider with fewer than 7 completed runs removes nothing from partial runs.
+     - As built: the 7 are **distinct run dates**, and **this run's date counts as one** (it completes in the same call). So a title last seen on day D is removed by the partial run on day D+7 at the earliest, once it was missing on 7 dates. Counting dates, not runs, means manual re-runs on one day can't age titles out early. Rejected and failed runs don't count.
    - The circuit breaker (Section 2) still gates both: a suspicious file writes nothing.
 4. "Unchanged" needs no special code — it's a no-op branch of the same upsert.
 5. Circuit breaker gates before step 1 commits.
 6. Each provider's transaction is independent; idempotent by design, so a manual re-run safely reproduces the correct end state.
+
+**As built (step 4, 2026-11-07):** `ingestion/src/pipeline/process-run.ts` (`processRun`), `ingestion/src/db/staging.ts`, and the Postgres function `apply_ingestion_run` (migration 0009, service role only).
+- **The order:**
+  1. Sweep: runs still `processing` 6 hours after they started (the job died) have their staged rows dropped and are marked `failed`.
+  2. Every manifest provider gets an `ingestion_runs` row (`processing`, with `run_date` = the run's day). A provider the manifest marks failed, or whose file can't be read, is marked `failed`.
+  3. Read → breaker (baseline from the last 7 completed runs of the same coverage).
+  4. `resolveTitleKeys` once over every accepted provider's rows.
+  5. Per provider: stage the rows (500 per insert), then call `apply_ingestion_run(run_id, listed_imdb_ids, trust_missing)`.
+- **The staging load isn't in the apply's transaction** (a deviation from step 1 above): staged rows are scoped to their run and touch nothing live. The upsert, the anti-join, the run's counts and `completed`, and clearing its staging commit together.
+- **Guards in the function:**
+  - It refuses a run that isn't `processing`, has no staged rows, or has no coverage. So a rejected or failed run can't touch `provider_availability`.
+  - It refuses a run older than a completed run of that provider: a later `run_date`, or the same date and started later (the database's clock).
+  - One provider's applies are serialized by an advisory lock. The staged rows are locked `FOR SHARE` until commit.
+  - On a failure, the client marks the run failed first and only then clears its staging. The mark waits on the row lock of an apply that may still be running, so a client timeout can't empty staging mid-apply.
+- **Upsert:**
+  - A null title key today (TMDB down) never erases a stored key.
+  - `last_seen_date`/`last_verified` never move backwards. `first_seen_date` is kept.
+  - `source` becomes `feed`. Rows of any source count in the anti-join, so a provider's first complete run replaces its mock rows (the cutover).
+- **Invalid lines (review fix):** the breaker lets up to 20% of lines be invalid, and a title on an invalid line is still listed. So the reader recovers what each invalid line says:
+  - A readable imdb_id: the title is **kept**. An active row's `last_seen_date` moves to today, and its data isn't refreshed.
+  - A past `removed_date`: the feed says the title left. Nothing is kept.
+  - No readable id, another known provider, another region, or a stale `last_verified`: **unknown**. Any title could be behind it, so a complete run with any of these removes by the partial rule instead of at once (`trust_missing = false`).
+- **Counts on `ingestion_runs`:**
+  - `new_titles`: never seen before.
+  - `returned_titles`: came back.
+  - `updated_titles`: listed before, with a changed offer, link, title, year, seasons or found key.
+  - `unchanged_titles`: the rest of the listed titles.
+  - `removed_titles`.
+  - `error_summary`: line errors, duplicates, the baseline, `unkeyed_invalid`, this provider's TMDB errors (capped at 50 per run) with the run-wide stats, and any failure.
+- **Known limitations:**
+  - A title that loses its imdb_id on a *valid* line (the collector's matching broke for it) is unmatched, so a trusted complete run removes it. It comes back as `returned` once its id is back. Treating every unmatched row as "unknown" would make every real run untrusted, given the 90% match target.
+  - An apply whose reply is lost after it commits is reported as `failed`, with a note that it may have completed. `ingestion_runs` is the truth.
 
 ### 5. Database schema
 
@@ -194,9 +227,12 @@ CREATE TABLE ingestion_runs (
   unmatched_lines INTEGER,   -- valid rows with no imdb_id: counted, not stored
   new_titles      INTEGER,
   removed_titles  INTEGER,
+  returned_titles INTEGER,   -- came back after a removal (0009)
+  updated_titles  INTEGER,   -- listed before, something changed (0009)
   unchanged_titles INTEGER,
+  run_date        DATE,      -- the run's day: last_seen_date, the partial rule (0009)
   error_summary   JSONB,
-  started_at      TIMESTAMPTZ,
+  started_at      TIMESTAMPTZ DEFAULT now(),  -- database clock (0009)
   finished_at     TIMESTAMPTZ
 );
 ```
@@ -234,8 +270,9 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 - `ingestion/src/feed/schema.ts` — Zod schema for the agreed JSONL spec (`docs/FEED_REQUIREMENTS.md`) and the collector's `manifest.json`
 - `ingestion/src/feed/read.ts` — line-by-line validation of one provider's file (counts, skipped-line log)
 - `ingestion/src/pipeline/circuit-breaker.ts` — the whole-file reject rules
-- `ingestion/src/pipeline/processProvider.ts` — validate → resolve → diff orchestration per provider
-- `ingestion/src/db/staging.ts` — staging load + upsert + anti-join SQL
+- `ingestion/src/pipeline/process-run.ts` — validate → breaker → resolve (once) → stage → apply, per provider
+- `ingestion/src/db/staging.ts` — the run rows, staging load and the `apply_ingestion_run` call
+- `supabase/migrations/0009` — `apply_ingestion_run`: upsert + anti-join + bookkeeping in one transaction
 - `ingestion/src/tmdb/resolve.ts` + `store.ts` — the `imdb_tmdb_map` caching, retry and refresh logic and its Supabase store; the matching itself is `lib/tmdb-resolve.ts`, shared with the mock seed
 - `.github/workflows/daily-ingest.yml` — the scheduled trigger
 
@@ -261,11 +298,61 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 1. [x] Title keys `(media_type, tmdb_id)` (migration 0007, live).
 2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
 3. [x] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts` (`ingestion/src/tmdb/`).
-4. [ ] **Next.** Staging load + upsert + anti-join, atomic per provider (likely a Postgres function called with the service key), with `ingestion_runs` bookkeeping. Removal rules per Section 4 step 3: immediate on `complete` runs; on `partial` runs only after a title has been missing from the last 7 completed runs (decided 2026-11-07).
-5. [ ] `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, process. GitHub secrets will be needed from the user.
+4. [x] Staging load + upsert + anti-join, atomic per provider (`apply_ingestion_run`, migration 0009, **not applied yet**: dry-run only, awaiting the user's approval), with `ingestion_runs` bookkeeping and the removal rules in Section 4 step 3 (as built: see Section 4's "As built").
+5. [ ] **Next.** `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, then a small CLI that calls `processRun` (manifest + files, service-key Supabase client) and exits non-zero on any failed or rejected provider or a sweep error. Also give it the list of providers it **expects**: one missing from the manifest must be reported, since `processRun` only sees the manifest. GitHub secrets will be needed from the user.
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
 
 ## Progress Log
+
+### 2026-11-07 — pipeline step 4: staging + upsert + anti-join (apply_ingestion_run)
+- Did:
+  - **Migration `0009_apply_ingestion_run.sql`:**
+    - `ingestion_runs` gains `run_date`, `returned_titles` and `updated_titles`, `started_at` defaults to `now()`, plus an index on completed runs by date.
+    - The function `apply_ingestion_run(run_id, listed_imdb_ids, trust_missing)`, `service_role` execute only.
+  - `ingestion/src/db/staging.ts`: the Supabase store.
+    - Baseline read; run insert and updates, which only touch runs still `processing`.
+    - Chunked staging insert; the RPC call, with its reply's shape checked; clearing staging; the stale-run sweep.
+  - `ingestion/src/pipeline/process-run.ts`: `processRun`, with the order and rules in Section 4 "As built".
+  - `ingestion/src/feed/read.ts`: from each invalid line, `invalidImdbIds` (titles still listed) and `unkeyedInvalid` (lines that make removals untrusted).
+  - `schema.ts`: `feedDateBounds` (shared with the reader). `lib/id-chunks.ts`: `chunkIds` takes a size.
+- **Decisions / deviations:**
+  - The partial rule counts distinct run dates, this run's included.
+  - Staging is loaded outside the apply's transaction.
+  - Invalid lines protect the titles they name, or make a complete run's removals wait.
+  - A same-date re-run that started later wins.
+  - Section 4 has the details. `processProvider.ts` in the critical files became `process-run.ts`.
+- `/code-review`, six passes. Fixed:
+  - **A complete run would remove titles that were only on invalid lines today.** Now they're kept, and an unreadable line makes removals wait.
+  - **A client timeout could clear staging under an apply still running,** and the anti-join would then remove everything. Now the staged rows are locked `FOR SHARE`, and the client marks the run failed before it clears.
+  - Older same-date runs could apply over newer ones.
+  - Runs stuck in `processing` were never swept. The sweep clears staging first, reports only the runs it marked, and doesn't stop the run if it fails.
+  - A late "failed" could overwrite `completed`.
+  - The read's summary was lost on early failures.
+  - Lines naming another provider, another region, a past `removed_date`, a stale date, or a bare `null`, each classified correctly. The reader checks the dates itself, since Zod skips the date rules when another field has a type error.
+  - `updated_titles`, so `unchanged` means unchanged.
+  - Null parameters; the anti-join probe uses the full staging key; a date query that fits its index.
+  - The client clock replaced by the database's; `chunkIds` reused and guarded; the RPC reply checked; the baseline limit passed in.
+- Declined:
+  - An extra small write per provider; a shared `errorMessage` helper; the outcome sort.
+  - A stored key cleared by a null key: a resolved map entry is never re-resolved, so a null key means TMDB is down.
+  - Matching listed invalid ids by type: one id as two types is a feed bug.
+  - The duplicated seen/gone predicates.
+  - TMDB errors capped per run, not per provider.
+  - The two known limitations in Section 4.
+  - Providers missing from the manifest: that's step 5.
+  - The stale-run sweep's cutoff uses the runner's clock: it has a 6-hour margin, and the runners are NTP-synced.
+- Tests: `npm test` 495 (+36). They cover the store, `processRun` (every outcome path, failure order, the sweep, manifest order), the reader's invalid-line rules and `chunkIds`.
+- **Live dry run of 0009** (scratch `pg` script, one transaction, rolled back; afterwards 0 test runs and no function left), on throwaway provider codes `ZZTEST*`: **50/50 checks.**
+  - anon and authenticated can't execute it.
+  - Complete runs: new, unchanged, removed, came back, a same-day re-run idempotent; a stored key kept on a null key; first_seen kept.
+  - Refused: rejected, failed, completed, empty, older and no-coverage runs, with `provider_availability` unchanged.
+  - Partial runs: nothing removed at 6 missing dates, removed at 7, a same-day re-run not counted, a partial run bringing a title back.
+  - 8 failed or rejected days don't count toward the grace.
+  - Invalid-listed titles kept with `last_seen_date` moved; a removed title doesn't come back on an invalid line.
+  - An untrusted complete run waits; null and default parameters.
+  - Updated vs unchanged; the later-started same-date run wins; `started_at`'s default; real providers' rows byte-identical.
+- Not verified live: the TypeScript → PostgREST path (needs 0009 applied, and writes; first exercised in step 5). The fail-then-clear ordering relies on Postgres row locks: an update waits for a `FOR UPDATE` holder. That can't be reproduced in one rolled-back transaction.
+- Next step: apply 0009 (with the user's approval), then step 5.
 
 ### 2026-11-06 — pipeline step 3: TMDB resolution with the imdb_tmdb_map cache
 - Did, in `ingestion/src/tmdb/`:

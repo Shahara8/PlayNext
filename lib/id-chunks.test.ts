@@ -23,4 +23,14 @@ describe("chunkIds", () => {
   it("returns no chunks for no ids", () => {
     expect(chunkIds([])).toEqual([]);
   });
+
+  it("takes another chunk size", () => {
+    expect(chunkIds([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("refuses a size that would never advance", () => {
+    expect(() => chunkIds([1], 0)).toThrow(/at least 1/);
+    expect(() => chunkIds([1], NaN)).toThrow(/at least 1/);
+    expect(() => chunkIds([1, 2, 3], 1.5)).toThrow(/integer/);
+  });
 });

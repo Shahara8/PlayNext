@@ -67,6 +67,75 @@ describe("validateFeedLines", () => {
     ]);
   });
 
+  it("keeps the imdb_ids of invalid lines, counting lines without one", async () => {
+    const result = await validateFeedLines(
+      [
+        line(),
+        line({ imdb_id: "tt0903747", availability_type: "ads" }),
+        line({ imdb_id: "tt0903747", watch_url: "ftp://x" }),
+        // A typo'd provider is still this file's line.
+        line({ provider: "Yes", imdb_id: "tt0111161" }),
+        line({ imdb_id: null, type: "film" }),
+        line({ imdb_id: "tt12" }),
+        line({ imdb_id: undefined, type: "film" }),
+        "{not json",
+        "[1, 2]",
+        "null",
+      ],
+      OPTIONS,
+    );
+
+    expect(result.invalid).toBe(9);
+    expect(result.invalidImdbIds).toEqual(["tt0903747", "tt0111161"]);
+    // tt12, the missing id, the bad JSON, the array and the bare null: any
+    // title could be behind them. An explicit null id is unmatched, not unknown.
+    expect(result.unkeyedInvalid).toBe(5);
+  });
+
+  it("counts lines labeled with another known provider as unknown, keeping no id", async () => {
+    const result = await validateFeedLines(
+      [
+        line(),
+        // Valid for NETFLIX, and invalid for anyone.
+        line({ provider: "NETFLIX", imdb_id: "tt0068646" }),
+        line({ provider: "NETFLIX", imdb_id: "tt0111161", type: "film" }),
+      ],
+      OPTIONS,
+    );
+
+    expect(result.invalid).toBe(2);
+    expect(result.invalidImdbIds).toEqual([]);
+    expect(result.unkeyedInvalid).toBe(2);
+  });
+
+  it("keeps no id from a line saying its title left; stale or other-region lines are unknown", async () => {
+    const result = await validateFeedLines(
+      [
+        line(),
+        line({ imdb_id: "tt0000001", removed_date: "2026-10-01" }),
+        line({
+          imdb_id: "tt0000002",
+          added_date: "2026-11-07",
+          removed_date: "2026-11-06",
+        }),
+        line({ imdb_id: "tt0000003", last_verified: "2026-10-01" }),
+        line({ imdb_id: "tt0000004", region: "US" }),
+        // Zod skips the date rules on a type error: judged all the same.
+        line({ imdb_id: "tt0000005", removed_date: "2026-10-01", title: 5 }),
+        line({ imdb_id: "tt0000006", last_verified: "2026-10-01", title: 5 }),
+        // Only a stale last_verified is unknown: a future one isn't.
+        line({ imdb_id: "tt0000007", last_verified: "2026-11-09" }),
+      ],
+      OPTIONS,
+    );
+
+    expect(result.invalid).toBe(7);
+    // The inconsistent dates and the future date (not a departure, not
+    // stale) are still listed today.
+    expect(result.invalidImdbIds).toEqual(["tt0000002", "tt0000007"]);
+    expect(result.unkeyedInvalid).toBe(3);
+  });
+
   it("rejects a row naming another provider (each file is one provider's)", async () => {
     const result = await validateFeedLines(
       [line({ provider: "PARTNER_TV" })],
