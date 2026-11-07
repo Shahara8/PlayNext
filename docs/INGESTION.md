@@ -307,8 +307,8 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
    - [x] `npm run ingest:mock -- --out <empty dir>` (`ingestion/src/mock-output.ts`): the collector's stand-in, the live mock rows for YES and Partner TV in its format, verified today. Its runs carry `collector_version: "mock"` in `error_summary`.
    - [x] `.github/workflows/daily-ingest.yml`: manual trigger only, source `mock`, secrets `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TMDB_API_KEY`.
    - [x] The first live run on the mock output (locally, 2026-11-07): both providers completed, 0 removed (see the Progress Log).
-   - [ ] **Next.** The user adds the three GitHub secrets, and a `workflow_dispatch` run passes.
-   - Waits for Noam: a `collector` source in the workflow (install and run `ingestion/collector`), then the daily `schedule`.
+   - [x] The user added the three GitHub secrets (2026-11-07); a `workflow_dispatch` run passed (see the Progress Log).
+   - **Waits for Noam:** a `collector` source in the workflow (install and run `ingestion/collector`), then the daily `schedule`. That's the rest of step 5, done together with the cutover (step 6).
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule). Also: delete the mock runs (`delete from ingestion_runs where error_summary->>'collector_version' = 'mock'`) so they don't count in baselines or the grace window, add the collector source and the daily schedule to the workflow.
 
 ## Progress Log
@@ -334,7 +334,11 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - Compared with a read-only snapshot taken before: still 32 rows and 32 in the catalog, staging empty. All 12 rows have `source = feed` and today's `last_seen_date`/`last_verified`, as expected.
   - The 3 "updated" YES rows are the stored `title`/`original_title`. The mock seed wrote TMDB's values into these columns; the pipeline writes the feed's (Section 3: the feed's title is the display fallback). The site shows `title_cache`'s title, so nothing visible changed. Production `npm run smoke` passed 38/38 afterwards.
   - **Found: a mock-data bug (from M1).** `data/mock-feed.jsonl` gives "Shtisel" the IMDb id `tt5776858`, which is *Phantom Thread* (TMDB movie 400617). So the site has shown Phantom Thread as a YES title. Not fixed here: it's mock data, replaced at the cutover. To fix it sooner, correct the id in the mock feed and re-run the seed.
-- Next step: the GitHub secrets and a `workflow_dispatch` run (Status step 5).
+- **2026-11-07, the GitHub Action:** the user added `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_API_KEY` as repo secrets (checked with `gh secret list`, names only). A `workflow_dispatch` run (source `mock`, run 42357292283) passed every step:
+  - YES (run 360) and Partner TV (run 361): 6 unchanged each, 0 removed. That's right for a second run on the same data.
+  - Archived to `raw-feeds/2026-11-07/085316070Z/`.
+  - A read-only check afterwards: the 32 rows are identical to the state after the local run, and staging is empty.
+- Next step: wait for Noam's collector (`docs/FEED_REQUIREMENTS.md` section 7). Then add the collector source and the daily schedule, and do the cutover (Status steps 5-6). Meanwhile, optional: fix the mock "Shtisel" IMDb id.
 
 ### 2026-11-07 — pipeline step 4: staging + upsert + anti-join (apply_ingestion_run)
 - Did:
