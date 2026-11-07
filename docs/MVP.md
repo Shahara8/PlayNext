@@ -18,7 +18,9 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - `ingestion/src/tmdb/` resolves feed imdb_ids to title keys through `imdb_tmdb_map`: a 30-day retry for unresolved ids, a capped 7-day `title_cache` refresh, and TMDB being down never blocks availability (a failed lookup caches nothing, and the run stops asking TMDB when it looks down). Details and the `/code-review` passes are in `docs/INGESTION.md`'s Progress Log.
 - `lib/tmdb-resolve.ts`: `fetchTitleDetails` is split out, and both functions take optional fetch options. An empty-string imdb_id from TMDB now falls back to the feed's id, for the seed too. New `lib/in-pool.ts`; `chunkIds` is generic.
 - No migration, and no site changes (no smoke needed). 459 tests. A live dry run (nothing written) resolved all 32 mock ids to the same keys production uses.
-- Next step: `docs/INGESTION.md` step 4 (staging + upsert + anti-join).
+- 2026-11-07, with the user's approval: `imdb_tmdb_map` filled live for the 32 mock titles (32/32 resolved, keys equal production's; a second run was all cache hits). Production smoke 38/38 afterwards.
+- 2026-11-07, the user's decision on removals: a `complete` run removes missing titles at once; a `partial` run only once a title has been missing from the provider's last 7 completed runs (`docs/INGESTION.md` Section 4 step 3).
+- Next step: `docs/INGESTION.md` step 4 (staging + upsert + anti-join), applying those removal rules.
 
 ### 2026-11-06 (pipeline step 2) — pipeline tables, feed validation, circuit breaker
 - Migration `0008` (the pipeline's own tables, service-role only) plus `ingestion/src/` feed schema, line reader and circuit breaker, with 53 tests (403 total). Details are in `docs/INGESTION.md`'s Progress Log, including:
@@ -755,7 +757,7 @@ Agreed order (2026-11-06; SMTP moved last the same day, when it got blocked):
    - [x] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app). Done 2026-11-06: status **In production**, user type External. The 100-user cap shown there only counts unapproved sensitive/restricted scopes, and PlayNext requests none. Reversible ("Back to testing").
    - [x] User: Google sign-in works for an account that was never a test user (confirmed 2026-11-06, incognito window).
 2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
-3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–2 done (2026-11-06); **step 3 (TMDB resolution) is next**. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
+3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–3 done (2026-11-06); **step 4 (staging + upsert + anti-join) is next**. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
 4. [x] **Custom SMTP** (deferred, then finished later the same day, 2026-11-06). Email sign-up confirmations and resets now reach any address (reset emails may land in spam until there's a domain + Resend).
    - [x] User: turn on 2-Step Verification for `play.next.app8@gmail.com` and create an app password (first blocked with "We couldn't verify that it's you", a common hold on brand-new accounts when tried from a phone; it worked on a later attempt).
    - [x] User: Supabase → Authentication → Emails → SMTP Settings (saved; Supabase warns Gmail is a personal provider, expected until there's a domain): host `smtp.gmail.com`, port `465`, username = the full Gmail address, password = the app password, sender email = the same address, sender name `PlayNext`. Then raise Authentication → Rate Limits → emails per hour (custom SMTP starts at about 30).
