@@ -14,6 +14,13 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-07 (session end) — ingestion paused for Noam; next: UI review with Gemini
+- Ingestion is built and running on GitHub with a mock stand-in. It's paused until Noam's collector passes `docs/FEED_REQUIREMENTS.md` section 7 (what's left: `docs/INGESTION.md` Status steps 5-6).
+- Open product decision for the cutover: what the site shows for the providers still on mock data (Netflix, Disney+, Prime) next to real YES/Partner TV.
+- The user queued **Post-M8 task 5: a UI review with Gemini**. Claude provides screenshots and descriptions of every view, the user brings back Gemini's suggestions, and we decide together. `CLAUDE.md` now names it the current workstream.
+- State: everything committed and pushed; 547 tests; production smoke 38/38.
+- Next step: Post-M8 task 5, first item (the screenshots and descriptions), in a new session.
+
 ### 2026-11-07 (wrong-id safeguard) — and the mock Shtisel id fixed
 - The ingest job now flags a likely wrong IMDb id: the feed's type differs from TMDB's and no title matches. It's flag only, recorded in the run's `error_summary` and the job's report (`docs/INGESTION.md` Section 3). On live data it flagged exactly the mock "Shtisel" row (Phantom Thread's id).
 - The mock fix: Shtisel is `tt3069894`, applied through the pipeline itself (1 new, 1 removed). The site no longer lists Phantom Thread on YES. Production smoke 38/38. 547 tests.
@@ -775,6 +782,16 @@ Agreed order (2026-11-06; SMTP moved last the same day, when it got blocked):
    - [x] User: Google sign-in works for an account that was never a test user (confirmed 2026-11-06, incognito window).
 2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
 3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–4 done (step 4 on 2026-11-07; migration 0009 live); **step 5 (the daily GitHub Action) is in progress**: built and passing on GitHub with a mock stand-in; only the collector and the daily schedule wait for Noam. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
+5. [ ] **UI review with Gemini** (queued 2026-11-07 by the user, while waiting for Noam's collector). **Current workstream.**
+   - [ ] Claude: screenshots of every view, plus a description of each, for the user to give Gemini.
+     - Cover phone and desktop widths, signed out and signed in (the test account), and full page, not just the first screen.
+     - Include the states a user can meet: empty My List, no search results, not found, the login and reset forms, and a title page with and without a watch link.
+     - `npm run smoke` already captures most views in `.smoke/` (gitignored), but as viewport shots. Extend it, or add a separate capture script, rather than asking the user for screenshots.
+     - Each description says what the view is for, what's on it, how the user gets there, and the known constraints. Constraints: Israeli audience, phone first, the mock catalog (Netflix, Disney+ and Prime titles are made up until phase 2), Next.js with server-rendered pages, no design system.
+     - Deliver one folder of images plus one document, with a short brief at the top. The brief asks Gemini for concrete, prioritized suggestions per view (what, why, and how big a change), not a redesign.
+   - [ ] User: gives them to Gemini and pastes Gemini's suggestions back.
+   - [ ] Together: triage each suggestion (fit with the MVP scope, effort, risk), and the user decides which to do.
+   - [ ] Implement the chosen ones. UI changes are checked with `npm run smoke` and screenshots (no component tests, per Section 8); any logic they touch gets unit tests.
 4. [x] **Custom SMTP** (deferred, then finished later the same day, 2026-11-06). Email sign-up confirmations and resets now reach any address (reset emails may land in spam until there's a domain + Resend).
    - [x] User: turn on 2-Step Verification for `play.next.app8@gmail.com` and create an app password (first blocked with "We couldn't verify that it's you", a common hold on brand-new accounts when tried from a phone; it worked on a later attempt).
    - [x] User: Supabase → Authentication → Emails → SMTP Settings (saved; Supabase warns Gmail is a personal provider, expected until there's a domain): host `smtp.gmail.com`, port `465`, username = the full Gmail address, password = the app password, sender email = the same address, sender name `PlayNext`. Then raise Authentication → Rate Limits → emails per hour (custom SMTP starts at about 30).
