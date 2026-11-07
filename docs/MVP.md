@@ -14,9 +14,14 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-07 (wrong-id safeguard) — and the mock Shtisel id fixed
+- The ingest job now flags a likely wrong IMDb id: the feed's type differs from TMDB's and no title matches. It's flag only, recorded in the run's `error_summary` and the job's report (`docs/INGESTION.md` Section 3). On live data it flagged exactly the mock "Shtisel" row (Phantom Thread's id).
+- The mock fix: Shtisel is `tt3069894`, applied through the pipeline itself (1 new, 1 removed). The site no longer lists Phantom Thread on YES. Production smoke 38/38. 547 tests.
+- Next step: wait for Noam's collector, then the cutover (`docs/INGESTION.md` Status 5-6).
+
 ### 2026-11-07 (pipeline step 5, part 1) — the job, minus the collector
 - `npm run ingest` (archive to `raw-feeds`, then `processRun`), `npm run ingest:mock` (the collector's stand-in) and a manual-only `.github/workflows/daily-ingest.yml`. Details and the three `/code-review` passes are in `docs/INGESTION.md`. 534 tests; no site changes.
-- First live run on the mock output, 2026-11-07: both providers completed, 0 removed, archived to `raw-feeds`. The site is unchanged (production smoke 38/38). It found a mock-data bug from M1: "Shtisel" carries Phantom Thread's IMDb id (`docs/INGESTION.md`).
+- First live run on the mock output, 2026-11-07: both providers completed, 0 removed, archived to `raw-feeds`. The site is unchanged (production smoke 38/38). It found a mock-data bug from M1: "Shtisel" carried Phantom Thread's IMDb id (fixed the same day, see the entry above).
 - The user added the GitHub secrets; a manual `workflow_dispatch` run passed (both providers unchanged, 0 removed, archived).
 - Next step: wait for Noam's collector, then add it and the daily schedule to the workflow and do the cutover (`docs/INGESTION.md` Status 5-6).
 

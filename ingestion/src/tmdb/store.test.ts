@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ID_CHUNK_SIZE } from "../../../lib/id-chunks";
 import type { ResolvedTitle } from "../../../lib/tmdb-resolve";
 import { TitleConflictError } from "./resolve";
-import { supabaseResolutionStore } from "./store";
+import { loadTitleNames, supabaseResolutionStore } from "./store";
 
 type Result = {
   data?: unknown;
@@ -276,5 +276,49 @@ describe("supabaseResolutionStore", () => {
     await expect(store.saveMapEntry(entry)).rejects.toThrow(
       /imdb_tmdb_map upsert failed \(tt9999999\): check violation/,
     );
+  });
+});
+
+describe("loadTitleNames", () => {
+  it("reads title_cache's names per media type", async () => {
+    const { builders } = makeClient({
+      title_cache: [
+        ok([
+          { tmdb_id: 400617, title: "Phantom Thread", original_title: null },
+        ]),
+        ok([{ tmdb_id: 56017, title: "Shtisel", original_title: "שטיסל" }]),
+      ],
+    });
+    const client = { from: vi.fn(() => builders.title_cache) };
+
+    const names = await loadTitleNames(client as never, [
+      { media_type: "movie", tmdb_id: 400617 },
+      { media_type: "tv", tmdb_id: 56017 },
+    ]);
+
+    expect(names).toEqual([
+      {
+        ref: { media_type: "movie", tmdb_id: 400617 },
+        title: "Phantom Thread",
+        original_title: null,
+      },
+      {
+        ref: { media_type: "tv", tmdb_id: 56017 },
+        title: "Shtisel",
+        original_title: "שטיסל",
+      },
+    ]);
+    expect(builders.title_cache.eq.mock.calls).toEqual([
+      ["media_type", "movie"],
+      ["media_type", "tv"],
+    ]);
+  });
+
+  it("throws when title_cache can't be read", async () => {
+    const { builders } = makeClient({ title_cache: [fail("boom")] });
+    const client = { from: vi.fn(() => builders.title_cache) };
+    await expect(
+      loadTitleNames(client as never, [{ media_type: "movie", tmdb_id: 1 }]),
+    ).rejects.toThrow(/title_cache read failed: boom/);
   });
 });

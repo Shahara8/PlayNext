@@ -783,4 +783,117 @@ describe("processRun", () => {
       expect.objectContaining({ provider: "PARTNER_TV", status: "failed" }),
     ]);
   });
+
+  it("flags a suspected wrong id on the run, and still applies it", async () => {
+    // tt0000002 is a series in the feed; the cache keys it to movie 2.
+    const folder = feedDir({ "YES.jsonl": yesRows });
+    const ingestion = memoryIngestion();
+    const titleNames = vi.fn(async (refs: readonly TitleRef[]) =>
+      refs.map((ref) => ({
+        ref,
+        title: "Phantom Thread",
+        original_title: null,
+      })),
+    );
+
+    const result = await processRun({
+      dir: folder,
+      manifest: manifest({ YES: ok("YES") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      titleNames,
+    });
+
+    // Only the mismatched key is looked up.
+    expect(titleNames).toHaveBeenCalledWith([
+      { media_type: "movie", tmdb_id: 2 },
+    ]);
+    const outcome = result.outcomes[0];
+    expect(outcome.status).toBe("completed");
+    expect(outcome.status === "completed" && outcome.matchCheck).toEqual({
+      warnings: [
+        expect.objectContaining({ imdb_id: "tt0000002", feed_title: "B" }),
+      ],
+      count: 1,
+      unchecked: 0,
+    });
+    expect(ingestion.runs.get(1)!.error_summary).toMatchObject({
+      match_check: {
+        count: 1,
+        warnings: [expect.objectContaining({ imdb_id: "tt0000002" })],
+      },
+    });
+  });
+
+  it("notes a failed title lookup and still applies", async () => {
+    const folder = feedDir({ "YES.jsonl": yesRows });
+    const ingestion = memoryIngestion();
+
+    const result = await processRun({
+      dir: folder,
+      manifest: manifest({ YES: ok("YES") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      titleNames: async () => {
+        throw new Error("title_cache read failed: timeout");
+      },
+    });
+
+    expect(result.outcomes[0].status).toBe("completed");
+    expect(ingestion.runs.get(1)!.error_summary).toMatchObject({
+      match_check: { error: "title_cache read failed: timeout", count: 0 },
+    });
+  });
+
+  it("pins a failed lookup only on providers that had rows to check", async () => {
+    // PARTNER_TV's rows are series keyed to tv titles: nothing to check.
+    const folder = feedDir({
+      "YES.jsonl": yesRows,
+      "PARTNER_TV.jsonl": [
+        feedRow({ provider: "PARTNER_TV", imdb_id: "tt0000007", title: "G" }),
+      ],
+    });
+    const ingestion = memoryIngestion();
+    const resolution = resolvedCache();
+    const movieKeys = resolution.loadMapEntries.getMockImplementation()!;
+    resolution.loadMapEntries.mockImplementation(
+      async (ids: readonly string[]) =>
+        (await movieKeys(ids)).map((e: MapEntry) =>
+          e.imdb_id === "tt0000007" ? { ...e, media_type: "tv" } : e,
+        ),
+    );
+
+    const result = await processRun({
+      dir: folder,
+      manifest: manifest({ YES: ok("YES"), PARTNER_TV: ok("PARTNER_TV") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution,
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      titleNames: async () => {
+        throw new Error("timeout");
+      },
+    });
+
+    const [yes, partner] = result.outcomes;
+    expect(yes.status === "completed" && yes.matchCheck.error).toBe("timeout");
+    expect(partner.status === "completed" && partner.matchCheck).toEqual({
+      warnings: [],
+      count: 0,
+      unchecked: 0,
+    });
+    expect(ingestion.runs.get(2)!.error_summary).not.toHaveProperty(
+      "match_check",
+    );
+  });
 });

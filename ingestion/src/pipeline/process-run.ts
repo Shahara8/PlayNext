@@ -11,6 +11,7 @@
 
 import { join } from "node:path";
 import { REGION } from "../../../lib/providers";
+import { titleKey, type TitleRef } from "../../../lib/title-ref";
 import type { ApplyResult, IngestionStore, RunUpdate } from "../db/staging";
 import { readFeedFile, type FeedReadResult } from "../feed/read";
 import type { Manifest } from "../feed/schema";
@@ -28,6 +29,12 @@ import {
   baselineFrom,
   evaluateBreaker,
 } from "./circuit-breaker";
+import {
+  matchWarnings,
+  typeMismatches,
+  type MatchWarning,
+} from "./match-check";
+import type { TitleNames } from "../tmdb/store";
 
 export type ProviderOutcome =
   | {
@@ -35,6 +42,8 @@ export type ProviderOutcome =
       runId: number;
       status: "completed";
       result: ApplyResult;
+      /** The wrong-id safeguard's findings for this provider (match-check.ts). */
+      matchCheck: MatchCheck;
     }
   | {
       provider: string;
@@ -82,6 +91,11 @@ export interface RunOptions {
    */
   expectedProviders?: readonly string[];
   /**
+   * title_cache's names for some title keys, for the wrong-id safeguard
+   * (match-check.ts); without it, no titles are compared.
+   */
+  titleNames?: (refs: readonly TitleRef[]) => Promise<TitleNames[]>;
+  /**
    * Why the collector's manifest couldn't be used (the caller then passes an
    * empty one): each expected provider's failed run says so.
    */
@@ -100,6 +114,23 @@ export interface RunOptions {
  */
 export const STALE_RUN_HOURS = 6;
 
+/** Suspected wrong ids kept per provider (the count is kept in full). */
+export const MAX_MATCH_WARNINGS = 50;
+
+/** One provider's wrong-id safeguard result (match-check.ts). */
+export interface MatchCheck {
+  /** The first MAX_MATCH_WARNINGS suspected wrong ids. */
+  warnings: MatchWarning[];
+  /** All of them. */
+  count: number;
+  /** Type-mismatched rows that couldn't be judged (no TMDB names found). */
+  unchecked: number;
+  /** Why the names lookup failed, if this provider had rows to check. */
+  error?: string;
+}
+
+const NO_MATCH_ISSUES: MatchCheck = { warnings: [], count: 0, unchecked: 0 };
+
 /** What error_summary records for a run (jsonb). */
 interface RunSummary {
   /** The manifest's: "mock" marks a stand-in run (deleted at the cutover). */
@@ -111,6 +142,8 @@ interface RunSummary {
   unkeyed_invalid?: number;
   reason?: string;
   error?: string;
+  /** The wrong-id safeguard's findings, when there's anything to report. */
+  match_check?: MatchCheck;
   /** Resolution covers the whole run (all providers); errors are this provider's. */
   resolution?: {
     stats: ResolutionResult["stats"];
@@ -334,16 +367,54 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
         );
     }
 
+  // The wrong-id safeguard: TMDB's names for the type-mismatched keys only
+  // (usually none). Best effort: a failed lookup is noted, never fatal.
+  let names = new Map<string, TitleNames>();
+  let matchCheckError: string | undefined;
+  const mismatches = new Map(
+    accepted.map((a) => [
+      a.runId,
+      resolution ? typeMismatches(a.read.rows, resolution.keys) : [],
+    ]),
+  );
+  if (resolution && options.titleNames) {
+    const refs = new Map<string, TitleRef>();
+    for (const list of mismatches.values())
+      for (const { key } of list) refs.set(titleKey(key), key);
+    if (refs.size > 0)
+      try {
+        const found = await options.titleNames([...refs.values()]);
+        names = new Map(found.map((n) => [titleKey(n.ref), n]));
+      } catch (error) {
+        matchCheckError = errorMessage(error);
+      }
+  }
+
   // 3. Stage and apply each accepted provider on its own.
   if (resolution)
     for (const a of accepted) {
       const ids = new Set(a.read.rows.map((row) => row.imdb_id));
+      const toCheck = mismatches.get(a.runId) ?? [];
+      const found = matchWarnings(toCheck, names);
+      const matchCheck: MatchCheck =
+        toCheck.length === 0
+          ? NO_MATCH_ISSUES
+          : {
+              warnings: found.warnings.slice(0, MAX_MATCH_WARNINGS),
+              count: found.warnings.length,
+              unchecked: found.unchecked,
+              // Only providers that had rows to check: the lookup was shared.
+              ...(matchCheckError ? { error: matchCheckError } : {}),
+            };
       const summary: RunSummary = {
         ...a.summary,
         resolution: {
           stats: resolution.stats,
           errors: resolution.errors.filter((e) => ids.has(e.imdb_id)),
         },
+        ...(matchCheck.count || matchCheck.unchecked || matchCheck.error
+          ? { match_check: matchCheck }
+          : {}),
       };
       try {
         await mustUpdate(a.runId, { error_summary: summary });
@@ -362,6 +433,7 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
           runId: a.runId,
           status: "completed",
           result,
+          matchCheck,
         });
       } catch (error) {
         await fail(a.provider, a.runId, error, summary);

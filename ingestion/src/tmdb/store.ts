@@ -152,3 +152,44 @@ export function supabaseResolutionStore(
     },
   };
 }
+
+/** A title_cache row's names. */
+export interface TitleNames {
+  ref: TitleRef;
+  title: string;
+  original_title: string | null;
+}
+
+/**
+ * title_cache's names for `refs` (rows that exist), for the wrong-id
+ * safeguard (../pipeline/match-check.ts). Chunked like the other reads.
+ */
+export async function loadTitleNames(
+  supabase: SupabaseClient,
+  refs: readonly TitleRef[],
+): Promise<TitleNames[]> {
+  const chunks = idsByMediaType(refs).flatMap(([mediaType, ids]) =>
+    chunkIds(ids).map((chunk) => ({ mediaType, chunk })),
+  );
+  const results: TitleNames[][] = [];
+  await inPool(chunks, READ_CONCURRENCY, async ({ mediaType, chunk }, i) => {
+    const { data, error } = await supabase
+      .from("title_cache")
+      .select("tmdb_id, title, original_title")
+      .eq("media_type", mediaType)
+      .in("tmdb_id", chunk);
+    if (error) throw new Error(`title_cache read failed: ${error.message}`);
+    results[i] = (
+      (data ?? []) as {
+        tmdb_id: number;
+        title: string;
+        original_title: string | null;
+      }[]
+    ).map((row) => ({
+      ref: { media_type: mediaType, tmdb_id: row.tmdb_id },
+      title: row.title,
+      original_title: row.original_title,
+    }));
+  });
+  return results.flat();
+}

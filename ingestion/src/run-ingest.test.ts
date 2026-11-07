@@ -1,4 +1,5 @@
 import type { ApplyResult } from "./db/staging";
+import type { MatchWarning } from "./pipeline/match-check";
 import type { RunReport } from "./pipeline/process-run";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,8 +25,13 @@ const result: ApplyResult = {
   immediate_removals: true,
   removal_cutoff: null,
 };
-const completed = (provider: string) =>
-  ({ provider, runId: 1, status: "completed", result }) as const;
+const completed = (provider: string) => ({
+  provider,
+  runId: 1,
+  status: "completed" as const,
+  result,
+  matchCheck: { warnings: [] as MatchWarning[], count: 0, unchecked: 0 },
+});
 const report = (
   outcomes: RunReport["outcomes"],
   extra: Partial<RunReport> = {},
@@ -123,6 +129,41 @@ describe("formatReport", () => {
     expect(formatReport(report([waited]))).toMatch(
       /removals grace, cutoff 2026-11-01$/,
     );
+  });
+
+  it("lists suspicious matches under their provider", () => {
+    const text = formatReport(
+      report([
+        {
+          ...completed("YES"),
+          matchCheck: {
+            count: 52,
+            unchecked: 1,
+            error: "timeout",
+            warnings: [
+              {
+                imdb_id: "tt5776858",
+                feed_type: "tv_series",
+                feed_title: "Shtisel",
+                feed_original_title: "שטיסל",
+                tmdb: {
+                  media_type: "movie",
+                  tmdb_id: 400617,
+                  title: "Phantom Thread",
+                  original_title: "Phantom Thread",
+                },
+              },
+            ],
+          },
+        },
+      ]),
+    );
+    expect(text.split("\n").slice(1)).toEqual([
+      '  suspicious match: tt5776858 "Shtisel" (tv_series) is TMDB movie 400617 "Phantom Thread"',
+      "  ...and 51 more suspicious matches (error_summary has the count)",
+      "  1 type-mismatched titles couldn't be checked (no TMDB names)",
+      "  wrong-id check FAILED, ids not checked: timeout",
+    ]);
   });
 
   it("flags a manifest with no providers", () => {

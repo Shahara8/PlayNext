@@ -23,8 +23,12 @@ import {
   manifestSchema,
   type Manifest,
 } from "./feed/schema";
-import { processRun, type RunReport } from "./pipeline/process-run";
-import { supabaseResolutionStore } from "./tmdb/store";
+import {
+  processRun,
+  type MatchCheck,
+  type RunReport,
+} from "./pipeline/process-run";
+import { loadTitleNames, supabaseResolutionStore } from "./tmdb/store";
 
 export interface IngestArgs {
   dir: string;
@@ -91,7 +95,10 @@ export function formatReport(report: RunReport, archiveError?: string): string {
       const removals = r.immediate_removals
         ? "immediate"
         : `grace, cutoff ${r.removal_cutoff ?? "none"}`;
-      return `${o.provider}: completed (run ${o.runId}) — ${r.staged} listed: ${r.new} new, ${r.returned} returned, ${r.updated} updated, ${r.unchanged} unchanged, ${r.removed} removed, ${r.kept_invalid} kept from invalid lines; removals ${removals}`;
+      return [
+        `${o.provider}: completed (run ${o.runId}) — ${r.staged} listed: ${r.new} new, ${r.returned} returned, ${r.updated} updated, ${r.unchanged} unchanged, ${r.removed} removed, ${r.kept_invalid} kept from invalid lines; removals ${removals}`,
+        ...matchCheckLines(o.matchCheck),
+      ].join("\n");
     }
     if (o.status === "rejected_suspicious")
       return `${o.provider}: REJECTED (run ${o.runId}) — ${o.reason}`;
@@ -104,6 +111,25 @@ export function formatReport(report: RunReport, archiveError?: string): string {
   if (archiveError) lines.push(`archive FAILED: ${archiveError}`);
   if (report.outcomes.length === 0) lines.push("no providers in the manifest");
   return lines.join("\n");
+}
+
+/** The wrong-id safeguard's findings, indented under their provider. */
+function matchCheckLines(check: MatchCheck): string[] {
+  const lines = check.warnings.map(
+    (w) =>
+      `  suspicious match: ${w.imdb_id} "${w.feed_title}" (${w.feed_type}) is TMDB ${w.tmdb.media_type} ${w.tmdb.tmdb_id} "${w.tmdb.title}"`,
+  );
+  if (check.count > check.warnings.length)
+    lines.push(
+      `  ...and ${check.count - check.warnings.length} more suspicious matches (error_summary has the count)`,
+    );
+  if (check.unchecked)
+    lines.push(
+      `  ${check.unchecked} type-mismatched titles couldn't be checked (no TMDB names)`,
+    );
+  if (check.error)
+    lines.push(`  wrong-id check FAILED, ids not checked: ${check.error}`);
+  return lines;
 }
 
 /** 0 only when every provider completed and nothing else went wrong. */
@@ -197,6 +223,7 @@ async function main() {
     expectedProviders: args.expect,
     ingestion: supabaseIngestionStore(supabase),
     resolution: supabaseResolutionStore(supabase),
+    titleNames: (refs) => loadTitleNames(supabase, refs),
   });
 
   console.log(formatReport(report, archiveError));

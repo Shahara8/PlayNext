@@ -79,6 +79,11 @@ JSON Lines (`.jsonl`), one file per provider:
   - `ambiguous` means TMDB matched a title whose IMDb id another `title_cache` row already holds (the column is unique), and the feed's own id is taken too. It waits 30 days like `unresolved`. (When only TMDB's id is taken, the title is stored under the feed's.)
   - **Known limitation:** if TMDB deletes or merges a cached key, the refresh gets a 404. The id keeps that key and its last good metadata, the error is logged, and the title moves to the back of the refresh queue. Moving it to TMDB's new key would clash with the old row's `imdb_id`. It's rare; fix it by hand (delete the map row) if it ever matters.
 - Explicit mapping between the feed's `type` (`movie`/`tv_series`) and TMDB's `media_type` (`movie`/`tv`) — not assumed identical.
+- **Wrong-id safeguard (2026-11-07, `ingestion/src/pipeline/match-check.ts`).** A well-formed but wrong `imdb_id` passes every validation and shows users another title. The resolver accepts a type mismatch on purpose (feeds mislabel types), so the check flags a row only when its feed type differs from TMDB's **and** none of its titles (title, original title) matches TMDB's, ignoring case, accents, punctuation, spacing and "&"/"and".
+  - Flag only: the row is stored as usual.
+  - The findings go in the run's `error_summary.match_check` (`warnings` up to 50, `count`, `unchecked`, `error`) and under the provider in the job's report as `suspicious match: …` lines.
+  - Only the mismatched keys' names are read from `title_cache`. A failed read is noted on the providers that had rows to check, and never fails the run.
+  - Not covered: a wrong id of the **same** type (series → another series). Checking that would mean reading every title's names on every run, and Hebrew-vs-English titles would make it noisy. Possible later, if Noam's matches turn out unreliable.
 
 ### 4. Diff/reconciliation: staging + upsert + anti-join (SQL, not app-level loops)
 
@@ -313,6 +318,32 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 
 ## Progress Log
 
+### 2026-11-07 — wrong-id safeguard; the mock Shtisel id fixed
+- The user asked whether the Shtisel bug affects real data. The cause was mock-only (a hand-typed id), but the symptom isn't: the pipeline trusts the feed's `imdb_id`. At the user's request:
+  - **The wrong-id safeguard** (Section 3): `match-check.ts`, `loadTitleNames` in `tmdb/store.ts`, `processRun`'s `titleNames` option, and the report lines.
+  - **The mock fix:** Shtisel's id is now `tt3069894` (checked on TMDB: tv 56017, "Shtisel"/"שטיסל").
+- **Verified live:**
+  - Before the fix, `npm run ingest` on the buggy mock output flagged exactly that row: `suspicious match: tt5776858 "Shtisel" (tv_series) is TMDB movie 400617 "Phantom Thread"` (run 362). Nothing else was flagged.
+  - Then the pipeline itself applied the fix: `ingest:mock` plus `ingest` on the corrected feed. YES (run 364): 1 new, 5 unchanged, 1 removed, and no warnings.
+  - Read-only check: Shtisel is active (tv 56017, map entry resolved), the Phantom Thread row is removed, the catalog still has 32 titles, and staging is empty. No watchlist or feedback rows were on Phantom Thread.
+  - Production `npm run smoke` passed 38/38.
+  - The old link `/title/400617` (in the frozen legacy map) now 308s to a not-found page, the documented behaviour for a title no longer on any provider.
+- `/code-review`, two passes. Fixed:
+  - A failed name lookup wasn't shown in the report.
+  - Warnings past 50 were cut silently.
+  - A lookup error was pinned on every provider.
+  - "&" vs "and".
+  - Unchecked rows weren't counted.
+  - A second scan per provider.
+  - The names type moved into the store (dependency direction).
+- Declined:
+  - Same-type wrong ids (see Section 3).
+  - Two providers disagreeing on one id's type.
+  - One id listed as two types in one file (a feed bug the contract forbids).
+  - Sharing the chunked-read helper in `store.ts`.
+- Tests: `npm test` 547 (+13).
+- Next step: unchanged, wait for Noam's collector (Status steps 5-6).
+
 ### 2026-11-07 — pipeline step 5 (part 1): the job, minus the collector
 - The user agreed: Noam's collector isn't on `main`, so build everything else now, with a mock stand-in, and run it once on live data.
 - Did:
@@ -333,12 +364,12 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - Archived to `raw-feeds/2026-11-07/084228708Z/` (manifest plus both files). The bucket was created on first use, and it's private.
   - Compared with a read-only snapshot taken before: still 32 rows and 32 in the catalog, staging empty. All 12 rows have `source = feed` and today's `last_seen_date`/`last_verified`, as expected.
   - The 3 "updated" YES rows are the stored `title`/`original_title`. The mock seed wrote TMDB's values into these columns; the pipeline writes the feed's (Section 3: the feed's title is the display fallback). The site shows `title_cache`'s title, so nothing visible changed. Production `npm run smoke` passed 38/38 afterwards.
-  - **Found: a mock-data bug (from M1).** `data/mock-feed.jsonl` gives "Shtisel" the IMDb id `tt5776858`, which is *Phantom Thread* (TMDB movie 400617). So the site has shown Phantom Thread as a YES title. Not fixed here: it's mock data, replaced at the cutover. To fix it sooner, correct the id in the mock feed and re-run the seed.
+  - **Found: a mock-data bug (from M1).** `data/mock-feed.jsonl` gave "Shtisel" the IMDb id `tt5776858`, which is *Phantom Thread* (TMDB movie 400617). So the site had shown Phantom Thread as a YES title. Fixed later the same day (see the next entry).
 - **2026-11-07, the GitHub Action:** the user added `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_API_KEY` as repo secrets (checked with `gh secret list`, names only). A `workflow_dispatch` run (source `mock`, run 42357292283) passed every step:
   - YES (run 360) and Partner TV (run 361): 6 unchanged each, 0 removed. That's right for a second run on the same data.
   - Archived to `raw-feeds/2026-11-07/085316070Z/`.
   - A read-only check afterwards: the 32 rows are identical to the state after the local run, and staging is empty.
-- Next step: wait for Noam's collector (`docs/FEED_REQUIREMENTS.md` section 7). Then add the collector source and the daily schedule, and do the cutover (Status steps 5-6). Meanwhile, optional: fix the mock "Shtisel" IMDb id.
+- Next step: wait for Noam's collector (`docs/FEED_REQUIREMENTS.md` section 7). Then add the collector source and the daily schedule, and do the cutover (Status steps 5-6).
 
 ### 2026-11-07 — pipeline step 4: staging + upsert + anti-join (apply_ingestion_run)
 - Did:
