@@ -623,4 +623,164 @@ describe("processRun", () => {
     });
     expect(ingestion.applyRun).not.toHaveBeenCalled();
   });
+
+  it("fails an expected provider the manifest leaves out, after the others", async () => {
+    const folder = feedDir({ "YES.jsonl": yesRows });
+    const ingestion = memoryIngestion();
+
+    const result = await processRun({
+      dir: folder,
+      manifest: manifest({ YES: ok("YES") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      expectedProviders: ["YES", "PARTNER_TV"],
+    });
+
+    expect(result.outcomes.map((o) => [o.provider, o.status])).toEqual([
+      ["YES", "completed"],
+      ["PARTNER_TV", "failed"],
+    ]);
+    expect(result.outcomes[1]).toMatchObject({
+      error: "missing from the collector's manifest",
+    });
+    expect(
+      [...ingestion.runs.values()].find((r) => r.provider === "PARTNER_TV"),
+    ).toMatchObject({ status: "failed", coverage: null, file_path: null });
+  });
+
+  it("records the archived path as the run's file_path", async () => {
+    const folder = feedDir({ "YES.jsonl": yesRows });
+    const ingestion = memoryIngestion();
+
+    await processRun({
+      dir: folder,
+      manifest: manifest({ YES: ok("YES") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      archivePrefix: "raw-feeds/2026-11-06/030000Z",
+    });
+
+    expect(ingestion.runs.get(1)!.file_path).toBe(
+      "raw-feeds/2026-11-06/030000Z/YES.jsonl",
+    );
+  });
+
+  it("records no file_path for a file that couldn't be archived", async () => {
+    const folder = feedDir({
+      "YES.jsonl": yesRows,
+      "PARTNER_TV.jsonl": partnerRows,
+    });
+    const ingestion = memoryIngestion();
+    const base = {
+      dir: folder,
+      manifest: manifest({ YES: ok("YES"), PARTNER_TV: ok("PARTNER_TV") }),
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+    };
+
+    await processRun({
+      ...base,
+      archivePrefix: "raw-feeds/x",
+      archivedFiles: ["manifest.json", "YES.jsonl"],
+      receivedAt: NOW.toISOString(),
+    });
+    expect(ingestion.runs.get(1)!.file_path).toBe("raw-feeds/x/YES.jsonl");
+    expect(ingestion.runs.get(2)!.file_path).toBeNull();
+    // Only the archived file has a receipt time.
+    expect(ingestion.runs.get(1)!.received_at).toBe(NOW.toISOString());
+    expect(ingestion.runs.get(2)!.received_at).toBeNull();
+
+    await processRun({ ...base, archivePrefix: null });
+    expect(ingestion.runs.get(3)!.file_path).toBeNull();
+  });
+
+  it("expects each missing provider once, and records the collector version", async () => {
+    const folder = feedDir({ "YES.jsonl": yesRows });
+    const ingestion = memoryIngestion();
+
+    const result = await processRun({
+      dir: folder,
+      manifest: { ...manifest({ YES: ok("YES") }), collector_version: "mock" },
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      resolveOptions: { now: NOW },
+      now: () => NOW,
+      expectedProviders: ["PARTNER_TV", "PARTNER_TV", "toString"],
+    });
+
+    expect(result.outcomes.map((o) => o.provider)).toEqual([
+      "YES",
+      "PARTNER_TV",
+      "toString",
+    ]);
+    expect(ingestion.createRun).toHaveBeenCalledTimes(3);
+    const yes = [...ingestion.runs.values()].find((r) => r.provider === "YES");
+    expect(yes!.error_summary).toMatchObject({ collector_version: "mock" });
+  });
+
+  it("marks every run of a mock run, failed ones included", async () => {
+    const folder = feedDir({});
+    const ingestion = memoryIngestion();
+
+    await processRun({
+      dir: folder,
+      manifest: {
+        ...manifest({ YES: ok("YES"), PARTNER_TV: { status: "failed" } }),
+        collector_version: "mock",
+      },
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      now: () => NOW,
+      expectedProviders: ["NETFLIX"],
+    });
+
+    const runs = [...ingestion.runs.values()];
+    expect(runs).toHaveLength(3);
+    for (const run of runs)
+      expect(run).toMatchObject({
+        status: "failed",
+        error_summary: { collector_version: "mock" },
+      });
+  });
+
+  it("fails each expected provider with the manifest's problem", async () => {
+    const ingestion = memoryIngestion();
+
+    const result = await processRun({
+      dir: feedDir({}),
+      manifest: { generated_at: NOW.toISOString(), providers: {} },
+      today: FIXTURE_TODAY,
+      ingestion,
+      resolution: resolvedCache(),
+      tmdb: noTmdb,
+      now: () => NOW,
+      expectedProviders: ["YES", "PARTNER_TV"],
+      manifestError: "Unexpected end of JSON input",
+    });
+
+    expect(result.outcomes).toEqual([
+      expect.objectContaining({
+        provider: "YES",
+        status: "failed",
+        error: "manifest.json unusable: Unexpected end of JSON input",
+      }),
+      expect.objectContaining({ provider: "PARTNER_TV", status: "failed" }),
+    ]);
+  });
 });

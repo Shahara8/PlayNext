@@ -67,6 +67,25 @@ export interface RunOptions {
   today: string;
   /** When the files reached our storage (our clock), if known. */
   receivedAt?: string | null;
+  /**
+   * Where the files were archived (e.g. "raw-feeds/2026-11-07/030012345Z"):
+   * each run's file_path is then `${archivePrefix}/${file}`, not the local
+   * path, which is gone once the job ends. Null: archiving was meant to
+   * happen and failed, so file_path is null. Left out: the local path.
+   */
+  archivePrefix?: string | null;
+  /** The archived files' names: a file that failed to archive gets null. */
+  archivedFiles?: readonly string[];
+  /**
+   * Providers this run is meant to cover. One the manifest leaves out gets a
+   * failed run: otherwise its catalog would silently stop updating.
+   */
+  expectedProviders?: readonly string[];
+  /**
+   * Why the collector's manifest couldn't be used (the caller then passes an
+   * empty one): each expected provider's failed run says so.
+   */
+  manifestError?: string;
   ingestion: IngestionStore;
   resolution: ResolutionStore;
   tmdb?: TmdbLookups;
@@ -83,6 +102,8 @@ export const STALE_RUN_HOURS = 6;
 
 /** What error_summary records for a run (jsonb). */
 interface RunSummary {
+  /** The manifest's: "mock" marks a stand-in run (deleted at the cutover). */
+  collector_version?: string | null;
   line_errors?: FeedReadResult["errors"];
   duplicates?: number;
   baseline?: number | null;
@@ -106,9 +127,15 @@ interface Accepted {
 
 export async function processRun(options: RunOptions): Promise<RunReport> {
   const { manifest, today, ingestion } = options;
+  /** On every run's error_summary: "mock" marks a stand-in run. */
+  const collector_version = manifest.collector_version ?? null;
   const now = options.now ?? (() => new Date());
   const region = REGION;
-  const providers = Object.keys(manifest.providers);
+  const missing = (options.expectedProviders ?? []).filter(
+    (code, i, all) =>
+      !Object.hasOwn(manifest.providers, code) && all.indexOf(code) === i,
+  );
+  const providers = [...Object.keys(manifest.providers), ...missing];
   /** Indexed like `providers`, so the report keeps the manifest's order. */
   const outcomes: ProviderOutcome[] = [];
   const accepted: Accepted[] = [];
@@ -156,7 +183,7 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
       try {
         marked = await ingestion.updateRun(runId, {
           status: "failed",
-          error_summary: { ...summary, error: message },
+          error_summary: { collector_version, ...summary, error: message },
           finished_at: now().toISOString(),
         });
         if (!marked)
@@ -176,9 +203,41 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
     record({ provider, runId, status: "failed", error: message });
   };
 
+  // An expected provider the manifest leaves out: recorded as failed.
+  for (const provider of missing) {
+    let runId: number | null = null;
+    try {
+      runId = await ingestion.createRun({
+        provider,
+        region,
+        run_date: today,
+        coverage: null,
+        file_path: null,
+        received_at: options.receivedAt ?? null,
+      });
+    } catch (error) {
+      await fail(provider, null, error);
+      continue;
+    }
+    await fail(
+      provider,
+      runId,
+      options.manifestError
+        ? `manifest.json unusable: ${options.manifestError}`
+        : "missing from the collector's manifest",
+    );
+  }
+
   // 1. Validate each provider's file and judge it.
   for (const [provider, entry] of Object.entries(manifest.providers)) {
     const path = entry.status === "ok" ? join(options.dir, entry.file) : null;
+    const storedPath =
+      entry.status !== "ok" || options.archivePrefix === undefined
+        ? path
+        : options.archivePrefix !== null &&
+            (options.archivedFiles?.includes(entry.file) ?? true)
+          ? `${options.archivePrefix}/${entry.file}`
+          : null;
     let runId: number | null = null;
     let summary: RunSummary = {};
     try {
@@ -187,8 +246,12 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
         region,
         run_date: today,
         coverage: entry.status === "ok" ? entry.coverage : null,
-        file_path: path,
-        received_at: options.receivedAt ?? null,
+        file_path: storedPath,
+        // Only a file that did reach our storage has a receipt time.
+        received_at:
+          options.archivePrefix === undefined || storedPath !== null
+            ? (options.receivedAt ?? null)
+            : null,
       });
       if (entry.status !== "ok" || path === null) {
         await fail(
@@ -207,6 +270,7 @@ export async function processRun(options: RunOptions): Promise<RunReport> {
         unmatched_lines: read.unmatched,
       };
       summary = {
+        collector_version,
         line_errors: read.errors,
         duplicates: read.duplicates,
         unkeyed_invalid: read.unkeyedInvalid,

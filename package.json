@@ -10,6 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed:mock": "tsx scripts/seed-mock-data.ts",
+    "ingest": "tsx ingestion/src/run-ingest.ts",
+    "ingest:mock": "tsx ingestion/src/mock-output.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "tsx scripts/smoke.ts"

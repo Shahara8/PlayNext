@@ -49,6 +49,8 @@ JSON Lines (`.jsonl`), one file per provider:
 ### 1. Delivery: Supabase Storage + one signed upload URL per provider
 
 > **Changed 2026-11-06:** the external developer delivers a collector, not files, so the daily GitHub Action runs it itself and archives the output (one `<CODE>.jsonl` per provider plus `manifest.json`, see `docs/FEED_REQUIREMENTS.md` section 2.1) to the private `raw-feeds` bucket under our own timestamp. No signed upload URLs are needed. The archiving idea below still applies; the upload half doesn't.
+>
+> **As built (step 5, 2026-11-07):** `ingestion/src/db/archive.ts`. Each run's folder goes to `raw-feeds/<UTC date>/<HHMMSSmmm>Z/`: `manifest.json` and every `<CODE>.jsonl` in it, archived **before** the manifest is validated (so a bad day is kept too) and never overwritten. The bucket is created private on first use; a public one is refused. A file that fails to upload is reported and the rest still go up. Processing goes ahead either way, but the job then exits non-zero. Each run's `file_path` is its archived path (null if its file wasn't archived), and `received_at` is set once it's stored.
 
 - Private bucket `raw-feeds`. One long-lived signed upload URL per provider (e.g. `raw-feeds/yes/latest.jsonl`), handed to the external developer once.
 - His automation becomes one `curl -X PUT` line he can cron on anything — he always overwrites the same object, no date logic on his end.
@@ -273,6 +275,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 - `ingestion/src/pipeline/process-run.ts` — validate → breaker → resolve (once) → stage → apply, per provider
 - `ingestion/src/db/staging.ts` — the run rows, staging load and the `apply_ingestion_run` call
 - `supabase/migrations/0009` — `apply_ingestion_run`: upsert + anti-join + bookkeeping in one transaction
+- `ingestion/src/run-ingest.ts` — the job's entry point (`npm run ingest`); `ingestion/src/db/archive.ts` — the raw-feeds archive; `ingestion/src/mock-output.ts` — the collector's stand-in until the cutover
 - `ingestion/src/tmdb/resolve.ts` + `store.ts` — the `imdb_tmdb_map` caching, retry and refresh logic and its Supabase store; the matching itself is `lib/tmdb-resolve.ts`, shared with the mock seed
 - `.github/workflows/daily-ingest.yml` — the scheduled trigger
 
@@ -299,10 +302,35 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
 3. [x] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts` (`ingestion/src/tmdb/`).
 4. [x] Staging load + upsert + anti-join, atomic per provider (`apply_ingestion_run`, migration 0009, live since 2026-11-07), with `ingestion_runs` bookkeeping and the removal rules in Section 4 step 3 (as built: see Section 4's "As built").
-5. [ ] **Next.** `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, then a small CLI that calls `processRun` (manifest + files, service-key Supabase client) and exits non-zero on any failed or rejected provider or a sweep error. Also give it the list of providers it **expects**: one missing from the manifest must be reported, since `processRun` only sees the manifest. GitHub secrets will be needed from the user.
-6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
+5. [ ] **In progress.** The daily job, minus the collector:
+   - [x] `npm run ingest -- --dir <output> --expect YES,PARTNER_TV` (`ingestion/src/run-ingest.ts`): archive, validate the manifest, `processRun` with the service key, one report line per provider, exit 1 unless every provider completed. An expected provider missing from the manifest (or an unusable manifest) gets a failed run.
+   - [x] `npm run ingest:mock -- --out <empty dir>` (`ingestion/src/mock-output.ts`): the collector's stand-in, the live mock rows for YES and Partner TV in its format, verified today. Its runs carry `collector_version: "mock"` in `error_summary`.
+   - [x] `.github/workflows/daily-ingest.yml`: manual trigger only, source `mock`, secrets `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TMDB_API_KEY`.
+   - [ ] **Next: the first live run** on the mock output, locally or from the Action. Expected: YES and Partner TV each 6 listed, all unchanged, 0 removed. It does write: the 12 rows' `source` becomes `feed`, and `last_seen_date`/`last_verified` move to today.
+   - [ ] The user adds the three GitHub secrets, and a `workflow_dispatch` run passes.
+   - Waits for Noam: a `collector` source in the workflow (install and run `ingestion/collector`), then the daily `schedule`.
+6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule). Also: delete the mock runs (`delete from ingestion_runs where error_summary->>'collector_version' = 'mock'`) so they don't count in baselines or the grace window, add the collector source and the daily schedule to the workflow.
 
 ## Progress Log
+
+### 2026-11-07 — pipeline step 5 (part 1): the job, minus the collector
+- The user agreed: Noam's collector isn't on `main`, so build everything else now, with a mock stand-in, and run it once on live data.
+- Did:
+  - `run-ingest.ts`, `archive.ts`, `mock-output.ts` and the manual-only workflow (see Status step 5 and Section 1 "As built").
+  - `processRun` options: `expectedProviders`, `manifestError`, `archivePrefix`/`archivedFiles`. Every run's `error_summary` records `collector_version`.
+  - `.prettierignore` skips `.claude/` (the user's local settings).
+- `/code-review`, three passes. Fixed:
+  - Mock runs couldn't be told apart from real ones (now `collector_version`, on failed runs too).
+  - The archive skipped the other files after one failure, and ran only for a valid manifest. It now archives the folder's contents first.
+  - A failed archive recorded a dead runner path, and `received_at` was set for files never stored.
+  - An unusable manifest left no run rows.
+  - `--today` accepted impossible dates; `--expect` repeats; `in` on the manifest.
+  - Archive folders now named to the millisecond; mock output refuses a non-empty folder; a bucket read error is no longer taken for "missing"; the workflow's concurrency comment.
+- Declined: the double de-duplication of `--expect`; a helper for the file-path ternary; no run row for an unusable manifest when nothing is `--expect`ed (the workflow always passes `--expect`).
+- Tests: `npm test` 534 (+39).
+- **Not done: the first live run.** `npm run ingest` on the mock output was blocked by Claude Code's auto-mode check ("modify shared resources"); the user decides how to run it.
+- No site code changed (no smoke needed).
+- Next step: the first live run, then the GitHub secrets and a `workflow_dispatch` run (Status step 5).
 
 ### 2026-11-07 — pipeline step 4: staging + upsert + anti-join (apply_ingestion_run)
 - Did:

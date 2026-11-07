@@ -1,0 +1,56 @@
+# The daily catalog ingestion (docs/INGESTION.md Sections 1 and 6).
+#
+# Manual only for now: Noam's collector isn't on main yet, so the only feed
+# source is the mock stand-in (the live mock rows, re-verified today), which
+# exercises the whole pipeline without changing what the site shows. At the
+# cutover (docs/INGESTION.md step 6) a "collector" source and the daily
+# schedule are added.
+#
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TMDB_API_KEY
+
+name: Daily ingest
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Feed source
+        type: choice
+        options: [mock]
+        default: mock
+  # schedule: added at the cutover (docs/INGESTION.md step 6).
+
+# One run at a time. GitHub keeps one pending run per group: a run started
+# while another is in progress waits, and a newer one replaces it in the queue.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Mock collector output
+        if: inputs.source == 'mock'
+        run: npm run ingest:mock -- --out "$RUNNER_TEMP/feed" --providers YES,PARTNER_TV
+
+      - name: Archive and process
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: npm run ingest -- --dir "$RUNNER_TEMP/feed" --expect YES,PARTNER_TV
