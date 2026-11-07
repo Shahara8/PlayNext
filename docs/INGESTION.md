@@ -306,8 +306,8 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
    - [x] `npm run ingest -- --dir <output> --expect YES,PARTNER_TV` (`ingestion/src/run-ingest.ts`): archive, validate the manifest, `processRun` with the service key, one report line per provider, exit 1 unless every provider completed. An expected provider missing from the manifest (or an unusable manifest) gets a failed run.
    - [x] `npm run ingest:mock -- --out <empty dir>` (`ingestion/src/mock-output.ts`): the collector's stand-in, the live mock rows for YES and Partner TV in its format, verified today. Its runs carry `collector_version: "mock"` in `error_summary`.
    - [x] `.github/workflows/daily-ingest.yml`: manual trigger only, source `mock`, secrets `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TMDB_API_KEY`.
-   - [ ] **Next: the first live run** on the mock output, locally or from the Action. Expected: YES and Partner TV each 6 listed, all unchanged, 0 removed. It does write: the 12 rows' `source` becomes `feed`, and `last_seen_date`/`last_verified` move to today.
-   - [ ] The user adds the three GitHub secrets, and a `workflow_dispatch` run passes.
+   - [x] The first live run on the mock output (locally, 2026-11-07): both providers completed, 0 removed (see the Progress Log).
+   - [ ] **Next.** The user adds the three GitHub secrets, and a `workflow_dispatch` run passes.
    - Waits for Noam: a `collector` source in the workflow (install and run `ingestion/collector`), then the daily `schedule`.
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule). Also: delete the mock runs (`delete from ingestion_runs where error_summary->>'collector_version' = 'mock'`) so they don't count in baselines or the grace window, add the collector source and the daily schedule to the workflow.
 
@@ -328,9 +328,13 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - Archive folders now named to the millisecond; mock output refuses a non-empty folder; a bucket read error is no longer taken for "missing"; the workflow's concurrency comment.
 - Declined: the double de-duplication of `--expect`; a helper for the file-path ternary; no run row for an unusable manifest when nothing is `--expect`ed (the workflow always passes `--expect`).
 - Tests: `npm test` 534 (+39).
-- **Not done: the first live run.** `npm run ingest` on the mock output was blocked by Claude Code's auto-mode check ("modify shared resources"); the user decides how to run it.
-- No site code changed (no smoke needed).
-- Next step: the first live run, then the GitHub secrets and a `workflow_dispatch` run (Status step 5).
+- **First live run, 2026-11-07** (after the user added a `Bash(npm run ingest:*)` allow rule; the auto-mode check had blocked it). `npm run ingest` on `npm run ingest:mock`'s output, run locally, exited 0:
+  - YES (run 358): 6 listed, 3 updated, 3 unchanged, 0 removed. Partner TV (run 359): 6 unchanged, 0 removed. Removals were immediate (trusted complete runs).
+  - Archived to `raw-feeds/2026-11-07/084228708Z/` (manifest plus both files). The bucket was created on first use, and it's private.
+  - Compared with a read-only snapshot taken before: still 32 rows and 32 in the catalog, staging empty. All 12 rows have `source = feed` and today's `last_seen_date`/`last_verified`, as expected.
+  - The 3 "updated" YES rows are the stored `title`/`original_title`. The mock seed wrote TMDB's values into these columns; the pipeline writes the feed's (Section 3: the feed's title is the display fallback). The site shows `title_cache`'s title, so nothing visible changed. Production `npm run smoke` passed 38/38 afterwards.
+  - **Found: a mock-data bug (from M1).** `data/mock-feed.jsonl` gives "Shtisel" the IMDb id `tt5776858`, which is *Phantom Thread* (TMDB movie 400617). So the site has shown Phantom Thread as a YES title. Not fixed here: it's mock data, replaced at the cutover. To fix it sooner, correct the id in the mock feed and re-run the seed.
+- Next step: the GitHub secrets and a `workflow_dispatch` run (Status step 5).
 
 ### 2026-11-07 — pipeline step 4: staging + upsert + anti-join (apply_ingestion_run)
 - Did:
