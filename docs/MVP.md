@@ -16,7 +16,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ### 2026-11-07 (pipeline step 4) — staging + upsert + anti-join
 - Migration `0009` adds `apply_ingestion_run`: one transaction per provider for the upsert, the anti-join with the complete/partial removal rules, and the run's bookkeeping. `ingestion/src/pipeline/process-run.ts` orchestrates a whole run. Details, the six `/code-review` passes and the 50-check rolled-back live dry run are in `docs/INGESTION.md`.
-- No site code changed, so no smoke run. 495 tests.
+- Only `lib/id-chunks.ts` (a size parameter) touches the site: production smoke 38/38 after the deploy of `d1ba201`. 495 tests.
 - Next step: apply 0009 with the user's approval, then `docs/INGESTION.md` step 5 (the GitHub Action).
 
 ### 2026-11-06 (pipeline step 3) — TMDB resolution with the imdb_tmdb_map cache

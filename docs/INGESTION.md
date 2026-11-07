@@ -352,6 +352,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - An untrusted complete run waits; null and default parameters.
   - Updated vs unchanged; the later-started same-date run wins; `started_at`'s default; real providers' rows byte-identical.
 - Not verified live: the TypeScript → PostgREST path (needs 0009 applied, and writes; first exercised in step 5). The fail-then-clear ordering relies on Postgres row locks: an update waits for a `FOR UPDATE` holder. That can't be reproduced in one rolled-back transaction.
+- Committed and pushed as `d1ba201`, before 0009 is applied. That's safe: nothing deployed runs `ingestion/src/` yet (no workflow until step 5), and the site doesn't call the function. `lib/id-chunks.ts` is on the site's path, so production `npm run smoke` ran after the deploy: 38/38.
 - Next step: apply 0009 (with the user's approval), then step 5.
 
 ### 2026-11-06 — pipeline step 3: TMDB resolution with the imdb_tmdb_map cache
