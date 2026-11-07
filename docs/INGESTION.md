@@ -298,7 +298,7 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
 1. [x] Title keys `(media_type, tmdb_id)` (migration 0007, live).
 2. [x] Pipeline tables (migration 0008, live), feed schema, line reader, circuit breaker (`ingestion/src/`).
 3. [x] TMDB resolution with the `imdb_tmdb_map` cache: 30-day retry for unresolved ids, 7-day `title_cache` refresh; TMDB being down never blocks availability. Reuses `lib/tmdb-resolve.ts` (`ingestion/src/tmdb/`).
-4. [x] Staging load + upsert + anti-join, atomic per provider (`apply_ingestion_run`, migration 0009, **not applied yet**: dry-run only, awaiting the user's approval), with `ingestion_runs` bookkeeping and the removal rules in Section 4 step 3 (as built: see Section 4's "As built").
+4. [x] Staging load + upsert + anti-join, atomic per provider (`apply_ingestion_run`, migration 0009, live since 2026-11-07), with `ingestion_runs` bookkeeping and the removal rules in Section 4 step 3 (as built: see Section 4's "As built").
 5. [ ] **Next.** `.github/workflows/daily-ingest.yml`: run the collector, archive raw files to Storage, then a small CLI that calls `processRun` (manifest + files, service-key Supabase client) and exits non-zero on any failed or rejected provider or a sweep error. Also give it the list of providers it **expects**: one missing from the manifest must be reported, since `processRun` only sees the manifest. GitHub secrets will be needed from the user.
 6. [ ] Cutover once Noam's output passes `docs/FEED_REQUIREMENTS.md` section 7: YES/Partner TV move off mock data, and mock-tied checks are relaxed (smoke's Yellowstone wait, the seed test's every-provider rule).
 
@@ -353,7 +353,10 @@ Supabase is used for **managed Postgres + Storage only** — deliberately not fo
   - Updated vs unchanged; the later-started same-date run wins; `started_at`'s default; real providers' rows byte-identical.
 - Not verified live: the TypeScript → PostgREST path (needs 0009 applied, and writes; first exercised in step 5). The fail-then-clear ordering relies on Postgres row locks: an update waits for a `FOR UPDATE` holder. That can't be reproduced in one rolled-back transaction.
 - Committed and pushed as `d1ba201`, before 0009 is applied. That's safe: nothing deployed runs `ingestion/src/` yet (no workflow until step 5), and the site doesn't call the function. `lib/id-chunks.ts` is on the site's path, so production `npm run smoke` ran after the deploy: 38/38.
-- Next step: apply 0009 (with the user's approval), then step 5.
+- **Applied 2026-11-07 with the user's approval**, as its own `db push --yes` step. The output confirmed "Applying migration 0009_apply_ingestion_run.sql". (The first attempt was blocked by Claude Code's auto-mode check; the user added a `Bash(npx supabase db push:*)` allow rule to `.claude/settings.local.json`.)
+  - Verified live (read-only): 0009 is recorded. The function's signature is `(bigint, text[], boolean)`. `anon`/`authenticated` can't execute it; `service_role` can. The new columns are there, with `started_at` defaulting to `now()`, and so is the index. `ingestion_runs` is empty, and the catalog still has 32 rows (32 active).
+  - Production `npm run smoke` passed 38/38 afterwards.
+- Next step: step 5, the GitHub Action (needs the user's GitHub secrets).
 
 ### 2026-11-06 — pipeline step 3: TMDB resolution with the imdb_tmdb_map cache
 - Did, in `ingestion/src/tmdb/`:

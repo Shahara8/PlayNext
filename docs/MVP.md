@@ -17,7 +17,8 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 ### 2026-11-07 (pipeline step 4) — staging + upsert + anti-join
 - Migration `0009` adds `apply_ingestion_run`: one transaction per provider for the upsert, the anti-join with the complete/partial removal rules, and the run's bookkeeping. `ingestion/src/pipeline/process-run.ts` orchestrates a whole run. Details, the six `/code-review` passes and the 50-check rolled-back live dry run are in `docs/INGESTION.md`.
 - Only `lib/id-chunks.ts` (a size parameter) touches the site: production smoke 38/38 after the deploy of `d1ba201`. 495 tests.
-- Next step: apply 0009 with the user's approval, then `docs/INGESTION.md` step 5 (the GitHub Action).
+- Migration 0009 applied live with the user's approval and verified (service role only); production smoke 38/38 afterwards.
+- Next step: `docs/INGESTION.md` step 5 (the GitHub Action; needs the user's GitHub secrets).
 
 ### 2026-11-06 (pipeline step 3) — TMDB resolution with the imdb_tmdb_map cache
 - `ingestion/src/tmdb/` resolves feed imdb_ids to title keys through `imdb_tmdb_map`: a 30-day retry for unresolved ids, a capped 7-day `title_cache` refresh, and TMDB being down never blocks availability (a failed lookup caches nothing, and the run stops asking TMDB when it looks down). Details and the `/code-review` passes are in `docs/INGESTION.md`'s Progress Log.
@@ -762,7 +763,7 @@ Agreed order (2026-11-06; SMTP moved last the same day, when it got blocked):
    - [x] User: publish the Google OAuth consent screen (Google Auth Platform → Audience → Publish app). Done 2026-11-06: status **In production**, user type External. The 100-user cap shown there only counts unapproved sensitive/restricted scopes, and PlayNext requests none. Reversible ("Back to testing").
    - [x] User: Google sign-in works for an account that was never a test user (confirmed 2026-11-06, incognito window).
 2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
-3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–4 done (step 4 on 2026-11-07; its migration 0009 awaits the user's approval); **step 5 (the daily GitHub Action) is next**. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
+3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–4 done (step 4 on 2026-11-07; migration 0009 live); **step 5 (the daily GitHub Action) is next**. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
 4. [x] **Custom SMTP** (deferred, then finished later the same day, 2026-11-06). Email sign-up confirmations and resets now reach any address (reset emails may land in spam until there's a domain + Resend).
    - [x] User: turn on 2-Step Verification for `play.next.app8@gmail.com` and create an app password (first blocked with "We couldn't verify that it's you", a common hold on brand-new accounts when tried from a phone; it worked on a later attempt).
    - [x] User: Supabase → Authentication → Emails → SMTP Settings (saved; Supabase warns Gmail is a personal provider, expected until there's a domain): host `smtp.gmail.com`, port `465`, username = the full Gmail address, password = the app password, sender email = the same address, sender name `PlayNext`. Then raise Authentication → Rate Limits → emails per hour (custom SMTP starts at about 30).
