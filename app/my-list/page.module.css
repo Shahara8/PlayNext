@@ -16,6 +16,18 @@
   gap: 1rem;
 }
 
+/* "My List" and the tab's count under it. */
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.count {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 /* The shared .segmented control, a size up from the footer's: full width
    on phones, two equal segments. */
 .tabs {

@@ -14,7 +14,9 @@ import styles from "./search-result-card.module.css";
  * the title link to the title page, and below them one item per service: a
  * service-colored "Watch on <service> →" when there's a link, otherwise a
  * chip with the service and availability. The card itself isn't a link, so
- * no link sits inside another.
+ * no link sits inside another; instead the title link's hit area stretches
+ * over the whole card (the year, the blank space), and the services sit
+ * above it, so each Watch button still opens its own service.
  */
 export default function SearchResultCard({ row }: { row: SearchResultRow }) {
   const href = titlePath(row);
@@ -43,7 +45,7 @@ export default function SearchResultCard({ row }: { row: SearchResultRow }) {
       </Link>
       <div className={styles.head}>
         <h2 className={styles.title}>
-          <Link href={href} className={`tap-target ${styles.titleLink}`}>
+          <Link href={href} className={styles.titleLink}>
             {row.title}
           </Link>
         </h2>

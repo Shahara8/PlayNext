@@ -3,6 +3,7 @@ import {
   AUTH_CALLBACK_ERROR_PARAM,
   AUTH_RESET_ERROR_PARAM,
   callbackFailureUrl,
+  firstIssue,
   firstIssueMessage,
   isRecentEmailLinkSession,
   RECOVERY_SESSION_MAX_AGE_S,
@@ -188,6 +189,32 @@ describe("firstIssueMessage", () => {
     expect(!result.success && firstIssueMessage(result.error)).toBe(
       "Email is required",
     );
+  });
+});
+
+describe("firstIssue", () => {
+  it("names the field the first problem is about", () => {
+    const result = signUpSchema.safeParse({
+      email: "someone@example.com",
+      password: "short",
+    });
+    expect(!result.success && firstIssue(result.error)).toEqual({
+      field: "password",
+      message: "Password must be at least 8 characters",
+    });
+  });
+
+  it("reports the email field first when both are wrong", () => {
+    const result = signInSchema.safeParse({ email: "nope", password: "" });
+    expect(!result.success && firstIssue(result.error)).toEqual({
+      field: "email",
+      message: "Enter a valid email address",
+    });
+  });
+
+  it("has no field for an issue on the whole form", () => {
+    const result = signInSchema.safeParse("not an object");
+    expect(!result.success && firstIssue(result.error).field).toBeNull();
   });
 });
 

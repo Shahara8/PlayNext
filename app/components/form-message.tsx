@@ -3,18 +3,23 @@ import styles from "./form-message.module.css";
 /**
  * A form's error (in --danger, announced at once) or confirmation (in
  * --success, announced politely), each with an icon so color isn't the only
- * signal. Used by the sign-in and reset-password forms.
+ * signal. Used by the sign-in and reset-password forms: under a field for
+ * that field's error (FormField, which links it with `id`), above the submit
+ * button for anything else.
  */
 export default function FormMessage({
   kind,
+  id,
   children,
 }: {
   kind: "error" | "info";
+  id?: string;
   children: React.ReactNode;
 }) {
   const error = kind === "error";
   return (
     <p
+      id={id}
       className={`${styles.message} ${error ? styles.error : styles.info}`}
       role={error ? "alert" : "status"}
       data-form-message={kind}

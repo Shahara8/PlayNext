@@ -17,6 +17,14 @@
   gap: 1rem;
 }
 
+/* A field and its own error line (form-field.tsx), closer together than
+   the form's 1rem gap so the error reads as the field's. */
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
 .field {
   display: flex;
   flex-direction: column;

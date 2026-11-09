@@ -7,7 +7,7 @@ import {
   getImplicitFlowClient,
 } from "@/lib/supabase-browser";
 import {
-  firstIssueMessage,
+  firstIssue,
   RESET_PASSWORD_PATH,
   resetRequestSchema,
   runAuthCall,
@@ -20,6 +20,7 @@ import {
   loginDocumentTitle,
   type LoginMode as Mode,
 } from "@/lib/login";
+import FormField from "./form-field";
 import FormMessage from "./form-message";
 import card from "./center-card.module.css";
 import styles from "./login-form.module.css";
@@ -35,20 +36,36 @@ export default function LoginForm({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // A problem with the whole form (shown above the submit button), and one
+  // about a single field (shown under it, see FormField).
   const [error, setError] = useState<string | null>(initialError);
+  const [fieldError, setFieldError] = useState<{
+    field: string | null;
+    message: string;
+  } | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
+    setFieldError(null);
     setInfo(null);
   }
+
+  /** A validation problem: under its field, or the form's line if none. */
+  function showIssue(issue: { field: string | null; message: string }) {
+    if (issue.field) setFieldError(issue);
+    else setError(issue.message);
+  }
+
+  const errorFor = (field: string) =>
+    fieldError?.field === field ? fieldError.message : null;
 
   async function handleResetRequest() {
     const parsed = resetRequestSchema.safeParse({ email });
     if (!parsed.success) {
-      setError(firstIssueMessage(parsed.error));
+      showIssue(firstIssue(parsed.error));
       return;
     }
 
@@ -74,13 +91,14 @@ export default function LoginForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldError(null);
     setInfo(null);
     if (mode === "reset") return handleResetRequest();
 
     const schema = mode === "signup" ? signUpSchema : signInSchema;
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(firstIssueMessage(parsed.error));
+      showIssue(firstIssue(parsed.error));
       return;
     }
 
@@ -133,6 +151,7 @@ export default function LoginForm({
 
   async function handleGoogleSignIn() {
     setError(null);
+    setFieldError(null);
     setInfo(null);
     const { message } = await runAuthCall(() =>
       createBrowserSupabaseClient().auth.signInWithOAuth({
@@ -180,31 +199,33 @@ export default function LoginForm({
             set a new password.
           </p>
         )}
-        <label className={styles.field}>
-          Email
-          <input
-            className="input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
+        <FormField
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (fieldError?.field === "email") setFieldError(null);
+          }}
+          autoComplete="email"
+          required
+          error={errorFor("email")}
+        />
         {mode !== "reset" && (
-          <label className={styles.field}>
-            Password
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
-              required
-            />
-          </label>
+          <FormField
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (fieldError?.field === "password") setFieldError(null);
+            }}
+            autoComplete={
+              mode === "signup" ? "new-password" : "current-password"
+            }
+            required
+            error={errorFor("password")}
+          />
         )}
 
         {error && <FormMessage kind="error">{error}</FormMessage>}

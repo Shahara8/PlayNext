@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import { firstIssueMessage, newPasswordSchema, runAuthCall } from "@/lib/auth";
+import FormField from "./form-field";
 import FormMessage from "./form-message";
 import card from "./center-card.module.css";
 import styles from "./login-form.module.css";
@@ -11,16 +12,19 @@ import styles from "./login-form.module.css";
 export default function ResetPasswordForm({ email }: { email: string | null }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  // The save failing (above the button), or the password itself (under it).
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setPasswordError(null);
 
     const parsed = newPasswordSchema.safeParse({ password });
     if (!parsed.success) {
-      setError(firstIssueMessage(parsed.error));
+      setPasswordError(firstIssueMessage(parsed.error));
       return;
     }
 
@@ -47,17 +51,18 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       {email && <p className={card.lead}>For {email}</p>}
-      <label className={styles.field}>
-        New password
-        <input
-          className="input"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="new-password"
-          required
-        />
-      </label>
+      <FormField
+        label="New password"
+        type="password"
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value);
+          setPasswordError(null);
+        }}
+        autoComplete="new-password"
+        required
+        error={passwordError}
+      />
 
       {error && <FormMessage kind="error">{error}</FormMessage>}
 

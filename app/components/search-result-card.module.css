@@ -2,6 +2,8 @@
    the inline start; the title block and the services beside it.
    Base look from the shared .card (app/globals.css). */
 .card {
+  /* The title link's stretched hit area (.titleLink::after) fills this. */
+  position: relative;
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr);
   grid-template-rows: auto 1fr;
@@ -59,6 +61,16 @@
   text-decoration: none;
 }
 
+/* The whole card is the title link's hit area, so a tap on the year or the
+   blank space opens the title too (and meets 44 px without .tap-target).
+   The focus ring stays on the title itself. */
+.titleLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
 .titleLink:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -74,8 +86,11 @@
   font-weight: 600;
 }
 
+/* Above the title link's stretched hit area. */
 .services {
   grid-area: services;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

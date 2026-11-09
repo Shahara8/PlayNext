@@ -471,7 +471,12 @@ export const has = {
     const grid = document.querySelector('main .title-grid');
     const empty = document.querySelector('main [data-empty-state]');
     if (!grid === !empty) return false;
-    if (grid) return true;
+    const count = document.querySelector('main [data-my-list-count]');
+    if (grid) {
+      const n = grid.children.length;
+      return count?.textContent.trim() === (n === 1 ? '1 title' : n.toLocaleString('en-US') + ' titles');
+    }
+    if (count) return false;
     const button = empty.querySelector('a.btn.btn-primary[href="/"]');
     return empty.querySelector('h2')?.textContent.trim() === ${JSON.stringify(myListEmptyCopy(view).line)} && button?.textContent.trim() === 'Find something to watch';
   })()`,
@@ -546,6 +551,14 @@ export const has = {
     ]);
   },
   /** A form's error or confirmation (FormMessage) with the given text. */
+  /** A field's own error (form-field.tsx): the input marked invalid and
+   * described by an error message that sits right after its label. */
+  fieldError: (type: string, text: string) => `(() => {
+    const input = document.querySelector(${JSON.stringify(`main input[type=${type}]`)});
+    if (input?.getAttribute('aria-invalid') !== 'true') return false;
+    const msg = document.getElementById(input.getAttribute('aria-describedby') ?? '');
+    return Boolean(msg?.matches('[data-form-message="error"]') && msg.textContent.includes(${JSON.stringify(text)}) && msg.previousElementSibling === input.closest('label'));
+  })()`,
   formMessage: (kind: "error" | "info", text: string) =>
     `document.querySelector(${JSON.stringify(`main [data-form-message="${kind}"]`)})?.textContent.includes(${JSON.stringify(text)})`,
   /** The privacy page's reading column (step 8): its paragraphs no wider
@@ -577,7 +590,16 @@ export const has = {
     const line = document.querySelector('main [data-results-line]')?.textContent ?? '';
     if (!/^(\\d+ results?|Top \\d+ results) for “/.test(line) || !line.includes(${JSON.stringify(query)}) || !line.includes('Showing closest matches')) return false;
     const watch = [...document.querySelectorAll('main article a.btn-service')];
-    return watch.length > 0 && watch.every((a) => /^Watch on .+ →$/.test(a.textContent.trim()) && a.target === '_blank' && a.rel.includes('noopener'));
+    if (!(watch.length > 0 && watch.every((a) => /^Watch on .+ →$/.test(a.textContent.trim()) && a.target === '_blank' && a.rel.includes('noopener')))) return false;
+    // The whole card opens the title (a tap on its year line lands on the
+    // title link), and each Watch button stays its own link above that.
+    const hit = (el) => {
+      const r = el.getBoundingClientRect();
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('a');
+    };
+    const metas = [...document.querySelectorAll('main article h2 + p')].filter((p) => p.getBoundingClientRect().bottom <= innerHeight);
+    if (!metas.length || !metas.every((p) => hit(p)?.matches('h2 > a[href^="/title/"]'))) return false;
+    return watch.filter((a) => a.getBoundingClientRect().bottom <= innerHeight).every((a) => hit(a) === a);
   })()`,
 };
 
@@ -924,13 +946,14 @@ async function loginModes(page: Page): Promise<string> {
   await page.waitFor(has.loginPieces("signin"), "the sign-in card");
   await page.click("main .segmented > button:nth-child(2)");
   await page.waitFor(has.loginPieces("signup"), "the sign-up card");
-  // A short password: the schema's message, in the error line.
+  // A short password: the schema's message, right under the password
+  // field and tied to it (aria-invalid, aria-describedby).
   await page.fill("main input[type=email]", "someone@example.com");
   await page.fill("main input[type=password]", "short");
   await page.click("main form button[type=submit]");
   await page.waitFor(
-    has.formMessage("error", "at least 8 characters"),
-    "the validation error",
+    `${has.formMessage("error", "at least 8 characters")} && ${has.fieldError("password", "at least 8 characters")}`,
+    "the validation error, under the password field",
   );
   await page.click("main .segmented > button:nth-child(1)");
   await page.waitFor(

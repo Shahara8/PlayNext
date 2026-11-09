@@ -9,6 +9,7 @@ import { MY_LIST_TABS, myListEmptyCopy, parseMyListView } from "@/lib/my-list";
 import { getFavoriteTitles, getWatchlistTitles } from "@/lib/user-titles";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { titleKey } from "@/lib/title-ref";
+import { titleCountLabel } from "@/lib/format";
 import TitleCard from "@/app/components/title-card";
 import styles from "./page.module.css";
 
@@ -40,7 +41,16 @@ export default async function MyListPage({
   return (
     <main className={styles.main}>
       <div className={styles.top}>
-        <h1>My List</h1>
+        <div className={styles.heading}>
+          <h1>My List</h1>
+          {/* The tab's count, as browse shows its own; the empty panel
+              already says when there's nothing. */}
+          {titles.length > 0 && (
+            <p className={styles.count} data-my-list-count>
+              {titleCountLabel(titles.length)}
+            </p>
+          )}
+        </div>
         <nav aria-label="My List" className={`segmented ${styles.tabs}`}>
           {MY_LIST_TABS.map((tab) => (
             <Link

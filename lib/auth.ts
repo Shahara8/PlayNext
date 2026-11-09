@@ -162,9 +162,24 @@ export function parseRecoveryHash(hash: string): RecoveryHash {
   return { kind: "none" };
 }
 
+/** A failed form validation's first problem: its message, and the field it's
+ * about (the schema key, e.g. "password"), so the form can show it under
+ * that field. `field` is null for an issue that isn't about one field. */
+export function firstIssue(error: z.ZodError): {
+  field: string | null;
+  message: string;
+} {
+  const issue = error.issues[0];
+  const key = issue?.path[0];
+  return {
+    field: typeof key === "string" ? key : null,
+    message: issue?.message ?? "Invalid input",
+  };
+}
+
 /** A failed form validation's first message, for the form's error line. */
 export function firstIssueMessage(error: z.ZodError): string {
-  return error.issues[0]?.message ?? "Invalid input";
+  return firstIssue(error).message;
 }
 
 /**

@@ -231,6 +231,11 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+/* A field with an error under it (form-field.tsx). */
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
 .input::placeholder {
   color: var(--text-muted);
   opacity: 1;
