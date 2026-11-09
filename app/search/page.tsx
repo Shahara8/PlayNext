@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { searchTitles } from "@/lib/search";
+import { resultsLine, searchTitles, showsClosestMatches } from "@/lib/search";
 import SearchBar from "@/app/components/search-bar";
 import SearchResultCard from "@/app/components/search-result-card";
 import { firstSearchParam } from "@/lib/query-params";
@@ -27,27 +27,43 @@ export default async function SearchPage({
 
   return (
     <main className={styles.main}>
-      <h1>Search</h1>
-      <SearchBar initialQuery={q} />
+      <div className={styles.top}>
+        <h1>Search</h1>
+        <SearchBar initialQuery={q} />
+      </div>
       {!q ? (
         <p className={styles.empty}>Start typing to search the catalog.</p>
       ) : results.length === 0 ? (
-        <p className={styles.empty}>
-          No results for &ldquo;{q}&rdquo;. Check the spelling, try fewer words,
-          or{" "}
-          <Link href="/" className={styles.emptyLink}>
-            browse by service
-          </Link>
-          .
-        </p>
+        <div className={`card ${styles.noResults}`} role="status">
+          <p className={styles.noResultsTitle}>
+            No results for &ldquo;{q}&rdquo;.
+          </p>
+          <p className={styles.empty}>
+            Check the spelling, try fewer words, or{" "}
+            <Link href="/" className="text-link">
+              browse by service
+            </Link>
+            .
+          </p>
+        </div>
       ) : (
-        <ul className={styles.results}>
-          {results.map((row) => (
-            <li key={titleKey(row)}>
-              <SearchResultCard row={row} />
-            </li>
-          ))}
-        </ul>
+        <div className={styles.section}>
+          <p className={styles.resultsLine} role="status" data-results-line>
+            <span className={styles.count}>
+              {resultsLine(results.length, q)}
+            </span>
+            {showsClosestMatches(q, results) && (
+              <span className={styles.closest}>Showing closest matches</span>
+            )}
+          </p>
+          <ul className={styles.results}>
+            {results.map((row) => (
+              <li key={titleKey(row)}>
+                <SearchResultCard row={row} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </main>
   );

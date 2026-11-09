@@ -35,3 +35,41 @@ export async function searchTitles(query: string): Promise<SearchResultRow[]> {
   if (error) throw new Error(`searchTitles failed: ${error.message}`);
   return data as SearchResultRow[];
 }
+
+/** Lowercase, with accents, punctuation and spaces dropped. */
+function normalizeForMatch(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * Whether the search page should add "Showing closest matches": no result's
+ * title contains the query, so every result came from typo tolerance. (Not
+ * just the best match: the database ranks by trigram similarity, which can
+ * put a short near-miss above a longer title that contains the query.)
+ * Case, accents, punctuation and spaces don't count, so "spider man" matches
+ * "Spider-Man" and "Spiderman". False for no results, or a query with
+ * nothing to compare (only punctuation).
+ */
+export function showsClosestMatches(
+  query: string,
+  results: readonly Pick<SearchResultRow, "title">[],
+): boolean {
+  if (results.length === 0) return false;
+  const q = normalizeForMatch(query);
+  if (!q) return false;
+  return !results.some((row) => normalizeForMatch(row.title).includes(q));
+}
+
+/**
+ * The line above the results: "1 result for “q”", "12 results for “q”". At
+ * the result limit there may be more, so it says "Top 20 results".
+ */
+export function resultsLine(count: number, query: string): string {
+  const quoted = `“${query}”`;
+  if (count >= RESULT_LIMIT) return `Top ${RESULT_LIMIT} results for ${quoted}`;
+  return `${count} ${count === 1 ? "result" : "results"} for ${quoted}`;
+}

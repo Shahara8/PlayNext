@@ -14,6 +14,44 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 5) — Post-M8 task 5: search
+- **Search page** (`app/search/page.tsx`) per `docs/UI_DIRECTION.md` Section 4: the header's width and `--gutter`; the `h1` "Search", then the field; with a query, the line "N results for “q”" (`role="status"`) and, after a typo, a muted "Showing closest matches"; results in one column, two from 900 px. The empty copy is unchanged, and the no-results copy is unchanged too but sits in a `.card` panel ("browse by service" is still a link home). The loading skeleton follows the new shape.
+- **Field:** `SearchBar` now looks like the home page's field (both import `app/components/search-field.module.css`, renamed from `home-search.module.css`, and a shared `SearchIcon` in `search-icon.tsx`, which the header uses too). It stays live and debounced and keeps `/search?q=`, and it is now also a GET form with a Search button, so Enter works before JavaScript and commits right away after it (closing a phone keyboard). It autofocuses only when the page has no query.
+- **Fix (old bug, already in production):** after each debounced commit, the field blanked until the navigation landed ("strnger" → "" → "strnger", seen by sampling the input in headless Chrome), and anything typed in that window was lost. The render-time check compared the new `initialQuery` with the query just committed, which always differ until the navigation lands. It now reacts only when `initialQuery` changes, and replaces the text only if it isn't one of the field's own last few commits (back/forward and shared links still replace it). Enter also cancels the pending debounce, so it doesn't search twice. Checked with the same probe: no blank, typing during a navigation is kept, one request on Enter, back still restores the old query.
+- **Result card** (`app/components/search-result-card.tsx`): no longer one big link. An `article` with the poster link (skipped by keyboard and screen readers: the same destination as the title) and an `h2` title link, "year · type · ★ rating", then one item per service, sorted subscription/free first: a service-colored `.btn-service` "Watch on Netflix →" (new tab; named "Watch on Netflix, Subscription (opens in a new tab)") or, without a link, a `.chip` pill "● Partner TV · Subscription". `ProviderBadges` was removed (search was its only user).
+- **Logic and tests** (10 new, 635 total): `showsClosestMatches()` and `resultsLine()` in `lib/search.ts`; `serviceColorVars()` in `lib/providers.ts`, now shared by `WhereToWatch` and the result card.
+- **Deviations** (recorded in the spec's as-built note):
+  - "Showing closest matches" shows when *no* result contains the query, not when the best match doesn't. `search_titles` ranks by trigram similarity, so a short near-miss ("Kong" for "king") can rank above a title that contains the query.
+  - Case, accents, punctuation and spaces are ignored in that check.
+  - At the 20-result limit the line says "Top 20 results", since there may be more.
+- **Smoke** (43 checks, was 42):
+  - The search page check now also needs `has.searchPieces` (the field keeps the query, the results line and the hint, every Watch button reads "Watch on … →" and opens a new tab, at least one: Stranger Things' Netflix link, a mock-seed row) and `has.noNestedLinks`.
+  - New check "search page: results as you type".
+- **Found in the screenshots and fixed:**
+  - the no-link service chip was as big as a Watch button and read as a disabled one (now a normal pill);
+  - the no-results line was bare text (now a panel).
+
+  Several services per card were checked by injecting extra items in the browser, since no title in the catalog has more than one.
+- **`/code-review` (medium)**, fixed:
+  - the field blanking (above);
+  - the double commit on Enter;
+  - the hint judging only the first result;
+  - spaces counting in the match;
+  - the copied service-color mapping (now `serviceColorVars()`);
+  - the results section labelled by the changing results line.
+
+  Declined:
+  - folding accents in the hint although the database's `ilike` doesn't: "amelie" finding "Amélie" isn't a typo the user needs warning about;
+  - smoke needing a Watch button: tied to the mock seed, like the Partner TV check; revisit at the real-feed cutover.
+- Noted, not changed: `search_titles` doesn't filter providers by region (the step 4 fix was for `getCatalogByTitle`). It needs a migration, so it's left for the real-feed cutover, when a second region could appear.
+- `docs/UI_REVIEW.md`: views 05, 06 and 07, plus the search result card, service colors and loading skeleton lines. `docs/UI_DIRECTION.md`: step 5 ticked, with an as-built note in the Search spec.
+- Checked:
+  - Typecheck, lint and 635 tests clean. `format:check` flags only `CLAUDE.md` (CRLF working copy, as before).
+  - `ui-capture` against a local build: views 05, 06 and 07 reviewed in both themes at both widths, and view 01 (shared field and icon) is unchanged.
+  - Local smoke 43/43.
+  - Production smoke: after the deploy (next commit).
+- Next step: `docs/UI_DIRECTION.md` step 6 (browse).
+
 ### 2026-11-09 (UI step 4) — Post-M8 task 5: the home page
 - **Home** (`app/page.tsx`) per `docs/UI_DIRECTION.md` Section 4, top to bottom:
   - **Search first:** the `h1` "Where can I watch…", a short line, and `app/components/home-search.tsx`: a plain `<form action="/search" role="search">` with `name="q"` (placeholder "e.g. Stranger Things") and a primary Search button. It works before JavaScript and lands on `/search?q=…`.

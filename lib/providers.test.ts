@@ -3,6 +3,7 @@ import {
   PROVIDERS,
   REGION,
   getProviderByCode,
+  serviceColorVars,
   getProviderBySlug,
 } from "./providers";
 
@@ -65,5 +66,22 @@ describe("getProviderByCode", () => {
 
   it("returns undefined for an unknown code", () => {
     expect(getProviderByCode("HBO_MAX")).toBeUndefined();
+  });
+});
+
+describe("serviceColorVars", () => {
+  it("gives a provider's color and its on-color", () => {
+    const netflix = getProviderByCode("NETFLIX")!;
+    expect(serviceColorVars(netflix)).toEqual({
+      "--service-color": netflix.color,
+      "--service-on": netflix.onColor,
+    });
+  });
+
+  it("falls back to the accent pair for an unknown provider", () => {
+    expect(serviceColorVars(undefined)).toEqual({
+      "--service-color": "var(--accent)",
+      "--service-on": "var(--accent-contrast)",
+    });
   });
 });

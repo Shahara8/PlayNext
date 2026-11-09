@@ -56,12 +56,12 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 - **Footer.** The same surface and a top border, matching the header. "PlayNext" (bold), a Privacy link, "Title data from TMDB" (required attribution; the links are underlined, muted, 44 px tall), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones). The header and footer share a side padding (16 px on phones, 24 px wider); the pages don't all use it yet, so some phone pages are indented 8 px more than the header.
 - **Title card** (home, browse, My List; rebuilt in UI step 3). The poster (2:3, rounded) with a **★ rating badge** (TMDB's score, in the rating color on a surface chip) at its top inline-end corner, the title (2 lines at most) and "year · type" ("2016 · TV Series"). The poster, title and meta are one link to the title page. Below them just two 36 px icon buttons: **♡ favorite** and **+ watchlist** (✓ once saved); like, dislike and rating are on the title page only. Saved states show as a button tinted with the accent color, with an accent border and an accent icon (see views 18 to 21). The buttons sit at the bottom of the card, so a row of cards keeps them in line when one title wraps to two lines. A title with no TMDB score (or a score of 0, meaning no votes) has no badge.
 - **Grids.** 2 columns on phones, 3 on tablets (601–899 px), 5 from 900 px and 6 from 1180 px. The home, browse and My List pages use the `--gutter` side padding, so the grid lines up with the logo.
-- **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
-- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (a bar across the top and a dot), in the dots on search results and the title page, and as the Watch buttons on the title page.
+- **Search result card** (rebuilt in UI step 5). A horizontal card: the poster at the inline start; beside it the title (bold), "year · type · ★ rating" (the rating in the rating color), and one item per service, subscription and free first. A service with a link is a **service-colored button "Watch on Netflix →"** that opens the service in a new tab; one without a link is a pill with the service's dot, its name and the availability ("● Partner TV · Subscription"). The poster and the title each link to the title page; the card itself isn't a link, so nothing is nested (the poster link is skipped by the keyboard and screen readers, since the title link goes to the same place). A title on no tracked service says "Not currently available on any tracked provider".
+- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (a bar across the top and a dot), in the dots on the title page and on search result pills, and as the Watch buttons on the title page, the home page's Trending now card and search results.
 
 ## Not shown in screenshots (described only)
 
-- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse, search, My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
+- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse, search (the field, the results line and result cards with a button), My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
 - **Error page.** If a page fails to load: heading "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a "Try again" button, a "Back to home" link and a small reference code. Same layout as the Not found page (view 16).
 - **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
 - **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
@@ -128,11 +128,11 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** Find a specific title across all services: the main "where can I watch X?" job.
 
-**How users get here.** The search icon in the header. The box has focus right away.
+**How users get here.** The search icon in the header, or the home page's search (which lands on view 06 with the query filled in). On an empty page the field has focus right away; with a query it doesn't, so a phone keyboard doesn't cover the results.
 
-**What's on it.** The heading "Search", the search box ("Search for a movie or show…") and the line "Start typing to search the catalog."
+**What's on it.** The heading "Search", then the same large field and primary **Search** button as the home page (placeholder "e.g. Stranger Things"), and the line "Start typing to search the catalog." The content lines up with the header's logo.
 
-**Known constraints.** Results update as you type (after a short pause); there's no submit button. Search is typo-tolerant. No suggestions or recent searches.
+**Known constraints.** Results update as you type, after a short pause, and the address follows (`/search?q=…`). Enter or the Search button searches at once (and closes a phone's keyboard); before the page's scripts load, it's a plain form. Search is typo-tolerant. No suggestions or recent searches.
 
 ![Phone, light](images/05-search-start-phone-light.png) ![Desktop, light](images/05-search-start-desktop-light.png)
 
@@ -142,9 +142,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** The answer to "where can I watch X": each result lists the services it's on.
 
-**What's on it.** The query "strnger" (a deliberate typo) finds Stranger Things. Each result is a horizontal card: small poster, title, year, type, TMDB rating, and a pill per service. The whole card links to the title page. A title that's on no tracked service says "Not currently available on any tracked provider".
+**What's on it.** The query "strnger" (a deliberate typo) finds Stranger Things. Above the results, the line "1 result for “strnger”", followed by a muted **"Showing closest matches"** because no result's title contains what was typed (a typo match). At the result limit (20) the line says "Top 20 results for …". Each result is a search result card (see "Shared pieces"): Stranger Things has a red **"Watch on Netflix →"** button. One column on phones, two from 900 px.
 
-**Known constraints.** Search results have no save controls (unlike cards elsewhere). The service pills aren't links.
+**Known constraints.** Search results have no save controls (unlike cards elsewhere). The Watch button doesn't say whether the title is included or rented (screen readers hear it: "Watch on Netflix, Subscription"); the title page shows it. Titles available on several services aren't in today's catalog, so a card with several buttons and pills isn't in the screenshots (checked by hand: they wrap).
 
 ![Phone, light](images/06-search-results-phone-light.png) ![Desktop, light](images/06-search-results-desktop-light.png)
 
@@ -153,7 +153,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 ## View 07: Search, no results
 
 
-**What's on it.** "No results for “qwzxv”. Check the spelling, try fewer words, or browse by service." ("browse by service" goes home).
+**What's on it.** The field (with "qwzxv"), then a panel: "No results for “qwzxv”." in bold, and "Check the spelling, try fewer words, or browse by service." ("browse by service" is a link to the home page).
 
 ![Phone, light](images/07-search-no-results-phone-light.png) ![Desktop, light](images/07-search-no-results-desktop-light.png)
 

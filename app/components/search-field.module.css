@@ -1,5 +1,5 @@
-/* The home page's large search field (docs/UI_DIRECTION.md Section 4,
-   Home 1), with its submit button beside it. */
+/* The large search field with its submit button beside it: the home page
+   (docs/UI_DIRECTION.md Section 4, Home 1) and the search page (Search). */
 .form {
   display: flex;
   gap: 0.5rem;

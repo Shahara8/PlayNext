@@ -1,24 +1,79 @@
+/* The search page (docs/UI_DIRECTION.md Section 4, Search). The header's
+   width and --gutter, so the content lines up with the logo. */
 .main {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 1.5rem;
+  padding: 2rem var(--gutter) 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-.results {
+.top {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* "12 results for “q”", then "Showing closest matches" after a typo. */
+.resultsLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.count {
+  font-weight: 600;
+}
+
+.closest {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* One column on phones, two from 900 px. */
+.results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   list-style: none;
 }
 
 .empty {
+  max-width: 44rem;
   color: var(--text-muted);
 }
 
-.emptyLink {
-  color: var(--accent);
-  text-decoration: underline;
+/* No results: the same copy as before, in a panel. */
+.noResults {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 44rem;
+  padding: 1.25rem;
+}
+
+.noResultsTitle {
+  font-weight: 600;
+}
+
+@media (min-width: 761px) {
+  .main {
+    padding-block-start: 3rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
 }

@@ -51,3 +51,17 @@ export function getProviderBySlug(slug: string): Provider | undefined {
 export function getProviderByCode(code: string): Provider | undefined {
   return PROVIDERS.find((p) => p.code === code);
 }
+
+/**
+ * The CSS variables a service-colored element reads (`.btn-service`, the
+ * dots): the provider's `color` and `onColor`. An unknown provider code gets
+ * the accent for both, so its dot and button agree.
+ */
+export function serviceColorVars(
+  provider: Provider | undefined,
+): Record<"--service-color" | "--service-on", string> {
+  return {
+    "--service-color": provider?.color ?? "var(--accent)",
+    "--service-on": provider?.onColor ?? "var(--accent-contrast)",
+  };
+}

@@ -364,6 +364,22 @@ export const has = {
   get homePieces() {
     return `${this.homeSearch} && ${this.serviceTileCounts} && ${this.featured}`;
   },
+  /** No link or button inside a link anywhere on the page. */
+  noNestedLinks: `!document.querySelector('main a a, main a button, main button a')`,
+  /** The search page (step 5) after a typo search: its search form keeps the
+   * query, the results line ("1 result for “strnger”") adds "Showing closest
+   * matches", and each result's services with a link are service-colored
+   * "Watch on <service> →" buttons that open a new tab (at least one: the
+   * Netflix link on Stranger Things: a mock-seed row, so revisit at the
+   * real-feed cutover if it loses its link). */
+  searchPieces: (query: string) => `(() => {
+    const input = document.querySelector('main form[action="/search"][role="search"] input[name="q"]');
+    if (!input || input.value !== ${JSON.stringify(query)}) return false;
+    const line = document.querySelector('main [data-results-line]')?.textContent ?? '';
+    if (!/^(\\d+ results?|Top \\d+ results) for “/.test(line) || !line.includes(${JSON.stringify(query)}) || !line.includes('Showing closest matches')) return false;
+    const watch = [...document.querySelectorAll('main article a.btn-service')];
+    return watch.length > 0 && watch.every((a) => /^Watch on .+ →$/.test(a.textContent.trim()) && a.target === '_blank' && a.rel.includes('noopener'));
+  })()`,
 };
 
 type PageSpec = { label: string; path: string; ready: string };
@@ -401,7 +417,7 @@ function signedOutPages(
       // A typo, to check search stays typo-tolerant.
       label: "search",
       path: "/search?q=strnger",
-      ready: has.titleLink("Stranger Things"),
+      ready: `${has.titleLink("Stranger Things")} && ${has.searchPieces("strnger")} && ${has.noNestedLinks}`,
     },
     {
       label: "title",
@@ -667,6 +683,20 @@ async function homeSearchSubmits(page: Page): Promise<string> {
   return page.path();
 }
 
+/**
+ * The search page's field searches as you type (after a short pause), keeping
+ * the /search?q= URL in step, with no submit.
+ */
+async function searchAsYouType(page: Page): Promise<string> {
+  await page.goto("/search");
+  await page.fill('main form[role="search"] input[name="q"]', "strnger");
+  await page.waitFor(
+    `new URLSearchParams(location.search).get('q') === 'strnger' && ${has.titleLink("Stranger Things")} && ${has.searchPieces("strnger")}`,
+    "results for the typed query",
+  );
+  return page.path();
+}
+
 /** A small phone, below VIEWPORTS' 412 px, for the header's one-row check. */
 const NARROW_PHONE: Viewport = {
   ...VIEWPORTS[0],
@@ -844,6 +874,9 @@ async function main() {
     );
     await runner.check("home search form → search results", () =>
       homeSearchSubmits(page),
+    );
+    await runner.check("search page: results as you type", () =>
+      searchAsYouType(page),
     );
 
     if (!options.signedOutOnly) {

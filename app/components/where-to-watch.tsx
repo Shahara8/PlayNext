@@ -1,6 +1,6 @@
 import { useId, type CSSProperties } from "react";
 import type { CatalogRow } from "@/lib/catalog";
-import { getProviderByCode } from "@/lib/providers";
+import { getProviderByCode, serviceColorVars } from "@/lib/providers";
 import {
   availabilityLabel,
   isIncluded,
@@ -41,12 +41,7 @@ export default function WhereToWatch({
         {sortByAvailability(rows).map((row) => {
           const provider = getProviderByCode(row.provider);
           const name = provider?.label ?? row.provider;
-          // An unknown provider code gets the accent for both the dot and the
-          // button, so they agree.
-          const serviceColors = {
-            "--service-color": provider?.color ?? "var(--accent)",
-            "--service-on": provider?.onColor ?? "var(--accent-contrast)",
-          } as CSSProperties;
+          const serviceColors = serviceColorVars(provider) as CSSProperties;
           return (
             <li
               key={row.availability_id}
