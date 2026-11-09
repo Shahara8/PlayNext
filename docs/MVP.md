@@ -49,6 +49,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - Typecheck, lint and 657 tests clean. `format:check` flags only `CLAUDE.md` (CRLF working copy, as before).
   - `ui-capture` against a local build: views 02, 03, 04 and 18 reviewed in both themes at both widths.
   - Local smoke 47/47.
+  - Committed and pushed as `e3a4969`; **production smoke 47/47** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 7 (My List).
 
 ### 2026-11-09 (UI step 5) — Post-M8 task 5: search
