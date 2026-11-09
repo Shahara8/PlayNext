@@ -5,7 +5,7 @@ import {
   createServerSupabaseClient,
   getCurrentUser,
 } from "@/lib/supabase-server";
-import { firstSearchParam } from "@/lib/query-params";
+import { MY_LIST_TABS, myListEmptyCopy, parseMyListView } from "@/lib/my-list";
 import { getFavoriteTitles, getWatchlistTitles } from "@/lib/user-titles";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { titleKey } from "@/lib/title-ref";
@@ -26,8 +26,7 @@ export default async function MyListPage({
   if (!user) redirect("/login");
 
   const sp = await searchParams;
-  const view =
-    firstSearchParam(sp.view) === "favorites" ? "favorites" : "watchlist";
+  const view = parseMyListView(sp.view);
 
   const supabase = await createServerSupabaseClient();
   const titles =
@@ -36,34 +35,32 @@ export default async function MyListPage({
       : await getWatchlistTitles(supabase, user.id);
   const { states, unavailable } = await getViewerTitleStates(titles);
 
+  const empty = myListEmptyCopy(view);
+
   return (
     <main className={styles.main}>
-      <h1>My List</h1>
-      <nav className={styles.tabs}>
-        <Link
-          href="/my-list"
-          aria-current={view === "watchlist" ? "page" : undefined}
-          className={view === "watchlist" ? styles.tabActive : styles.tab}
-        >
-          Watchlist
-        </Link>
-        <Link
-          href="/my-list?view=favorites"
-          aria-current={view === "favorites" ? "page" : undefined}
-          className={view === "favorites" ? styles.tabActive : styles.tab}
-        >
-          Favorites
-        </Link>
-      </nav>
+      <div className={styles.top}>
+        <h1>My List</h1>
+        <nav aria-label="My List" className={`segmented ${styles.tabs}`}>
+          {MY_LIST_TABS.map((tab) => (
+            <Link
+              key={tab.view}
+              href={tab.href}
+              aria-current={view === tab.view ? "page" : undefined}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
       {titles.length === 0 ? (
-        <p className={styles.empty}>
-          {view === "favorites"
-            ? "No favorites yet. Tap ♡ on any title to add it here."
-            : "Your watchlist is empty. Tap + on any title to save it for later."}{" "}
-          <Link href="/" className={styles.emptyLink}>
+        <div className={`card ${styles.empty}`} data-empty-state>
+          <h2 className={styles.emptyLine}>{empty.line}</h2>
+          <p className={styles.emptyHint}>{empty.hint}</p>
+          <Link href="/" className="btn btn-primary">
             Find something to watch
           </Link>
-        </p>
+        </div>
       ) : (
         <div className="title-grid">
           {titles.map((title) => (

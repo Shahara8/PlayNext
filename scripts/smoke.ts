@@ -20,6 +20,7 @@ import { join } from "path";
 import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { PROVIDERS } from "../lib/providers";
+import { MY_LIST_TABS, myListEmptyCopy, type MyListView } from "../lib/my-list";
 import { createPublicClient } from "../lib/supabase";
 import { LEGACY_TITLE_IDS } from "../lib/legacy-title-ids";
 import { titlePath as newTitlePath, type TitleRef } from "../lib/title-ref";
@@ -376,6 +377,21 @@ export const has = {
     const clear = document.querySelector('main a[data-clear-filters]');
     return ${clearHref ? `clear?.getAttribute('href') === ${JSON.stringify(clearHref)} && clear.textContent.trim() === 'Clear filters'` : "!clear"};
   })()`,
+  /** My List (step 7): Watchlist · Favorites as links in the shared
+   * .segmented control, in order, with only the given view current; then
+   * either the card grid or the empty-state panel (its line and a primary
+   * "Find something to watch" button home), never both. */
+  myListPieces: (view: MyListView) => `(() => {
+    const tabs = [...document.querySelectorAll('main nav.segmented > a')];
+    const want = ${JSON.stringify(MY_LIST_TABS.map((t) => [t.label, t.href, t.view === view]))};
+    if (tabs.length !== want.length || !want.every(([label, href, current], i) => tabs[i].textContent.trim() === label && tabs[i].getAttribute('href') === href && (tabs[i].getAttribute('aria-current') === 'page') === current)) return false;
+    const grid = document.querySelector('main .title-grid');
+    const empty = document.querySelector('main [data-empty-state]');
+    if (!grid === !empty) return false;
+    if (grid) return true;
+    const button = empty.querySelector('a.btn.btn-primary[href="/"]');
+    return empty.querySelector('h2')?.textContent.trim() === ${JSON.stringify(myListEmptyCopy(view).line)} && button?.textContent.trim() === 'Find something to watch';
+  })()`,
   /** No link or button inside a link anywhere on the page. */
   noNestedLinks: `!document.querySelector('main a a, main a button, main button a')`,
   /** The search page (step 5) after a typo search: its search form keeps the
@@ -490,12 +506,12 @@ function signedInPages(titlePath: string): PageSpec[] {
     {
       label: "my list",
       path: "/my-list",
-      ready: `${has.myList("/my-list")} && ${has.signOut} && ${has.headerNav} && ${has.cardsIfAny}`,
+      ready: `${has.myListPieces("watchlist")} && ${has.signOut} && ${has.headerNav} && ${has.cardsIfAny}`,
     },
     {
       label: "my list favorites",
       path: "/my-list?view=favorites",
-      ready: `${has.myList("/my-list?view=favorites")} && ${has.signOut} && ${has.cardsIfAny}`,
+      ready: `${has.myListPieces("favorites")} && ${has.signOut} && ${has.cardsIfAny}`,
     },
     {
       label: "title",

@@ -14,6 +14,21 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 7) — Post-M8 task 5: My List
+- **My List** (`app/my-list/page.tsx`) per `docs/UI_DIRECTION.md` Section 4. It keeps `/my-list?view=favorites`, server rendering, and the signed-out redirect to `/login`.
+  - The header's width and `--gutter`.
+  - The `h1` "My List", then Watchlist · Favorites as the shared `.segmented` control: a `nav` of two links, `aria-current="page"` on the current one (which also fills it). On phones it sits under the title at full width with two equal halves; from 601 px it shares the title's row at the inline end.
+  - The shared `.title-grid` of `TitleCard`s, as before.
+  - The empty state is a centered `.card` panel (`data-empty-state`): the line as an `h2` ("Your watchlist is empty" / "No favorites yet"), a muted hint (the old copy's second sentence) and a `.btn-primary` "Find something to watch" home.
+  - The loading skeleton follows the new shape.
+- **Logic and tests** (7 new, 664 total): `lib/my-list.ts` has `parseMyListView()` (moved out of the page: anything but "favorites" is the watchlist, the first value wins when the param repeats), `MY_LIST_TABS` (labels and links, in order) and `myListEmptyCopy()` (the panel's line and hint per tab).
+- **Smoke** (still 47 checks): `has.myListPieces(view)` replaces `has.myList` on the two My List checks. It checks the two links in order with only the right one current, then either the grid or the empty panel (its line and button home), never both. The test account's lists aren't empty, so smoke sees the grid branch; `ui-capture`'s empty shot (view 22) waits on the same check plus the panel, which covers the other branch.
+- **Screenshots** (views 20, 21 and 22 in both themes at both widths): nothing needed fixing. The empty Favorites panel isn't in a capture (the test account has a favorite); it's the same markup with the other copy.
+- **`/code-review` (medium):** no correctness bugs. Fixed: the ready expressions checked the current tab twice (`has.myList` plus `has.myListPieces`), and the desktop tab skeleton's width was a bare number (now a `calc()` of the same values). Declined: raising the `.tabs` overrides' specificity over `.segmented`, since `globals.css` loads first so module rules win ties (Section 3's convention, which every step relies on). The other two findings were the docs below, not written yet when the review ran.
+- `docs/UI_REVIEW.md`: views 20, 21 and 22 and the skeleton line. `docs/UI_DIRECTION.md`: step 7 ticked, with an as-built note in the My List spec. `CLAUDE.md`: the step 7 pieces.
+- Checked: typecheck, lint and 664 tests clean (`format:check` flags only `CLAUDE.md`, CRLF working copy, as before); `ui-capture` against a local build; local smoke 47/47.
+- Next step: `docs/UI_DIRECTION.md` step 8 (sign in, reset, privacy, 404, error, skeletons).
+
 ### 2026-11-09 (UI step 6) — Post-M8 task 5: browse
 - **Browse page** (`app/browse/[provider]/page.tsx`) per `docs/UI_DIRECTION.md` Section 4. It keeps every query parameter (`sort`, `type`, `avail`, `genre`) and server rendering.
   - The header's width and `--gutter`.

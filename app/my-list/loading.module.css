@@ -1,9 +1,19 @@
+/* Placeholders shaped like the title and the Watchlist · Favorites control. */
 .titleSkeleton {
   width: 8rem;
   height: 2rem;
 }
 
 .tabsSkeleton {
-  width: 12rem;
-  height: 1.5rem;
+  width: 100%;
+  height: var(--control-height);
+  border-radius: var(--radius-sm);
+}
+
+/* Two 7.5rem segments (page.module.css) plus .segmented's gap, padding
+   and border. */
+@media (min-width: 601px) {
+  .tabsSkeleton {
+    width: calc(2 * 7.5rem + 2px + 2 * 3px + 2 * 1px);
+  }
 }

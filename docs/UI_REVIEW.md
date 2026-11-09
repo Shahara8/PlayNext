@@ -61,7 +61,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 ## Not shown in screenshots (described only)
 
-- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
+- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List (the title, the control and the grid), a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
 - **Error page.** If a page fails to load: heading "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a "Try again" button, a "Back to home" link and a small reference code. Same layout as the Not found page (view 16).
 - **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
 - **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
@@ -293,7 +293,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **How users get here.** "My List" in the header. Watchlist is the default tab.
 
-**What's on it.** The heading "My List", tabs "Watchlist" and "Favorites", and a grid of title cards (newest saved first). Tapping ✓ un-saves a title, and the list refreshes without it.
+**What's on it.** The heading "My List" and a segmented control "Watchlist · Favorites" (two links; the current one is filled with the accent color). On phones the control sits under the heading and spans the width in two equal halves; from 601 px it sits on the heading's row at the inline end. Below, the title card grid (newest saved first). Tapping ✓ un-saves a title, and the list refreshes without it. The page uses the header's width and `--gutter`.
 
 **Known constraints.** There's no "watched" state, sorting, or filtering here. A title can be on the watchlist and in favorites at once.
 
@@ -313,7 +313,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ## View 22: My List, empty
 
 
-**What's on it.** The empty watchlist: "Your watchlist is empty. Tap + on any title to save it for later. Find something to watch" (the link goes home). The empty Favorites tab is the same with "No favorites yet. Tap ♡ on any title to add it here."
+**What's on it.** The heading and segmented control as in view 20, then a centered panel (a card, at most 32rem wide) instead of the grid: a bold line "Your watchlist is empty", a muted hint "Tap + on any title to save it for later.", and a primary button "Find something to watch" that goes home. The empty Favorites tab is the same with "No favorites yet" and "Tap ♡ on any title to add it here." (not in the screenshots: the test account has a favorite).
 
 **Known constraints.** This is what every new user sees first on My List.
 

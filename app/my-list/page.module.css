@@ -1,39 +1,75 @@
+/* My List (docs/UI_DIRECTION.md Section 4): the header's width and --gutter,
+   so the content lines up with the logo. */
 .main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem var(--gutter);
+  padding: 2rem var(--gutter) 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
+/* The title, then Watchlist · Favorites; one row from 601 px. */
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* The shared .segmented control, a size up from the footer's: full width
+   on phones, two equal segments. */
 .tabs {
   display: flex;
-  gap: 1.25rem;
-  border-bottom: 1px solid var(--border);
 }
 
-.tab,
-.tabActive {
-  padding-bottom: 0.5rem;
-  margin-bottom: -1px;
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
+.tabs > * {
+  flex: 1;
+  font-size: 0.95rem;
+  padding-inline: 1.25rem;
 }
 
-.tab {
-  color: var(--text-muted);
-}
-
-.tabActive {
-  border-bottom-color: var(--accent);
-}
-
+/* The empty state: a centered panel with one line, a hint and a way out. */
 .empty {
-  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+  padding: 2rem 1.25rem;
+  text-align: center;
 }
 
-.emptyLink {
-  color: var(--accent);
-  text-decoration: underline;
+.emptyLine {
+  font-size: 1.125rem;
+}
+
+.emptyHint {
+  color: var(--text-muted);
+  margin-block-end: 0.75rem;
+}
+
+@media (min-width: 601px) {
+  .top {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tabs {
+    display: inline-flex;
+  }
+
+  .tabs > * {
+    flex: none;
+    min-width: 7.5rem;
+  }
+}
+
+@media (min-width: 761px) {
+  .main {
+    padding-block-start: 3rem;
+  }
 }

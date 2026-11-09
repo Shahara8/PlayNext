@@ -331,7 +331,7 @@ async function emptyWatchlist(page: Page, capturer: Capturer) {
       capturer.view({
         id: "22-my-list-empty",
         path: "/my-list",
-        ready: `${has.myList("/my-list")} && ${has.text("Your watchlist is empty")}`,
+        ready: `${has.myListPieces("watchlist")} && document.querySelector('main [data-empty-state]')`,
       }),
     );
   } finally {
