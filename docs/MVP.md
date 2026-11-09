@@ -46,7 +46,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - Removed the unused `resolveTheme`.
 
   Declined: caching the control's `localStorage` read (one read per render of one small control).
-- Checked: 591 tests; lint, typecheck, format and build clean. `ui-capture` against a local build was reviewed sheet by sheet in both themes at both widths (the filter grid was fixed from it). Local smoke 39/39.
+- Checked: 591 tests; lint, typecheck, format and build clean. `ui-capture` against a local build was reviewed sheet by sheet in both themes at both widths (the filter grid was fixed from it). Local smoke 39/39. Committed and pushed as `2084a7d`; **production smoke 39/39** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 1 (header and footer).
 
 ### 2026-11-09 (UI direction chosen) — Post-M8 task 5: Direction 1 + two additions, light and dark; build plan written
