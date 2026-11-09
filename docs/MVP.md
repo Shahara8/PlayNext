@@ -49,7 +49,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - Typecheck, lint and 635 tests clean. `format:check` flags only `CLAUDE.md` (CRLF working copy, as before).
   - `ui-capture` against a local build: views 05, 06 and 07 reviewed in both themes at both widths, and view 01 (shared field and icon) is unchanged.
   - Local smoke 43/43.
-  - Production smoke: after the deploy (next commit).
+  - Committed and pushed as `c2089cc`; **production smoke 43/43** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 6 (browse).
 
 ### 2026-11-09 (UI step 4) — Post-M8 task 5: the home page
