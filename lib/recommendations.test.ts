@@ -54,6 +54,7 @@ function title(
     release_date: null,
     genres: [],
     popularity: 0,
+    vote_average: null,
     ...overrides,
   };
 }

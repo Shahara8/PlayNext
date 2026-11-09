@@ -316,7 +316,18 @@ describe("setInWatchlist", () => {
 });
 
 describe("My List queries", () => {
-  const title = { tmdb_id: 1, title: "Something" };
+  const title = {
+    tmdb_id: 1,
+    title: "Something",
+    poster_path: "/p.jpg",
+    release_date: "2020-01-01",
+    media_type: "movie",
+    vote_average: 7.8,
+  };
+  // Every TitleSummary field, vote_average included, so cards can show the
+  // rating badge.
+  const embed =
+    "title_cache(tmdb_id,title,poster_path,release_date,media_type,vote_average)";
 
   it("getWatchlistTitles flattens the embed, newest first", async () => {
     const { client, builders } = makeClient({
@@ -325,6 +336,7 @@ describe("My List queries", () => {
 
     await expect(getWatchlistTitles(client, "u1")).resolves.toEqual([title]);
 
+    expect(builders.user_watchlist.select).toHaveBeenCalledWith(embed);
     expect(builders.user_watchlist.eq).toHaveBeenCalledWith("user_id", "u1");
     expect(builders.user_watchlist.order).toHaveBeenCalledWith("created_at", {
       ascending: false,
@@ -338,6 +350,7 @@ describe("My List queries", () => {
 
     await expect(getFavoriteTitles(client, "u1")).resolves.toEqual([title]);
 
+    expect(builders.user_title_feedback.select).toHaveBeenCalledWith(embed);
     expect(builders.user_title_feedback.eq).toHaveBeenCalledWith(
       "is_favorite",
       true,

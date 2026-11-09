@@ -15,29 +15,10 @@
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1.5rem 1rem;
-  margin-top: 0.5rem;
+  margin-block-start: 0.5rem;
 }
 
 .headingSkeleton {
   width: 140px;
   height: 1.6rem;
-}
-
-.cardSkeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.posterSkeleton {
-  width: 100%;
-  aspect-ratio: 2 / 3;
-}
-
-.lineSkeleton {
-  height: 0.9rem;
-  width: 80%;
 }

@@ -1,3 +1,4 @@
+import { TitleCardSkeleton } from "@/app/components/title-card";
 import styles from "./page.module.css";
 import skeletonStyles from "./loading.module.css";
 
@@ -6,12 +7,9 @@ export default function BrowseLoading() {
     <main className={styles.main}>
       <div className={`skeleton ${skeletonStyles.titleSkeleton}`} />
       <div className={`skeleton ${skeletonStyles.barSkeleton}`} />
-      <div className={styles.grid}>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className={skeletonStyles.cardSkeleton}>
-            <div className={`skeleton ${skeletonStyles.posterSkeleton}`} />
-            <div className={`skeleton ${skeletonStyles.lineSkeleton}`} />
-          </div>
+      <div className="title-grid">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <TitleCardSkeleton key={i} />
         ))}
       </div>
     </main>

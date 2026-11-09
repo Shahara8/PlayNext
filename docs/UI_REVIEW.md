@@ -54,8 +54,8 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 - **Header.** A white (dark: dark navy) bar with a bottom border; it doesn't stick to the top while scrolling. "PlayNext" logo (goes home) on the left; on the right: a magnifier icon button (goes to Search; screen readers hear "Search"), Browse (desktop only, since it duplicates the logo link), My List, and either a "Sign in" button in the accent color or the user's first name (muted) plus "Sign out". Every item is a 44 px tap target, with a light gray fill on hover.
 - **Footer.** The same surface and a top border, matching the header. "PlayNext" (bold), a Privacy link, "Title data from TMDB" (required attribution; the links are underlined, muted, 44 px tall), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones). The header and footer share a side padding (16 px on phones, 24 px wider); the pages don't all use it yet, so some phone pages are indented 8 px more than the header.
-- **Title card** (home, browse, My List). Poster, title, year and type ("Movie"/"TV Series"), then the **save controls**: ♡ favorite, + watchlist (✓ once saved), 👍 like, 👎 dislike, and a "Rate" select (1/10 to 10/10). The poster and name link to the title page. Saved states show as a button tinted with the accent color, with an accent border (see views 18 to 21).
-- **Grids.** 2 columns on phones, up to 7 on desktop.
+- **Title card** (home, browse, My List; rebuilt in UI step 3). The poster (2:3, rounded) with a **★ rating badge** (TMDB's score, in the rating color on a surface chip) at its top inline-end corner, the title (2 lines at most) and "year · type" ("2016 · TV Series"). The poster, title and meta are one link to the title page. Below them just two 36 px icon buttons: **♡ favorite** and **+ watchlist** (✓ once saved); like, dislike and rating are on the title page only. Saved states show as a button tinted with the accent color, with an accent border and an accent icon (see views 18 to 21). The buttons sit at the bottom of the card, so a row of cards keeps them in line when one title wraps to two lines. A title with no TMDB score (or a score of 0, meaning no votes) has no badge.
+- **Grids.** 2 columns on phones, 3 on tablets (601–899 px), 5 from 900 px and 6 from 1180 px. The home, browse and My List pages use the `--gutter` side padding, so the grid lines up with the logo.
 - **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
 - **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (left border), in the dots on search results and the title page, and as the Watch buttons on the title page.
 
@@ -78,7 +78,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** The heading "PlayNext" and the line "Pick a streaming service to browse what's on it."; five service tiles (colored left border), 2 per row on phones and 5 in a row on desktop; then a **Trending** section: the line "Sign in and like a few titles to get personal picks" and 12 title cards.
 
-**Known constraints.** The tiles are text only (no logos: we have no rights to use the services' logos). On phones the page is long: 12 cards in 2 columns, each with two rows of controls. There's no search box on the home page; search is its own page.
+**Known constraints.** The tiles are text only (no logos: we have no rights to use the services' logos). On phones the page is long: 12 cards in 2 columns. There's no search box on the home page; search is its own page.
 
 ![Phone, light](images/01-home-phone-light.png) ![Desktop, light](images/01-home-desktop-light.png)
 
@@ -268,7 +268,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ## View 18: Browse (signed in)
 
 
-**What's on it.** As view 02, with the user's saved states on the cards: Breaking Bad shows a filled ♥ and a highlighted 👍, and The Witcher shows ✓ (on the watchlist).
+**What's on it.** As view 02, with the user's saved states on the cards: Breaking Bad shows a filled ♥ (its like shows only on the title page), and The Witcher shows ✓ (on the watchlist).
 
 ![Phone, light](images/18-browse-signed-in-phone-light.png) ![Desktop, light](images/18-browse-signed-in-desktop-light.png)
 

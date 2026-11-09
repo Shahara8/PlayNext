@@ -109,7 +109,7 @@ export default async function BrowsePage({
           )}
         </p>
       ) : (
-        <div className={styles.grid}>
+        <div className="title-grid">
           {rows.map((row) => (
             <TitleCard
               key={row.availability_id}

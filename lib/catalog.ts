@@ -166,10 +166,11 @@ export type CatalogTitle = Pick<
   | "release_date"
   | "genres"
   | "popularity"
+  | "vote_average"
 >;
 
 const CATALOG_TITLE_COLUMNS =
-  "tmdb_id,media_type,title,poster_path,release_date,genres,popularity";
+  "tmdb_id,media_type,title,poster_path,release_date,genres,popularity,vote_average";
 
 // Rows per page when walking v_catalog in trending order. Kept well below
 // PostgREST's max-rows cap (1000 by default), so a short page reliably means

@@ -16,3 +16,14 @@ export function titleWithYear(title: {
 export function mediaTypeLabel(mediaType: "movie" | "tv"): string {
   return mediaType === "tv" ? "TV Series" : "Movie";
 }
+
+/**
+ * A TMDB vote average as shown on the ★ rating badge ("7.8"), or null when
+ * there's nothing to show: unknown, or 0 (TMDB's value for a title nobody has
+ * voted on yet, not a real score).
+ */
+export function ratingLabel(voteAverage: number | null): string | null {
+  if (voteAverage == null || !Number.isFinite(voteAverage)) return null;
+  const label = voteAverage.toFixed(1);
+  return voteAverage > 0 && label !== "0.0" ? label : null;
+}

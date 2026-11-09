@@ -2,21 +2,33 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 }
 
+/* The actions sit at the card's bottom, so a row of cards keeps its ♡ and +
+   buttons in line when one title wraps to two lines. */
+.actions {
+  margin-block-start: auto;
+}
+
+/* Positioned so the rating badge (last in the DOM) can sit on the poster. */
 .link {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.25rem;
+  border-radius: var(--radius);
 }
 
 .posterWrap {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: 0.5rem;
+  margin-block-end: 0.25rem;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
 .poster {
@@ -28,21 +40,63 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.85rem;
 }
 
+.badge {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.125rem 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--rating);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* Two lines at most; the full title is on the title page (and in the link's
+   name). */
 .title {
-  font-size: 0.95rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.9375rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.3;
+}
+
+.link:hover .title {
+  color: var(--accent);
 }
 
 .meta {
-  display: flex;
-  gap: 0.4rem;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
+}
+
+.posterSkeleton {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius);
+}
+
+.lineSkeleton {
+  height: 0.9rem;
+  width: 80%;
+}
+
+.metaSkeleton {
+  height: 0.8rem;
+  width: 50%;
 }

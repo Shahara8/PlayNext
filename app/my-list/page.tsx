@@ -65,7 +65,7 @@ export default async function MyListPage({
           </Link>
         </p>
       ) : (
-        <div className={styles.grid}>
+        <div className="title-grid">
           {titles.map((title) => (
             <TitleCard
               key={titleKey(title)}

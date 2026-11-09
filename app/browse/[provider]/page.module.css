@@ -1,16 +1,10 @@
 .main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 1.5rem;
+  padding: 3rem var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1.5rem 1rem;
 }
 
 .empty {

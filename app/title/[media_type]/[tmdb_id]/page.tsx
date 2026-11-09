@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getCatalogByTitle } from "@/lib/catalog";
 import { posterUrl } from "@/lib/tmdb-image";
-import { mediaTypeLabel, releaseYear, titleWithYear } from "@/lib/format";
+import {
+  mediaTypeLabel,
+  ratingLabel,
+  releaseYear,
+  titleWithYear,
+} from "@/lib/format";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { NOT_FOUND_METADATA, titleMetadata } from "@/lib/seo";
 import {
@@ -53,6 +58,7 @@ export default async function TitleDetailPage({ params }: { params: Params }) {
   const poster = posterUrl(title.poster_path, "w500");
   const year = releaseYear(title.release_date);
   const typeLabel = mediaTypeLabel(title.media_type);
+  const rating = ratingLabel(title.vote_average);
 
   // Phone: poster beside the title block, then Where to watch, actions and
   // overview at full width (.info is display: contents there). Desktop: the
@@ -75,13 +81,13 @@ export default async function TitleDetailPage({ params }: { params: Params }) {
             <h1>{title.title}</h1>
             <p className={styles.meta}>
               {[year, typeLabel].filter(Boolean).join(" · ")}
-              {title.vote_average != null && (
+              {rating && (
                 <>
                   {" · "}
                   <span className={styles.rating}>
                     <span aria-hidden="true">★ </span>
                     <span className="sr-only">TMDB rating </span>
-                    {title.vote_average.toFixed(1)}
+                    {rating}
                   </span>
                 </>
               )}

@@ -1,7 +1,7 @@
 .main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 1.5rem;
+  padding: 3rem var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

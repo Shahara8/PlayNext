@@ -235,6 +235,10 @@ describe("getTrendingTitles", () => {
     const result = await getTrendingTitles(3);
 
     expect(from).toHaveBeenCalledWith("v_catalog");
+    // vote_average feeds the cards' rating badge.
+    expect(builder.select).toHaveBeenCalledWith(
+      "tmdb_id,media_type,title,poster_path,release_date,genres,popularity,vote_average",
+    );
     expect(builder.eq).toHaveBeenCalledWith("region", "IL");
     expect(builder.eq).toHaveBeenCalledTimes(1);
     expect(builder.order).toHaveBeenNthCalledWith(1, "popularity", {
@@ -349,6 +353,9 @@ describe("getCatalogTitlesByRefs", () => {
     const result = await getCatalogTitlesByRefs([movie(1), movie(2), movie(2)]);
 
     expect(from).toHaveBeenCalledWith("v_catalog");
+    expect(builder.select).toHaveBeenCalledWith(
+      "tmdb_id,media_type,title,poster_path,release_date,genres,popularity,vote_average",
+    );
     expect(builder.eq).toHaveBeenCalledWith("region", "IL");
     expect(builder.eq).toHaveBeenCalledWith("media_type", "movie");
     expect(builder.in).toHaveBeenCalledWith("tmdb_id", [1, 2]);

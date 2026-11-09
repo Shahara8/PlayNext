@@ -9,7 +9,7 @@ import {
   getCurrentUser,
 } from "@/lib/supabase-server";
 import { titleKey } from "@/lib/title-ref";
-import TitleCard from "./title-card";
+import TitleCard, { TitleCardSkeleton } from "./title-card";
 import styles from "./for-you.module.css";
 
 const HOME_LIMIT = 12;
@@ -78,7 +78,7 @@ export default async function ForYou() {
       {recommendations.titles.length === 0 ? (
         <p className={styles.caption}>Nothing to recommend right now.</p>
       ) : (
-        <div className={styles.grid}>
+        <div className={`title-grid ${styles.grid}`}>
           {recommendations.titles.map((title) => (
             <TitleCard
               key={titleKey(title)}
@@ -96,12 +96,9 @@ export function ForYouSkeleton() {
   return (
     <section className={styles.section}>
       <div className={`skeleton ${styles.headingSkeleton}`} />
-      <div className={styles.grid}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className={styles.cardSkeleton}>
-            <div className={`skeleton ${styles.posterSkeleton}`} />
-            <div className={`skeleton ${styles.lineSkeleton}`} />
-          </div>
+      <div className={`title-grid ${styles.grid}`}>
+        {Array.from({ length: HOME_LIMIT }).map((_, i) => (
+          <TitleCardSkeleton key={i} />
         ))}
       </div>
     </section>

@@ -33,8 +33,9 @@ export default function TitleActions({
   initialState?: TitleUserState;
   /** The viewer's saved state couldn't be loaded — render disabled, not empty. */
   unavailable?: boolean;
-  /** The title page's large buttons with text ("♡ Favorite"); cards stay
-   * compact icons. Only markup and style differ, never behavior. */
+  /** The title page's large buttons with text ("♡ Favorite") plus like,
+   * dislike and Rate. Without it (cards), just ♡ and + as compact icons. The
+   * shared buttons behave the same in both. */
   labeled?: boolean;
 }) {
   const router = useRouter();
@@ -118,7 +119,7 @@ export default function TitleActions({
 
   const buttonClass = labeled
     ? `btn btn-secondary ${styles.labeled}`
-    : styles.button;
+    : styles.icon;
   // Compact buttons are icons, named by aria-label. Labeled ones are named by
   // their visible text (the icon is hidden), so the name always matches what's
   // on screen ("On watchlist" included). `data-action` is the stable hook for
@@ -157,53 +158,57 @@ export default function TitleActions({
         {icon(state.inWatchlist ? "✓" : "+")}
         {labeled && (state.inWatchlist ? "On watchlist" : "Watchlist")}
       </button>
-      {/* Emoji only in both modes, so always named by aria-label. */}
-      <button
-        type="button"
-        className={buttonClass}
-        data-action="like"
-        aria-label="Like"
-        title="Like"
-        aria-pressed={state.sentiment === "like"}
-        disabled={disabled}
-        onClick={() => toggleSentiment("like")}
-      >
-        👍
-      </button>
-      <button
-        type="button"
-        className={buttonClass}
-        data-action="dislike"
-        aria-label="Dislike"
-        title="Dislike"
-        aria-pressed={state.sentiment === "dislike"}
-        disabled={disabled}
-        onClick={() => toggleSentiment("dislike")}
-      >
-        👎
-      </button>
-      <select
-        className={labeled ? `select ${styles.ratingLarge}` : styles.rating}
-        aria-label="Your rating"
-        value={state.rating ?? ""}
-        disabled={disabled}
-        // Signed out, the select has nothing to save: send them to sign in as
-        // soon as they reach for it, same as the buttons.
-        onMouseDown={(e) => {
-          if (!userId) {
-            e.preventDefault();
-            router.push("/login");
-          }
-        }}
-        onChange={(e) => changeRating(e.target.value)}
-      >
-        <option value="">Rate</option>
-        {RATING_VALUES.map((value) => (
-          <option key={value} value={value}>
-            {value}/10
-          </option>
-        ))}
-      </select>
+      {/* The title page only. Emoji, so named by aria-label. */}
+      {labeled && (
+        <>
+          <button
+            type="button"
+            className={buttonClass}
+            data-action="like"
+            aria-label="Like"
+            title="Like"
+            aria-pressed={state.sentiment === "like"}
+            disabled={disabled}
+            onClick={() => toggleSentiment("like")}
+          >
+            👍
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            data-action="dislike"
+            aria-label="Dislike"
+            title="Dislike"
+            aria-pressed={state.sentiment === "dislike"}
+            disabled={disabled}
+            onClick={() => toggleSentiment("dislike")}
+          >
+            👎
+          </button>
+          <select
+            className={`select ${styles.ratingLarge}`}
+            aria-label="Your rating"
+            value={state.rating ?? ""}
+            disabled={disabled}
+            // Signed out, the select has nothing to save: send them to sign
+            // in as soon as they reach for it, same as the buttons.
+            onMouseDown={(e) => {
+              if (!userId) {
+                e.preventDefault();
+                router.push("/login");
+              }
+            }}
+            onChange={(e) => changeRating(e.target.value)}
+          >
+            <option value="">Rate</option>
+            {RATING_VALUES.map((value) => (
+              <option key={value} value={value}>
+                {value}/10
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       {failed && (
         <p role="alert" className={styles.error}>
           Couldn&apos;t save. Try again.

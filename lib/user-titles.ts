@@ -24,11 +24,16 @@ export const EMPTY_TITLE_STATE: TitleUserState = {
 // embedded title_cache row, so My List can reuse the browse page's card.
 export type TitleSummary = Pick<
   CatalogRow,
-  "tmdb_id" | "title" | "poster_path" | "release_date" | "media_type"
+  | "tmdb_id"
+  | "title"
+  | "poster_path"
+  | "release_date"
+  | "media_type"
+  | "vote_average"
 >;
 
 const TITLE_SUMMARY_EMBED =
-  "title_cache(tmdb_id,title,poster_path,release_date,media_type)";
+  "title_cache(tmdb_id,title,poster_path,release_date,media_type,vote_average)";
 
 export const RATING_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 

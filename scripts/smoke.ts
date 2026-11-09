@@ -330,6 +330,14 @@ export const has = {
   /** A title action button (TitleActions' `data-action`), once enabled. */
   enabledAction: (action: string) =>
     `document.querySelector(${JSON.stringify(`[data-action="${action}"]:not([disabled])`)})`,
+  /** Title cards (step 3): ♡ and + on the cards, while like and dislike are
+   * on the title page only. */
+  titleCards: `document.querySelector('main [data-action="favorite"]') && document.querySelector('main [data-action="watchlist"]') && !document.querySelector('main [data-action="like"], main [data-action="dislike"]')`,
+  /** The same, where the page may legitimately have no cards (a signed-in
+   * home with nothing to recommend, an empty My List tab). */
+  get cardsIfAny() {
+    return `(!${this.titleLinks} || (${this.titleCards}))`;
+  },
   /** My List with the given tab marked current (so the right view rendered). */
   myList: (href: string) =>
     `document.querySelector(${JSON.stringify(`main a[href="${href}"][aria-current="page"]`)})`,
@@ -352,9 +360,13 @@ function signedOutPages(
       path: "/",
       // The footer's privacy link: Google's OAuth review wants the homepage
       // to link to the privacy policy.
-      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]') && ${has.headerNav} && ${has.providerTiles}`,
+      ready: `${has.heading2("Trending")} && ${has.titleLinks} && ${has.titleCards} && document.querySelector('footer a[href="/privacy"]') && ${has.headerNav} && ${has.providerTiles}`,
     },
-    { label: "browse", path: "/browse/netflix", ready: has.titleLinks },
+    {
+      label: "browse",
+      path: "/browse/netflix",
+      ready: `${has.titleLinks} && ${has.titleCards}`,
+    },
     {
       label: "browse partner tv",
       path: "/browse/partner-tv",
@@ -413,17 +425,17 @@ function signedInPages(titlePath: string): PageSpec[] {
     {
       label: "home",
       path: "/",
-      ready: `${has.heading2("For You")} && ${has.signOut}`,
+      ready: `${has.heading2("For You")} && ${has.signOut} && ${has.cardsIfAny}`,
     },
     {
       label: "my list",
       path: "/my-list",
-      ready: `${has.myList("/my-list")} && ${has.signOut} && ${has.headerNav}`,
+      ready: `${has.myList("/my-list")} && ${has.signOut} && ${has.headerNav} && ${has.cardsIfAny}`,
     },
     {
       label: "my list favorites",
       path: "/my-list?view=favorites",
-      ready: `${has.myList("/my-list?view=favorites")} && ${has.signOut}`,
+      ready: `${has.myList("/my-list?view=favorites")} && ${has.signOut} && ${has.cardsIfAny}`,
     },
     {
       label: "title",
