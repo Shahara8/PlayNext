@@ -12,7 +12,7 @@ export default async function AuthNav() {
 
   if (!user) {
     return (
-      <Link href="/login" className={styles.link}>
+      <Link href="/login" className={`btn btn-primary ${styles.signIn}`}>
         Sign in
       </Link>
     );
@@ -23,14 +23,12 @@ export default async function AuthNav() {
   return (
     <form action={signOutAction} className={styles.userGroup}>
       {name && (
-        // Full name on wide screens, first name on phones; the tooltip
-        // always says which account it is.
+        // First name only, at every width; the tooltip says which account.
         <span className={styles.userName} title={user.email ?? name.full}>
-          <span className={styles.nameFull}>{name.full}</span>
-          <span className={styles.nameShort}>{name.short}</span>
+          {name.short}
         </span>
       )}
-      <button type="submit" className={styles.signOutButton}>
+      <button type="submit" className={styles.link}>
         Sign out
       </button>
     </form>

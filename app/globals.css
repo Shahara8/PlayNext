@@ -27,6 +27,14 @@
   --radius: 12px;
   --radius-lg: 16px;
   --control-height: 44px;
+  /* Side padding of the header, footer and (from steps 2-8) page content. */
+  --gutter: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --gutter: 1rem;
+  }
 }
 
 :root[data-theme="dark"] {

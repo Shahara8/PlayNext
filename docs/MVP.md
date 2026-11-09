@@ -14,6 +14,26 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 1) — Post-M8 task 5: header and footer
+- **Header** (`app/components/header.tsx`, `auth-nav.tsx`) per `docs/UI_DIRECTION.md` Section 4. It is `--surface` with a bottom border and isn't sticky. It has the logo, a magnifier icon link to `/search` (`aria-label="Search"`), Browse (desktop only), My List, and either a primary "Sign in" button or the first name (muted) plus "Sign out". Every item is a 44 px target with a `--surface-2` hover fill. The auth skeleton now matches the Sign in button's height.
+  - Deviations: the signed-in name is the first name at every width (it used to be the full name on desktop; the spec says "the same" on desktop). The name is hidden below 400 px, so the row fits on a 360 px phone. The email tooltip stays.
+- **Footer**: the same surface and border as the header, "PlayNext" in bold, and muted underlined links with 44 px targets. Privacy stays on every page.
+- **New layout token `--gutter`** in `app/globals.css` (1.5rem, 1rem at 600 px and below): the header and footer use it, and steps 2–8 should adopt it for page padding. Until then some phone pages sit 8 px further in than the logo (recorded in `docs/UI_DIRECTION.md` Section 3 and in `docs/UI_REVIEW.md`).
+- **Smoke** (41 checks): `has.headerNav` (search icon link plus My List) on the home and My List pages, and a new "header one row on phones" check, signed out and signed in, at 412 and 360 px.
+- No new logic, so no new unit tests (591).
+- `docs/UI_REVIEW.md`: Header, Footer, and the Search and signed-in-home text updated.
+- **`/code-review` (medium)**, fixed:
+  - the 360 px signed-in wrap;
+  - the phone padding override on `.btn` (dropped);
+  - the duplicated `.iconLink` reset (now `.link.iconLink` once);
+  - no layout guard in smoke (the one-row check above).
+
+  Declined:
+  - the auth skeleton can't match the signed-in width (the session is unknown until it streams; this was already the case);
+  - the TMDB link's inline alignment (it looks aligned in all 92 captures).
+- Checked: lint, typecheck, format and build clean. `ui-capture` against a local build: the header and footer were reviewed in every view, both themes and both widths (contact sheets of the top and bottom strips). Local smoke 41/41.
+- Next step: `docs/UI_DIRECTION.md` step 2 (title page).
+
 ### 2026-11-09 (UI step 0) — Post-M8 task 5: the foundation (tokens, theme setting, Geist, shared styles)
 - **Tokens** for light and dark in `app/globals.css` (`docs/UI_DIRECTION.md` Section 3), with dark under both `data-theme="dark"` and the device preference unless Light was chosen. `lib/color.test.ts` reads them from the stylesheet and asserts WCAG AA for every text token on every background in both themes.
   - Two starting values failed on `--surface-2` and were darkened (light `--rating` `#a3480a`, `--danger` `#c81e1e`).

@@ -52,8 +52,8 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 ## Elements that recur on every view
 
-- **Header.** "PlayNext" logo (goes home) on the left; on the right: Browse (desktop only, since it duplicates the logo link), Search, My List, and either "Sign in" or the user's name (first name on phones, in muted text) plus "Sign out". It doesn't stick to the top while scrolling.
-- **Footer.** "PlayNext", a Privacy link, "Title data from TMDB" (required attribution), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones).
+- **Header.** A white (dark: dark navy) bar with a bottom border; it doesn't stick to the top while scrolling. "PlayNext" logo (goes home) on the left; on the right: a magnifier icon button (goes to Search; screen readers hear "Search"), Browse (desktop only, since it duplicates the logo link), My List, and either a "Sign in" button in the accent color or the user's first name (muted) plus "Sign out". Every item is a 44 px tap target, with a light gray fill on hover.
+- **Footer.** The same surface and a top border, matching the header. "PlayNext" (bold), a Privacy link, "Title data from TMDB" (required attribution; the links are underlined, muted, 44 px tall), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones). The header and footer share a side padding (16 px on phones, 24 px wider); the pages don't all use it yet, so some phone pages are indented 8 px more than the header.
 - **Title card** (home, browse, My List). Poster, title, year and type ("Movie"/"TV Series"), then the **save controls**: ♡ favorite, + watchlist (✓ once saved), 👍 like, 👎 dislike, and a "Rate" select (1/10 to 10/10). The poster and name link to the title page. Saved states show as a button tinted with the accent color, with an accent border (see views 18 to 21).
 - **Grids.** 2 columns on phones, up to 7 on desktop.
 - **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
@@ -124,7 +124,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** Find a specific title across all services: the main "where can I watch X?" job.
 
-**How users get here.** "Search" in the header. The box has focus right away.
+**How users get here.** The search icon in the header. The box has focus right away.
 
 **What's on it.** The heading "Search", the search box ("Search for a movie or show…") and the line "Start typing to search the catalog."
 
@@ -254,7 +254,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** As view 01, but the second section is **For You** (personal picks).
 
-**What's on it.** The header shows the user's name and "Sign out". The For You caption explains what the list is based on. For this test account it reads "Nothing like your picks is in our catalog yet, so here's what's trending." (the tiny mock catalog has nothing similar to its likes). Other captions: "Based on what you've liked.", "Based on what you've liked, plus trending titles." and, with no likes yet, "Like, favorite, or rate titles 7+ to personalize this. Trending picks for now." Titles the user already saved or rated are left out.
+**What's on it.** The header shows the user's first name and "Sign out". The For You caption explains what the list is based on. For this test account it reads "Nothing like your picks is in our catalog yet, so here's what's trending." (the tiny mock catalog has nothing similar to its likes). Other captions: "Based on what you've liked.", "Based on what you've liked, plus trending titles." and, with no likes yet, "Like, favorite, or rate titles 7+ to personalize this. Trending picks for now." Titles the user already saved or rated are left out.
 
 ![Phone, light](images/17-home-signed-in-phone-light.png) ![Desktop, light](images/17-home-signed-in-desktop-light.png)
 

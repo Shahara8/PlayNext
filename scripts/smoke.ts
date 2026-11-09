@@ -324,6 +324,8 @@ export const has = {
   text: (text: string) =>
     `document.body.innerText.includes(${JSON.stringify(text)})`,
   signOut: `[...document.querySelectorAll('header button')].some((b) => b.textContent.includes('Sign out'))`,
+  /** The header's search icon link (named for screen readers) and My List. */
+  headerNav: `document.querySelector('header a[href="/search"][aria-label="Search"]') && document.querySelector('header a[href="/my-list"]')`,
   passwordInput: `document.querySelector('input[type=password]')`,
   enabledButton: (label: string) =>
     `document.querySelector(${JSON.stringify(`[aria-label="${label}"]:not([disabled])`)})`,
@@ -349,7 +351,7 @@ function signedOutPages(
       path: "/",
       // The footer's privacy link: Google's OAuth review wants the homepage
       // to link to the privacy policy.
-      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]') && ${has.providerTiles}`,
+      ready: `${has.heading2("Trending")} && ${has.titleLinks} && document.querySelector('footer a[href="/privacy"]') && ${has.headerNav} && ${has.providerTiles}`,
     },
     { label: "browse", path: "/browse/netflix", ready: has.titleLinks },
     {
@@ -415,7 +417,7 @@ function signedInPages(titlePath: string): PageSpec[] {
     {
       label: "my list",
       path: "/my-list",
-      ready: `${has.myList("/my-list")} && ${has.signOut}`,
+      ready: `${has.myList("/my-list")} && ${has.signOut} && ${has.headerNav}`,
     },
     {
       label: "my list favorites",
@@ -618,6 +620,41 @@ async function resetLinkGate(page: Page, options: SmokeOptions, email: string) {
   );
 }
 
+/** A small phone, below VIEWPORTS' 412 px, for the header's one-row check. */
+const NARROW_PHONE: Viewport = {
+  ...VIEWPORTS[0],
+  name: "narrow phone",
+  width: 360,
+};
+
+/**
+ * The header stays one row (docs/UI_DIRECTION.md step 1) at the phone widths,
+ * once the session's slot (Sign in, or the name plus Sign out) has rendered.
+ */
+async function headerOneRow(page: Page, signedIn: boolean): Promise<string> {
+  const authReady = signedIn
+    ? has.signOut
+    : `document.querySelector('header a[href="/login"]')`;
+  const heights: string[] = [];
+  try {
+    for (const viewport of [VIEWPORTS[0], NARROW_PHONE]) {
+      await page.setViewport(viewport);
+      await page.goto("/");
+      await page.waitFor(`${has.headerNav} && ${authReady}`, "the header");
+      // One 44 px row plus the bar's padding; a wrapped row adds another 44.
+      const height = await page.eval<number>(
+        `document.querySelector('header nav').getBoundingClientRect().height`,
+      );
+      if (height > 70)
+        throw new Error(`${viewport.width}px: header is ${height}px tall`);
+      heights.push(`${viewport.width}px: ${Math.round(height)}px`);
+    }
+  } finally {
+    await page.setViewport(VIEWPORTS[0]);
+  }
+  return heights.join(", ");
+}
+
 // --- Main --------------------------------------------------------------------
 
 /**
@@ -755,6 +792,9 @@ async function main() {
     await runner.check("theme setting (Dark sticks, Light, System)", () =>
       themeSetting(page),
     );
+    await runner.check("header one row on phones (signed out)", () =>
+      headerOneRow(page, false),
+    );
 
     if (!options.signedOutOnly) {
       await page.setViewport(VIEWPORTS[0]);
@@ -768,6 +808,9 @@ async function main() {
           await page.setViewport(viewport);
           await runner.pages(page, "signed-in", signedInPages(titlePath));
         }
+        await runner.check("header one row on phones (signed in)", () =>
+          headerOneRow(page, true),
+        );
         await page.setViewport(VIEWPORTS[0]);
         await runner.check("watchlist journey (title → My List, undone)", () =>
           watchlistJourney(page, titlePath),

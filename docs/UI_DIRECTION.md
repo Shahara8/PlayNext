@@ -52,7 +52,7 @@ Post-M8 task 5 (`docs/MVP.md`). This file is the spec for the UI rebuild: what w
 | `--danger` | `#c81e1e` | `#f87171` | errors |
 | `--success` | `#047857` | `#34d399` | "Subscription"/"Free" availability text |
 
-Checked in step 0: `lib/color.test.ts` reads these from `app/globals.css` and asserts AA for every text token on `--bg`, `--surface` and `--surface-2` in both themes, plus the accent pairs and `--border-strong`'s 3:1. Step 0 changed the starting values: light `--rating` (was `#b45309`, 4.41:1 on `--surface-2`) and `--danger` (was `#dc2626`, 4.24:1), and added `--border-strong` and `--accent-soft`. Radius: `--radius-sm 8px`, `--radius 12px`, `--radius-lg 16px`. Spacing on a 4 px grid. Shadows only in light mode (dark uses borders).
+Checked in step 0: `lib/color.test.ts` reads these from `app/globals.css` and asserts AA for every text token on `--bg`, `--surface` and `--surface-2` in both themes, plus the accent pairs and `--border-strong`'s 3:1. Step 0 changed the starting values: light `--rating` (was `#b45309`, 4.41:1 on `--surface-2`) and `--danger` (was `#dc2626`, 4.24:1), and added `--border-strong` and `--accent-soft`. Radius: `--radius-sm 8px`, `--radius 12px`, `--radius-lg 16px`. Spacing on a 4 px grid. Layout: `--control-height` 44 px and (step 1) `--gutter`, the side padding: 1.5rem, 1rem at 600 px and below. The header and footer use it; each page adopts it in its own step, so content lines up with the logo. Shadows only in light mode (dark uses borders).
 
 - **Font:** Geist, already loaded in `app/layout.tsx` but unused today (the body says Arial). Switch the body to `var(--font-geist-sans)`. Headings 700, body 400/500. Sizes: page title 28/32 px (phone/desktop), section title 18 px, body 15–16 px, meta 13 px.
 - **Service colors** stay in `lib/providers.ts`. Add an `onColor` field (text color on that brand color) chosen by a contrast helper in `lib/color.ts`, unit-tested so each Watch button passes AA (e.g. yes amber gets dark text). Service colors appear as: a dot next to the name everywhere, the Watch button background, and a thin accent on service tiles.
@@ -130,7 +130,7 @@ For every step:
 ## 6. Steps
 
 - [x] **0. Foundation.** Done 2026-11-09 (see `docs/MVP.md` Progress Log). Tokens for both themes; the theme mechanism (`lib/theme.ts` plus tests, the inline script, the footer control); Geist font; shared button/input/select/chip/card/segmented/focus styles; `onColor` per provider (`lib/color.ts` plus tests). Extend `npm run ui-capture` to shoot every view in both themes (a light and a dark image per view and width, set with `Emulation.setEmulatedMedia`; drop the separate dark views 24–25), and update the document's image references. Existing pages should already look coherent in both themes.
-- [ ] **1. Header and footer.**
+- [x] **1. Header and footer.** Done 2026-11-09 (see `docs/MVP.md` Progress Log). Search is an icon link named "Search"; the signed-in name is the first name at every width; Sign in is a primary button; the footer matches the header's surface. Added a `--gutter` layout token (Section 3) that steps 2–8 should use for page side padding.
 - [ ] **2. Title page** (Where to watch first, service-colored Watch buttons, labeled actions, desktop two-column; availability sort plus tests).
 - [ ] **3. Title cards and grids** (rating badge, ♡ and + only; `vote_average` in `TitleSummary` plus tests).
 - [ ] **4. Home** (search form, service tiles via `getProviderSummaries()` plus tests, featured trending title, grid).
