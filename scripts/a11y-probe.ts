@@ -96,26 +96,33 @@ export const tapTargetsProbe = `(() => {
     if (!visible(el)) continue;
     const r = el.getBoundingClientRect();
     let width = r.width, height = r.height;
-    // The pseudo-element is placed in its containing block: the element
-    // itself when positioned, otherwise its nearest positioned ancestor (a
-    // link stretched over its card), inside that box's border.
-    let cb = el;
-    if (getComputedStyle(el).position === 'static') {
-      cb = el.parentElement;
-      while (cb && cb !== document.body && getComputedStyle(cb).position === 'static') cb = cb.parentElement;
-    }
-    const cbs = getComputedStyle(cb);
-    const cr = cb.getBoundingClientRect();
-    const cbWidth = cb === el ? r.width : cr.width - parseFloat(cbs.borderLeftWidth) - parseFloat(cbs.borderRightWidth);
-    const cbHeight = cb === el ? r.height : cr.height - parseFloat(cbs.borderTopWidth) - parseFloat(cbs.borderBottomWidth);
+    // An absolute pseudo-element is placed in its containing block's
+    // padding box: the element itself when positioned, otherwise its
+    // nearest positioned ancestor (a link stretched over its card), or the
+    // viewport when there is none. Worked out only once a pseudo qualifies.
+    // (Doesn't account for what's stacked above it: a stretched link's
+    // uncovered area is checked by the page's own smoke helper.)
+    let box = null;
+    const containingBox = () => {
+      let cb = el;
+      while (cb && cb !== document.documentElement && getComputedStyle(cb).position === 'static') cb = cb.parentElement;
+      if (!cb || cb === document.documentElement) return { width: innerWidth, height: innerHeight };
+      const cs = getComputedStyle(cb);
+      const cr = cb.getBoundingClientRect();
+      return {
+        width: cr.width - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth),
+        height: cr.height - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth),
+      };
+    };
     for (const pseudo of ['::before', '::after']) {
       const ps = getComputedStyle(el, pseudo);
       if (ps.content === 'none' || ps.position !== 'absolute') continue;
       const px = (v) => (v.endsWith('px') ? parseFloat(v) : NaN);
       const [t, rt, b, l] = [ps.top, ps.right, ps.bottom, ps.left].map(px);
       if ([t, rt, b, l].some(Number.isNaN)) continue;
-      width = Math.max(width, cbWidth - l - rt);
-      height = Math.max(height, cbHeight - t - b);
+      box ??= containingBox();
+      width = Math.max(width, box.width - l - rt);
+      height = Math.max(height, box.height - t - b);
     }
     // In a sentence: an inline-level link (inline, inline-block,
     // inline-flex) with bare text beside it ("Title data from TMDB",

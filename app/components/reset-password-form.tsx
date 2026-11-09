@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
-import { firstIssueMessage, newPasswordSchema, runAuthCall } from "@/lib/auth";
+import { firstIssue, newPasswordSchema, runAuthCall } from "@/lib/auth";
 import FormField from "./form-field";
 import FormMessage from "./form-message";
 import card from "./center-card.module.css";
@@ -24,7 +24,10 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
 
     const parsed = newPasswordSchema.safeParse({ password });
     if (!parsed.success) {
-      setPasswordError(firstIssueMessage(parsed.error));
+      // Under the field when it's about the password, else above the button.
+      const issue = firstIssue(parsed.error);
+      if (issue.field === "password") setPasswordError(issue.message);
+      else setError(issue.message);
       return;
     }
 

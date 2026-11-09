@@ -21,6 +21,7 @@ import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { PROVIDERS } from "../lib/providers";
 import { MY_LIST_TABS, myListEmptyCopy, type MyListView } from "../lib/my-list";
+import { titleCountLabel } from "../lib/format";
 import { LOGIN_TABS, loginCopy, type LoginMode } from "../lib/login";
 import { AUTH_CALLBACK_ERROR_MESSAGE, RESET_MODE_PARAM } from "../lib/auth";
 import { createPublicClient } from "../lib/supabase";
@@ -474,7 +475,8 @@ export const has = {
     const count = document.querySelector('main [data-my-list-count]');
     if (grid) {
       const n = grid.children.length;
-      return count?.textContent.trim() === (n === 1 ? '1 title' : n.toLocaleString('en-US') + ' titles');
+      // titleCountLabel itself (self-contained), so the check can't drift.
+      return count?.textContent.trim() === (${titleCountLabel.toString()})(n);
     }
     if (count) return false;
     const button = empty.querySelector('a.btn.btn-primary[href="/"]');
@@ -550,7 +552,6 @@ export const has = {
       ["Back to home", "/"],
     ]);
   },
-  /** A form's error or confirmation (FormMessage) with the given text. */
   /** A field's own error (form-field.tsx): the input marked invalid and
    * described by an error message that sits right after its label. */
   fieldError: (type: string, text: string) => `(() => {
@@ -559,6 +560,7 @@ export const has = {
     const msg = document.getElementById(input.getAttribute('aria-describedby') ?? '');
     return Boolean(msg?.matches('[data-form-message="error"]') && msg.textContent.includes(${JSON.stringify(text)}) && msg.previousElementSibling === input.closest('label'));
   })()`,
+  /** A form's error or confirmation (FormMessage) with the given text. */
   formMessage: (kind: "error" | "info", text: string) =>
     `document.querySelector(${JSON.stringify(`main [data-form-message="${kind}"]`)})?.textContent.includes(${JSON.stringify(text)})`,
   /** The privacy page's reading column (step 8): its paragraphs no wider

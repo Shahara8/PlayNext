@@ -63,7 +63,9 @@
 
 /* The whole card is the title link's hit area, so a tap on the year or the
    blank space opens the title too (and meets 44 px without .tap-target).
-   The focus ring stays on the title itself. */
+   The focus ring stays on the title itself. Accepted trade-off: the card's
+   text (title, year, rating) can't be selected to copy, the usual cost of a
+   stretched link; raising it above the link would undo the tap area. */
 .titleLink::after {
   content: "";
   position: absolute;

@@ -12,18 +12,24 @@ import styles from "./login-form.module.css";
 export default function FormField({
   label,
   error,
+  className,
+  "aria-describedby": describedBy,
   ...input
 }: { label: string; error?: string | null } & ComponentProps<"input">) {
   const errorId = useId();
+  // The caller's own description (a hint) is kept; the error is added to it.
+  const describedByIds =
+    [describedBy, error ? errorId : null].filter(Boolean).join(" ") ||
+    undefined;
   return (
     <div className={styles.fieldGroup}>
       <label className={styles.field}>
         {label}
         <input
           {...input}
-          className="input"
+          className={className ? `input ${className}` : "input"}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
+          aria-describedby={describedByIds}
         />
       </label>
       {error && (

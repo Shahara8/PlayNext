@@ -53,9 +53,11 @@ export default function LoginForm({
     setInfo(null);
   }
 
-  /** A validation problem: under its field, or the form's line if none. */
+  /** A validation problem: under its field when the form shows that field,
+   * otherwise on the form's line, so no message is ever lost. */
   function showIssue(issue: { field: string | null; message: string }) {
-    if (issue.field) setFieldError(issue);
+    const shown = mode === "reset" ? ["email"] : ["email", "password"];
+    if (issue.field && shown.includes(issue.field)) setFieldError(issue);
     else setError(issue.message);
   }
 
