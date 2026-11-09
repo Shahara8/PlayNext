@@ -1,21 +1,32 @@
+/* The title page (docs/UI_DIRECTION.md Section 4). The same width and side
+   padding as the header, so the poster lines up with the logo. */
 .main {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 3rem 1.5rem;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 1.5rem var(--gutter) 3rem;
 }
 
+/* Phone and tablet: a compact top block (poster beside the title block),
+   then Where to watch, the actions and the overview at full width. */
 .layout {
-  display: flex;
-  gap: 2rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 1.25rem 1rem;
+  align-items: start;
+}
+
+.info {
+  display: contents;
+}
+
+.info > :not(.head) {
+  grid-column: 1 / -1;
 }
 
 .posterWrap {
   position: relative;
-  flex: 0 0 260px;
-  width: 260px;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-2);
 }
@@ -29,103 +40,73 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 1rem;
+  padding: 0.5rem;
+  font-size: 0.85rem;
   text-align: center;
   color: var(--text-muted);
 }
 
-.info {
-  flex: 1 1 320px;
+.head {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.head h1 {
+  overflow-wrap: anywhere;
 }
 
 .meta {
-  display: flex;
-  gap: 1rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  font-size: 0.95rem;
+}
+
+.rating {
+  font-weight: 600;
+  color: var(--rating);
 }
 
 .genres {
   display: flex;
-  gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.overview {
-  line-height: 1.5;
-}
-
-.providers h2 {
-  font-size: 1.1rem;
-  margin-bottom: 0.75rem;
-}
-
-.providerList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.4rem;
   list-style: none;
 }
 
-/* Base look from the shared .card (app/globals.css). */
-.providerItem {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-height: var(--control-height);
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius-sm);
+.overview {
+  max-width: 70ch;
+  line-height: 1.6;
 }
 
-.providerDot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.providerName {
-  font-weight: 600;
-}
-
-.availabilityType {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  text-transform: capitalize;
-}
-
-.watchLink {
-  margin-inline-start: auto;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.watchLink:hover {
-  text-decoration: underline;
-}
-
-.actionsRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-/* Phones: a smaller poster so the title and actions show without scrolling. */
-@media (max-width: 600px) {
+/* Desktop: two columns, the poster (260 px) at the inline start and the
+   rest beside it. */
+@media (min-width: 801px) {
   .main {
-    padding: 1.5rem 1rem;
+    padding-block-start: 2.5rem;
   }
 
   .layout {
-    gap: 1.25rem;
+    grid-template-columns: 260px minmax(0, 46rem);
+    column-gap: 2.5rem;
   }
 
   .posterWrap {
-    flex-basis: 160px;
-    width: 160px;
+    border-radius: var(--radius);
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .head {
+    gap: 0.75rem;
+  }
+
+  .meta {
+    font-size: 0.95rem;
   }
 }

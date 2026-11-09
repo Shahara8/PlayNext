@@ -1,21 +1,33 @@
-.posterSkeleton {
-  flex: 0 0 260px;
-  width: 260px;
+.poster {
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius);
 }
 
-.titleSkeleton {
-  width: 60%;
+.title {
+  width: 80%;
   height: 2rem;
 }
 
-.lineSkeleton {
-  width: 90%;
+.line {
+  width: 50%;
   height: 1rem;
 }
 
-.blockSkeleton {
-  width: 100%;
+.button {
+  width: 6rem;
+  height: var(--control-height);
+}
+
+.whereToWatch {
   height: 8rem;
+  border-radius: var(--radius);
+}
+
+.actions {
+  width: min(100%, 28rem);
+  height: var(--control-height);
+}
+
+.overview {
+  max-width: 70ch;
+  height: 6rem;
 }

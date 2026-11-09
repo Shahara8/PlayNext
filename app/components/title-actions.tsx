@@ -25,6 +25,7 @@ export default function TitleActions({
   userId,
   initialState = EMPTY_TITLE_STATE,
   unavailable = false,
+  labeled = false,
 }: {
   /** Just the key (not a whole row), so the client props stay small. */
   titleRef: TitleRef;
@@ -32,6 +33,9 @@ export default function TitleActions({
   initialState?: TitleUserState;
   /** The viewer's saved state couldn't be loaded — render disabled, not empty. */
   unavailable?: boolean;
+  /** The title page's large buttons with text ("♡ Favorite"); cards stay
+   * compact icons. Only markup and style differ, never behavior. */
+  labeled?: boolean;
 }) {
   const router = useRouter();
   const [state, setState] = useState(initialState);
@@ -112,39 +116,55 @@ export default function TitleActions({
     );
   }
 
+  const buttonClass = labeled
+    ? `btn btn-secondary ${styles.labeled}`
+    : styles.button;
+  // Compact buttons are icons, named by aria-label. Labeled ones are named by
+  // their visible text (the icon is hidden), so the name always matches what's
+  // on screen ("On watchlist" included). `data-action` is the stable hook for
+  // scripts/smoke.ts and scripts/ui-capture.ts.
+  const named = (name: string) =>
+    labeled ? {} : { "aria-label": name, title: name };
+  const icon = (glyph: string) =>
+    labeled ? <span aria-hidden="true">{glyph}</span> : glyph;
+
   return (
     <div
-      className={styles.actions}
+      className={labeled ? `${styles.actions} ${styles.large}` : styles.actions}
       title={unavailable ? "Couldn't load your saved state" : undefined}
     >
       <button
         type="button"
-        className={styles.button}
-        aria-label="Favorite"
+        className={buttonClass}
+        data-action="favorite"
+        {...named("Favorite")}
         aria-pressed={state.isFavorite}
-        title="Favorite"
         disabled={disabled}
         onClick={toggleFavorite}
       >
-        {state.isFavorite ? "♥" : "♡"}
+        {icon(state.isFavorite ? "♥" : "♡")}
+        {labeled && "Favorite"}
       </button>
       <button
         type="button"
-        className={styles.button}
-        aria-label="Watchlist"
+        className={buttonClass}
+        data-action="watchlist"
+        {...named("Watchlist")}
         aria-pressed={state.inWatchlist}
-        title="Watchlist"
         disabled={disabled}
         onClick={toggleWatchlist}
       >
-        {state.inWatchlist ? "✓" : "+"}
+        {icon(state.inWatchlist ? "✓" : "+")}
+        {labeled && (state.inWatchlist ? "On watchlist" : "Watchlist")}
       </button>
+      {/* Emoji only in both modes, so always named by aria-label. */}
       <button
         type="button"
-        className={styles.button}
+        className={buttonClass}
+        data-action="like"
         aria-label="Like"
-        aria-pressed={state.sentiment === "like"}
         title="Like"
+        aria-pressed={state.sentiment === "like"}
         disabled={disabled}
         onClick={() => toggleSentiment("like")}
       >
@@ -152,17 +172,18 @@ export default function TitleActions({
       </button>
       <button
         type="button"
-        className={styles.button}
+        className={buttonClass}
+        data-action="dislike"
         aria-label="Dislike"
-        aria-pressed={state.sentiment === "dislike"}
         title="Dislike"
+        aria-pressed={state.sentiment === "dislike"}
         disabled={disabled}
         onClick={() => toggleSentiment("dislike")}
       >
         👎
       </button>
       <select
-        className={styles.rating}
+        className={labeled ? `select ${styles.ratingLarge}` : styles.rating}
         aria-label="Your rating"
         value={state.rating ?? ""}
         disabled={disabled}

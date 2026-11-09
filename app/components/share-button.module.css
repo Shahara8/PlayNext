@@ -1,16 +1,9 @@
-/* Matches title-actions' buttons, which it sits beside. */
+/* Base look from the shared .btn .btn-secondary (app/globals.css). */
 .button {
-  height: 1.9rem;
-  padding: 0 0.6rem;
-  font-size: 0.8rem;
-  color: var(--text);
-  background: none;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
+  padding-inline: 0.8rem;
+  font-size: 0.9rem;
 }
 
-.button:hover {
-  background: var(--surface-2);
+.icon {
+  flex-shrink: 0;
 }

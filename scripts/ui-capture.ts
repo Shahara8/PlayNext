@@ -165,12 +165,12 @@ const SIGNED_IN: ViewSpec[] = [
   {
     id: "18-browse-signed-in",
     path: "/browse/netflix",
-    ready: `${has.titleLinks} && ${has.enabledButton("Favorite")} && ${has.signOut}`,
+    ready: `${has.titleLinks} && ${has.enabledAction("favorite")} && ${has.signOut}`,
   },
   {
     id: "19-title-signed-in",
     path: TITLE_WITH_LINK,
-    ready: `${has.enabledButton("Favorite")} && ${has.signOut}`,
+    ready: `${has.enabledAction("favorite")} && ${has.signOut}`,
   },
   {
     id: "20-my-list-watchlist",
@@ -299,9 +299,9 @@ async function forEachViewport(page: Page, fn: (v: Viewport) => Promise<void>) {
 
 /** Sets a title's watchlist state through its page's button. */
 async function setWatchlist(page: Page, titlePath: string, to: boolean) {
-  const button = `[aria-label="Watchlist"]`;
+  const button = `[data-action="watchlist"]`;
   await page.goto(titlePath);
-  await page.waitFor(has.enabledButton("Watchlist"), "the watchlist button");
+  await page.waitFor(has.enabledAction("watchlist"), "the watchlist button");
   const pressed = await page.eval<boolean>(
     `document.querySelector('${button}').getAttribute('aria-pressed') === 'true'`,
   );

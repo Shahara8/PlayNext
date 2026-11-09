@@ -14,6 +14,28 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 2) — Post-M8 task 5: the title page
+- **Title page** (`app/title/[media_type]/[tmdb_id]/page.tsx`) per `docs/UI_DIRECTION.md` Section 4. Phones: a compact top block (120 px poster beside the title, "year · type · ★ rating", genre chips and Share), then Where to watch, the actions and the overview. Desktop (above 800 px): the 260 px poster beside one column holding the same blocks. The page uses the header's width and `--gutter`, so the poster lines up with the logo. The loading skeleton follows the new shape.
+- **Where to watch** is a new component, `app/components/where-to-watch.tsx` (step 4's featured title will reuse it). It is a card with one row per service: a dot, the name, the availability (Subscription and Free in `--success`), and a service-colored "Watch →" `.btn-service` that opens in a new tab, or muted "No direct link yet". On desktop, 3 or more services become tiles (CSS `:has()`, so no prop is needed). It was checked with 4 rows cloned in the browser, since every title has one service today.
+- **Availability sort:** `lib/availability.ts` orders subscription, free, rent, buy, keeping the input order within a kind, and provides the labels. It has 11 tests (602 total), including unknown kinds and `Object.prototype` names.
+- **Actions:** `TitleActions` has a `labeled` mode for the title page ("♡ Favorite", "+ Watchlist" / "✓ On watchlist", 👍, 👎, "Rate"), as `.btn-secondary` with the accent-tinted pressed state. Behavior is unchanged, and cards keep the compact icons until step 3. Up to 800 px the actions sit in two rows: Favorite and Watchlist first, then like, dislike and Rate. **Share** is a `.btn-secondary` with an icon.
+- **Markup the scripts rely on:** every title action button now has `data-action` (`favorite`/`watchlist`/`like`/`dislike`). The labeled Favorite and Watchlist buttons are named by their visible text (WCAG 2.5.3, so "On watchlist" matches the screen), so `scripts/smoke.ts` and `scripts/ui-capture.ts` now select by `data-action` (`has.enabledAction`, which replaces `has.enabledButton`). The smoke title checks also wait for the "Where to watch" heading. There are still 41 checks.
+- A shared `.sr-only` class in `app/globals.css` (used for "TMDB rating").
+- `docs/UI_REVIEW.md`: views 08, 09 and 19, plus the service-colors line. `docs/UI_DIRECTION.md`: step 2 ticked, with as-built notes in the title page spec (the 800 px breakpoint, the column cap, `data-action`, the button naming) and `.sr-only` in the shared pieces.
+- **`/code-review` (medium)**, fixed:
+  - an unknown availability kind showed no label (it now shows the raw value);
+  - `Object.prototype` keys broke the sort rank (now `Object.hasOwn`);
+  - label-in-name on "On watchlist";
+  - the one-off `.srOnly` moved to globals;
+  - a gray dot beside an accent button for an unknown provider (both now use the accent);
+  - the 600 vs 800 px action breakpoint.
+
+  Declined:
+  - the specificity of module rules against the shared classes (by design since step 0: `globals.css` is imported first, so module rules win ties);
+  - the `grid-column` rule on `.info`'s children above 800 px (it has no effect in the flex column).
+- Checked: lint, typecheck and build clean. `format:check` flags only `CLAUDE.md`, whose working copy has CRLF line endings from `core.autocrlf` (the committed file is LF and passes). `ui-capture` against a local build: views 08, 09 and 19 were reviewed in both themes at both widths, plus a 360 px phone and a 4-service page (scratch script), and browse cards are unchanged. Local smoke 41/41.
+- Next step: `docs/UI_DIRECTION.md` step 3 (title cards and grids).
+
 ### 2026-11-09 (UI step 1) — Post-M8 task 5: header and footer
 - **Header** (`app/components/header.tsx`, `auth-nav.tsx`) per `docs/UI_DIRECTION.md` Section 4. It is `--surface` with a bottom border and isn't sticky. It has the logo, a magnifier icon link to `/search` (`aria-label="Search"`), Browse (desktop only), My List, and either a primary "Sign in" button or the first name (muted) plus "Sign out". Every item is a 44 px target with a `--surface-2` hover fill. The auth skeleton now matches the Sign in button's height.
   - Deviations: the signed-in name is the first name at every width (it used to be the full name on desktop; the spec says "the same" on desktop). The name is hidden below 400 px, so the row fits on a 360 px phone. The email tooltip stays.
@@ -726,12 +748,12 @@ Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering rec
 - Two viewports via `Emulation.setDeviceMetricsOverride`: phone (412×915, DPR 2, `mobile: true`) and desktop (1280×800).
 - Signed out, at both widths: home, a provider's browse page (plain and sorted), a typo search (`strnger` → Stranger Things), a title page (the first title on Netflix's browse page, so no id is hard-coded), `/login`, `/reset-password`, `/privacy` and a 404. Home must link to `/privacy` in the footer (Google's OAuth review expects it).
 - Then it signs in as the test account through the real `/login` form and checks home (For You), My List (both views), the title page and `/reset-password` (a password session must get no form), at both widths.
-- The watchlist journey: toggles the title's watchlist button through the real UI, checks My List agrees, toggles it back (restored in a `finally`).
+- The watchlist journey: toggles the title's watchlist button (`[data-action="watchlist"]`; title action buttons carry `data-action` since UI step 2) through the real UI, checks My List agrees, toggles it back (restored in a `finally`). The title page checks also wait for its "Where to watch" heading.
 - The reset gate: an admin `generateLink({ type: "recovery" })` link (no email sent) must show the new-password form once and be refused on reuse. No password is ever submitted.
 - The theme setting (phone, signed out): the footer's Dark sets `data-theme` and the dark `--bg`, and survives a reload (only the `<head>` script sets the attribute on load); Light wins over an emulated dark device preference; System removes the stored choice and follows the device. The stored choice is cleared afterwards.
 - The header (UI step 1): home and My List must show its search icon link (`aria-label="Search"`) and My List link, and on the home page, signed out and signed in, the header must stay one row (at most 70 px tall) at 412 px and at a 360 px narrow phone.
 - Per page: waits for its key content, asserts no error page and no horizontal overflow (`scrollWidth <= innerWidth`), and saves a screenshot to `.smoke/` (gitignored). Exit code 1 if any check fails.
-- Defaults to production. `--url http://localhost:3000` checks a local build (only that local origin is in the Redirect URLs allow-list, so the reset check needs it; check the port is free before starting a server, and never stop a process you didn't start). On Windows, stopping a backgrounded `npm start` leaves its `next start` child holding the port: find it by port, confirm from its command line and start time that this session started it, then stop that process. `--signed-out` skips everything that needs the test account.
+- Defaults to production. `--url http://localhost:3000` checks a local build (only that local origin is in the Redirect URLs allow-list, so the reset check needs it; check the port is free before starting a server, and never stop a process you didn't start). On Windows, stopping a backgrounded `npm start` leaves its `next start` child holding the port: find it by port, confirm from its command line and start time that this session started it, then stop that process. (`npx next start` does the same; starting `node node_modules/next/dist/bin/next start -p 3000` with `exec` leaves no wrapper.) `--signed-out` skips everything that needs the test account.
 - Gotchas it handles: plain `chrome --headless --window-size` can't go below about 500px on Windows (hence device-metrics emulation). Server HTML appears before React hydrates it, and a click or input before hydration is silently lost, so `click`/`fill` first wait for React's `__reactProps$…` key on the element. React inputs need the native value setter plus an `input` event.
 - If you write a one-off DevTools script under Git Bash, set `MSYS_NO_PATHCONV=1` (it rewrites `name=/path` arguments).
 

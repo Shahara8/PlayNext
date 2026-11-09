@@ -50,3 +50,50 @@
   color: var(--danger);
   font-size: 0.8rem;
 }
+
+/* The title page's labeled buttons (`labeled`): the shared .btn-secondary at
+   full control height, with the same accent-tinted pressed state. */
+.large {
+  gap: 0.5rem;
+}
+
+.labeled {
+  padding-inline: 0.9rem;
+}
+
+.labeled[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.labeled:hover:not(:disabled)[aria-pressed="true"] {
+  background: var(--accent-soft);
+}
+
+.labeled:disabled,
+.ratingLarge:disabled {
+  cursor: wait;
+}
+
+.ratingLarge {
+  width: auto;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+/* Phones and tablets (the title page's single-column layout, up to 800 px):
+   Favorite and Watchlist share the first row; like, dislike and the rating
+   select the second, so nothing is left alone on a line. */
+@media (max-width: 800px) {
+  .large > .labeled:nth-child(-n + 2) {
+    flex: 1 1 calc(50% - 0.25rem);
+  }
+
+  .large > .labeled:nth-child(n + 3) {
+    min-width: 3.5rem;
+  }
+
+  .large > .ratingLarge {
+    flex: 1 1 0;
+  }
+}

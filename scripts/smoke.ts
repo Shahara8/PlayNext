@@ -327,8 +327,9 @@ export const has = {
   /** The header's search icon link (named for screen readers) and My List. */
   headerNav: `document.querySelector('header a[href="/search"][aria-label="Search"]') && document.querySelector('header a[href="/my-list"]')`,
   passwordInput: `document.querySelector('input[type=password]')`,
-  enabledButton: (label: string) =>
-    `document.querySelector(${JSON.stringify(`[aria-label="${label}"]:not([disabled])`)})`,
+  /** A title action button (TitleActions' `data-action`), once enabled. */
+  enabledAction: (action: string) =>
+    `document.querySelector(${JSON.stringify(`[data-action="${action}"]:not([disabled])`)})`,
   /** My List with the given tab marked current (so the right view rendered). */
   myList: (href: string) =>
     `document.querySelector(${JSON.stringify(`main a[href="${href}"][aria-current="page"]`)})`,
@@ -375,7 +376,7 @@ function signedOutPages(
     {
       label: "title",
       path: titlePath,
-      ready: `document.querySelector('main h1') && document.querySelector('[aria-label="Favorite"]')`,
+      ready: `document.querySelector('main h1') && ${has.heading2("Where to watch")} && document.querySelector('[data-action="favorite"]')`,
     },
     // Links shared before 2026-11-06 were /title/<id>: they must redirect to
     // the title the frozen legacy map names, and land on a working page.
@@ -384,7 +385,7 @@ function signedOutPages(
           {
             label: "old title link redirects",
             path: `/title/${legacy.tmdb_id}`,
-            ready: `location.pathname === ${JSON.stringify(newTitlePath(legacy))} && document.querySelector('[aria-label="Favorite"]')`,
+            ready: `location.pathname === ${JSON.stringify(newTitlePath(legacy))} && document.querySelector('[data-action="favorite"]')`,
           },
         ]
       : []),
@@ -427,7 +428,7 @@ function signedInPages(titlePath: string): PageSpec[] {
     {
       label: "title",
       path: titlePath,
-      ready: `${has.enabledButton("Favorite")} && ${has.signOut}`,
+      ready: `${has.heading2("Where to watch")} && ${has.enabledAction("favorite")} && ${has.signOut}`,
     },
     {
       // A password session must not get the new-password form.
@@ -530,14 +531,14 @@ async function watchlistJourney(
   page: Page,
   titlePath: string,
 ): Promise<string> {
-  const button = `[aria-label="Watchlist"]`;
+  const button = `[data-action="watchlist"]`;
   const pressed = () =>
     page.eval<boolean>(
       `document.querySelector('${button}').getAttribute('aria-pressed') === 'true'`,
     );
   const toggle = async (to: boolean) => {
     await page.goto(titlePath);
-    await page.waitFor(has.enabledButton("Watchlist"), "the watchlist button");
+    await page.waitFor(has.enabledAction("watchlist"), "the watchlist button");
     if ((await pressed()) === to) return;
     await page.click(button);
     // Optimistic flip, then the button re-enables once the write lands (a
@@ -565,7 +566,7 @@ async function watchlistJourney(
   };
 
   await page.goto(titlePath);
-  await page.waitFor(has.enabledButton("Watchlist"), "the watchlist button");
+  await page.waitFor(has.enabledAction("watchlist"), "the watchlist button");
   const initial = await pressed();
   let restored = false;
   try {

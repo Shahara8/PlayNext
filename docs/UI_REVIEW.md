@@ -57,7 +57,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 - **Title card** (home, browse, My List). Poster, title, year and type ("Movie"/"TV Series"), then the **save controls**: ♡ favorite, + watchlist (✓ once saved), 👍 like, 👎 dislike, and a "Rate" select (1/10 to 10/10). The poster and name link to the title page. Saved states show as a button tinted with the accent color, with an accent border (see views 18 to 21).
 - **Grids.** 2 columns on phones, up to 7 on desktop.
 - **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
-- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (left border) and in the dots on search results and the title page.
+- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (left border), in the dots on search results and the title page, and as the Watch buttons on the title page.
 
 ## Not shown in screenshots (described only)
 
@@ -161,9 +161,14 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **How users get here.** Any title card or search result; also shared links. The URL is `/title/tv/1396`.
 
-**What's on it.** Poster (above the text on phones, beside it on desktop), title, year, type, TMDB rating, the save controls plus a **Share** button (the phone's share sheet, or copy link), genre pills, the plot summary, then **Where to watch**: one row per service with a colored dot, the service name, the kind of availability (Subscription, Rent, Buy, Free) and a "Watch →" link that opens the service's page for the title in a new tab.
+**What's on it.** Rebuilt in UI step 2 (Where to watch first). On phones a compact top block: the poster (120 px) at the inline start and, beside it, the title, "year · type · ★ rating" (the rating in the rating color), genre chips and a **Share** button (icon plus text: the phone's share sheet, or copy link). Below it, at full width:
+1. **Where to watch**, a card: one row per service with a colored dot, the service name, the availability ("Subscription" and "Free" in green, "Rent" and "Buy" muted) and, at the inline end, a **"Watch →" button in the service's color** that opens the service's page in a new tab. Subscription and free rows come first, then rent and buy (`lib/availability.ts`). On desktop, with 3 or more services the rows become tiles side by side.
+2. The **save controls** as labeled buttons: "♡ Favorite", "+ Watchlist" ("✓ On watchlist" once saved), 👍, 👎 and a "Rate" select. On phones Favorite and Watchlist share the first row, and like, dislike and Rate the second. Pressed ones are accent-tinted with an accent border.
+3. The plot summary (at most ~70 characters a line).
 
-**Known constraints.** "Where to watch" is at the bottom: on phones it's below the fold, under the poster, controls and summary. With real data it will often list several services. There's no trailer, cast, or season information.
+On desktop there are two columns: the poster (260 px, lined up with the header's logo) and, beside it, the same blocks in the same order. There's no breadcrumb.
+
+**Known constraints.** With today's data every title is on one service, so the card has one row; the multi-service order and the desktop tiles were checked with rows added in the browser. There's no trailer, cast, or season information.
 
 ![Phone, light](images/08-title-with-watch-link-phone-light.png) ![Desktop, light](images/08-title-with-watch-link-desktop-light.png)
 
@@ -173,7 +178,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** The same page for a title whose service gave us no link (all Partner TV titles today).
 
-**What's on it.** The "Where to watch" row shows the service and the availability type, with nothing on the right. It doesn't explain how to find the title on that service.
+**What's on it.** As view 08, but the "Where to watch" row shows muted text "No direct link yet" where the Watch button would be (as tall as a button, so rows line up). It doesn't explain how to find the title on that service.
 
 ![Phone, light](images/09-title-without-watch-link-phone-light.png) ![Desktop, light](images/09-title-without-watch-link-desktop-light.png)
 
@@ -272,7 +277,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 ## View 19: Title page (signed in)
 
 
-**What's on it.** As view 08, with this account's state: favorited (♥) and liked (👍). Pressed controls have an accent-tinted fill and an accent border.
+**What's on it.** As view 08, with this account's state: favorited ("♥ Favorite") and liked (👍). Pressed buttons have an accent-tinted fill and an accent border.
 
 ![Phone, light](images/19-title-signed-in-phone-light.png) ![Desktop, light](images/19-title-signed-in-desktop-light.png)
 
