@@ -177,6 +177,13 @@ export class Page {
     });
   }
 
+  /** Emulates the device's color-scheme preference (null: the default). */
+  async setColorScheme(scheme: "light" | "dark" | null) {
+    await this.cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-color-scheme", value: scheme ?? "" }],
+    });
+  }
+
   async eval<T>(expression: string): Promise<T> {
     const { result, exceptionDetails } = await this.cdp.send<{
       result: { value?: unknown };
@@ -613,6 +620,67 @@ async function resetLinkGate(page: Page, options: SmokeOptions, email: string) {
 
 // --- Main --------------------------------------------------------------------
 
+/**
+ * The footer's theme setting (lib/theme.ts): Dark sticks across a reload
+ * (set by the <head> script before hydration), Light beats a dark device
+ * preference, and System clears the stored choice and follows the device.
+ */
+async function themeSetting(page: Page) {
+  const button = (label: string) =>
+    `[...document.querySelectorAll('footer button')].find((b) => b.textContent.trim() === ${JSON.stringify(label)})`;
+  const pick = async (label: string) => {
+    await page.waitInteractive("footer button");
+    await page.eval(`${button(label)}.click()`);
+    await page.waitFor(
+      `${button(label)}?.getAttribute('aria-pressed') === 'true'`,
+      `${label} to be selected`,
+    );
+  };
+  const state = () =>
+    page.eval<{ attr: string | null; bg: string; stored: string | null }>(
+      `({ attr: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor, stored: localStorage.getItem('playnext-theme') })`,
+    );
+  // --bg in app/globals.css.
+  const LIGHT_BG = "rgb(246, 247, 251)";
+  const DARK_BG = "rgb(11, 14, 26)";
+
+  try {
+    await page.setColorScheme("light");
+    await page.goto("/privacy");
+    await pick("Dark");
+    let s = await state();
+    if (s.attr !== "dark" || s.bg !== DARK_BG || s.stored !== "dark")
+      throw new Error(`after Dark: ${JSON.stringify(s)}`);
+
+    // On a fresh load only the <head> script sets the attribute (the control
+    // writes it on a click, not on mount), so this checks the script.
+    await page.goto("/privacy");
+    s = await state();
+    if (s.attr !== "dark" || s.bg !== DARK_BG)
+      throw new Error(`after reload: ${JSON.stringify(s)}`);
+    await page.waitFor(
+      `${button("Dark")}?.getAttribute('aria-pressed') === 'true'`,
+      "the control to show Dark after reload",
+    );
+
+    await page.setColorScheme("dark");
+    await pick("Light");
+    s = await state();
+    if (s.attr !== "light" || s.bg !== LIGHT_BG)
+      throw new Error(`Light on a dark device: ${JSON.stringify(s)}`);
+
+    await pick("System");
+    s = await state();
+    if (s.attr !== null || s.stored !== null || s.bg !== DARK_BG)
+      throw new Error(`System on a dark device: ${JSON.stringify(s)}`);
+  } finally {
+    await page.setColorScheme(null).catch(() => {});
+    await page
+      .eval(`localStorage.removeItem('playnext-theme')`)
+      .catch(() => {});
+  }
+}
+
 async function main() {
   config({ path: ".env.local", quiet: true });
   let options: SmokeOptions;
@@ -682,6 +750,11 @@ async function main() {
       await page.setViewport(viewport);
       await runner.pages(page, "signed-out", signedOutPages(titlePath, legacy));
     }
+
+    await page.setViewport(VIEWPORTS[0]);
+    await runner.check("theme setting (Dark sticks, Light, System)", () =>
+      themeSetting(page),
+    );
 
     if (!options.signedOutOnly) {
       await page.setViewport(VIEWPORTS[0]);

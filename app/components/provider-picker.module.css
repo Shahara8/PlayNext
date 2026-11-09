@@ -4,15 +4,14 @@
   gap: 1rem;
 }
 
+/* Base look from the shared .card (app/globals.css). */
 .tile {
-  --provider-color: var(--foreground);
+  --provider-color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--provider-color);
+  border-inline-start: 4px solid var(--provider-color);
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;

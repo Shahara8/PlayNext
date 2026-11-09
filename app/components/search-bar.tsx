@@ -54,7 +54,7 @@ export default function SearchBar({ initialQuery }: { initialQuery: string }) {
   return (
     <input
       type="search"
-      className={styles.input}
+      className={`input ${styles.input}`}
       placeholder="Search for a movie or show…"
       value={value}
       onChange={(e) => setValue(e.target.value)}

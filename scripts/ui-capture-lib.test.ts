@@ -4,6 +4,8 @@ import {
   fullPageClip,
   imageName,
   inlineMarkdown,
+  referencedImages,
+  THEMES,
   markdownToSections,
   paperHeightInches,
   parseCaptureArgs,
@@ -49,16 +51,47 @@ describe("parseCaptureArgs", () => {
 });
 
 describe("imageName", () => {
-  it("joins the view id and viewport", () => {
-    expect(imageName("08-title-with-watch-link", "phone")).toBe(
-      "08-title-with-watch-link-phone.png",
+  it("joins the view id, viewport and theme", () => {
+    expect(imageName("08-title-with-watch-link", "phone", "light")).toBe(
+      "08-title-with-watch-link-phone-light.png",
+    );
+    expect(imageName("01-home", "desktop", "dark")).toBe(
+      "01-home-desktop-dark.png",
     );
   });
 
-  it("rejects ids that aren't lowercase slugs", () => {
-    expect(() => imageName("Home", "phone")).toThrow(/slug/);
-    expect(() => imageName("a b", "phone")).toThrow(/slug/);
-    expect(() => imageName("home", "phone-2")).toThrow(/viewport/);
+  it("covers both themes", () => {
+    expect(THEMES).toEqual(["light", "dark"]);
+  });
+
+  it("rejects ids that aren't lowercase slugs, and unknown themes", () => {
+    expect(() => imageName("Home", "phone", "light")).toThrow(/slug/);
+    expect(() => imageName("a b", "phone", "light")).toThrow(/slug/);
+    expect(() => imageName("home", "phone-2", "light")).toThrow(/viewport/);
+    expect(() =>
+      imageName("home", "phone", "sepia" as unknown as "light"),
+    ).toThrow(/theme/);
+  });
+});
+
+describe("referencedImages", () => {
+  it("lists images/ links in order, once each", () => {
+    const md = [
+      "# Doc",
+      "![Phone, light](images/01-home-phone-light.png) ![Desktop, light](images/01-home-desktop-light.png)",
+      "Text with ![inline](images/02-a-phone-dark.png) too.",
+      "![again](images/01-home-phone-light.png)",
+      "![elsewhere](other/x.png) [a link](images/not-an-image.png)",
+    ].join("\n");
+    expect(referencedImages(md)).toEqual([
+      "01-home-phone-light.png",
+      "01-home-desktop-light.png",
+      "02-a-phone-dark.png",
+    ]);
+  });
+
+  it("is empty without images", () => {
+    expect(referencedImages("no images here")).toEqual([]);
   });
 });
 

@@ -14,6 +14,41 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 0) — Post-M8 task 5: the foundation (tokens, theme setting, Geist, shared styles)
+- **Tokens** for light and dark in `app/globals.css` (`docs/UI_DIRECTION.md` Section 3), with dark under both `data-theme="dark"` and the device preference unless Light was chosen. `lib/color.test.ts` reads them from the stylesheet and asserts WCAG AA for every text token on every background in both themes.
+  - Two starting values failed on `--surface-2` and were darkened (light `--rating` `#a3480a`, `--danger` `#c81e1e`).
+  - Two tokens were added: `--border-strong` (3:1 form-control borders) and `--accent-soft` (pressed fill).
+  - Deviation, recorded in the doc's table.
+- **Theme setting** System · Light · Dark:
+  - `lib/theme.ts` holds the parsing, the attribute value and the no-flash `<head>` script. The script is unit-tested by running it against a fake DOM.
+  - `app/components/theme-control.tsx` is a segmented control in the footer, using `useSyncExternalStore`, following other tabs, and still working when storage is blocked.
+  - `<html suppressHydrationWarning>`. Pages are still prerendered (no cookies).
+- **Geist** is the body font now. **Shared global classes:** `.btn`(-primary/-secondary/-service), `.input`, `.select`, `.chip`, `.card`, `.segmented`, `.text-link`, `.skeleton`, `:focus-visible`.
+- Every CSS module moved onto the tokens. Existing components use the shared classes where they map directly:
+  - the login and reset forms, the search input, the browse selects (now an aligned grid: 2×2 on phones, one row on desktop), the provider tiles, the search result cards, the chips, the "Where to watch" rows, and the status pages.
+  - Text links use the accent; pressed title actions use the accent tint; hard-coded reds became `--danger`; logical properties where touched.
+  - The per-view restructures stay for steps 1–8.
+- **`onColor`** per provider (`lib/color.ts`: WCAG luminance and contrast, white or dark text). Netflix and Disney+ get white; Prime, yes and Partner TV get dark. All pass AA (tested).
+- **`npm run ui-capture`** shoots every view in both themes:
+  - `<view>-<width>-<light|dark>.png`, 92 images; views 24–25 are dropped.
+  - Each view is loaded once and the emulated preference is switched in place.
+  - A full run clears old PNGs and fails if `docs/UI_REVIEW.md` links to an image it didn't take.
+  - `docs/UI_REVIEW.md` has a light and a dark row per view, and its Tech, Footer and pressed-state text is updated.
+- **Smoke:** a new "theme setting" check (39 checks): Dark sticks across a reload, Light beats a dark device, System clears the choice.
+- **`/code-review` (medium)**, fixed:
+  - `globals.css` is imported first in the root layout, so module rules win ties with shared classes regardless of bundler order.
+  - `global-error.tsx` carries the theme script.
+  - The status pages use the shared `.btn` classes instead of a copy (global-error already imports `globals.css`).
+  - `.segmented` ignores `aria-current="false"`.
+  - The script's values are derived from `themeAttribute`.
+  - The 3:1 border check covers `--surface-2`.
+  - `useId` for the control's label.
+  - Removed the unused `resolveTheme`.
+
+  Declined: caching the control's `localStorage` read (one read per render of one small control).
+- Checked: 591 tests; lint, typecheck, format and build clean. `ui-capture` against a local build was reviewed sheet by sheet in both themes at both widths (the filter grid was fixed from it). Local smoke 39/39.
+- Next step: `docs/UI_DIRECTION.md` step 1 (header and footer).
+
 ### 2026-11-09 (UI direction chosen) — Post-M8 task 5: Direction 1 + two additions, light and dark; build plan written
 - The user published Gemini's three mockups as Google Sites pages. Claude captured them with headless Chrome (the mockups are in cross-origin frames; their tabs were clicked with real mouse events), and the screenshots are in `.ui-review/gemini/` (gitignored). They were compared against the platform's four jobs.
 - **Decided (user):** Direction 1 "Watch-First / Quick Guide" plus a Watch button per service on search results (from Direction 3) and service tiles with counts and sample titles on home (from Direction 2). Both light and dark themes; the build order was left to Claude: **foundation tokens first, then one view at a time in both themes**.
@@ -673,14 +708,16 @@ Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering rec
 - Then it signs in as the test account through the real `/login` form and checks home (For You), My List (both views), the title page and `/reset-password` (a password session must get no form), at both widths.
 - The watchlist journey: toggles the title's watchlist button through the real UI, checks My List agrees, toggles it back (restored in a `finally`).
 - The reset gate: an admin `generateLink({ type: "recovery" })` link (no email sent) must show the new-password form once and be refused on reuse. No password is ever submitted.
+- The theme setting (phone, signed out): the footer's Dark sets `data-theme` and the dark `--bg`, and survives a reload (only the `<head>` script sets the attribute on load); Light wins over an emulated dark device preference; System removes the stored choice and follows the device. The stored choice is cleared afterwards.
 - Per page: waits for its key content, asserts no error page and no horizontal overflow (`scrollWidth <= innerWidth`), and saves a screenshot to `.smoke/` (gitignored). Exit code 1 if any check fails.
 - Defaults to production. `--url http://localhost:3000` checks a local build (only that local origin is in the Redirect URLs allow-list, so the reset check needs it; check the port is free before starting a server, and never stop a process you didn't start). `--signed-out` skips everything that needs the test account.
 - Gotchas it handles: plain `chrome --headless --window-size` can't go below about 500px on Windows (hence device-metrics emulation). Server HTML appears before React hydrates it, and a click or input before hydration is silently lost, so `click`/`fill` first wait for React's `__reactProps$…` key on the element. React inputs need the native value setter plus an `input` event.
 - If you write a one-off DevTools script under Git Bash, set `MSYS_NO_PATHCONV=1` (it rewrites `name=/path` arguments).
 
-**UI review captures (`npm run ui-capture`, built 2026-11-07 for Post-M8 task 5):** `scripts/ui-capture.ts` (helpers and tests in `scripts/ui-capture-lib.ts`) reuses the smoke script's Chrome helpers to take **full-page** screenshots of 25 views and states (signed out, signed in, empty states, dark mode) at both widths into `.ui-review/images/` (gitignored). It then copies `docs/UI_REVIEW.md` (the review brief plus one description per view, which links to those image names) next to them and prints it to one PDF with the images inline. `--doc-only` rebuilds just the document and PDF.
+**UI review captures (`npm run ui-capture`, built 2026-11-07 for Post-M8 task 5):** `scripts/ui-capture.ts` (helpers and tests in `scripts/ui-capture-lib.ts`) reuses the smoke script's Chrome helpers to take **full-page** screenshots of 23 views and states (signed out, signed in, empty states) at both widths and **in both themes** into `.ui-review/images/` (gitignored), named `<view>-<phone|desktop>-<light|dark>.png` (92 images). It then copies `docs/UI_REVIEW.md` (the review brief plus one description per view, which links to those image names) next to them and prints it to one PDF with the images inline. `--doc-only` rebuilds just the document and PDF.
 - Full-page shots are taken in 1200px tiles and stitched with `sharp` (now a pinned devDependency; Next already shipped that version): a single full-page PNG of a poster-heavy page is too big for one DevTools message, and Chrome drops the socket (close 1006). The PDF is read the same way, as a stream (`transferMode: "ReturnAsStream"` plus `IO.read`).
 - Lazy posters are switched to eager before each shot, or below-the-fold posters come out blank.
+- Themes: each view is loaded once and shot light, then dark, by switching the emulated `prefers-color-scheme` in place (no reload), so a `prepare` state or a single-use reset link is shot in both. A full run first deletes the old PNGs in `images/`, and fails if `docs/UI_REVIEW.md` links to an image the run didn't take (`referencedImages`).
 - Live side effects: the "empty My List" shot removes the test account's watchlist titles through the UI and restores them in a `finally` (their `created_at` changes). The reset-form shots use admin-minted recovery links, as in the smoke check. The form's "For <email>" line is replaced with a placeholder before the shot, since these images go to a third party.
 - When a view's markup or copy changes, update its description in `docs/UI_REVIEW.md`, and add a `ViewSpec` for any new page.
 

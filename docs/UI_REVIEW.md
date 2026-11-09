@@ -45,16 +45,16 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 - **Who uses it.** Israeli viewers deciding what to watch tonight and where. **Phone first:** most visits are expected on phones; desktop must work well but is secondary.
 - **Language.** The UI is English-only today, left-to-right. Hebrew and RTL are not built. Title names come from TMDB in English. You can note places where Hebrew would later strain the layout, but don't plan around it.
 - **The catalog is small and partly mock.** About 32 titles across 5 services. Netflix, Disney+ and Prime Video titles are **made-up stand-in data** until a real feed arrives (phase 2), so each title currently appears on exactly one service. In the real data a title can be on several services, so the "Where to watch" list on the title page will often have 2 to 4 rows. yes and Partner TV are moving to real data first. Partner TV rows currently have **no watch link**.
-- **Tech.** Next.js (App Router) with server-rendered pages and small client components. Styling is hand-written CSS modules, with **no design system or component library**. Colors are 4 CSS variables (background, foreground, muted foreground, border), and dark mode follows the device setting. The font is Arial/Helvetica. Posters and metadata come from TMDB.
+- **Tech.** Next.js (App Router) with server-rendered pages and small client components. Styling is hand-written CSS modules, with **no component library**. Colors are theme tokens in `app/globals.css` (background, surfaces, borders, text, muted text, an indigo accent, rating, danger, success), defined for a light and a dark theme and checked against WCAG AA. Shared button, input/select, chip, card and segmented-control styles sit on those tokens. The theme follows the device by default; a footer setting (System · Light · Dark) overrides it. The font is Geist. Posters and metadata come from TMDB.
 - **Accounts.** Browsing and search work signed out. Saving anything (favorite, watchlist, like/dislike, rating) needs an account: email and password, or Google. Signed out, every save control sends you to the sign-in page.
 - **Recommendations** ("For You") are basic: titles similar to what you liked, favorited, or rated 7+, then topped up with trending titles. With the tiny catalog, the list is often mostly trending.
-- **Screenshots.** Taken from the live site (production) in headless Chrome, full page (from top to bottom of the page, not just the first screen). Phone at 412 px wide, 2x pixel density; desktop at 1280 px. The signed-in views use a test account named "Test Bot", which has 1 title on its watchlist (The Witcher) and 1 favorite (Breaking Bad, also liked).
+- **Screenshots.** Taken from the live site (production) in headless Chrome, full page (from top to bottom of the page, not just the first screen). Phone at 412 px wide, 2x pixel density; desktop at 1280 px. Each view is shown in the light theme (first row) and the dark theme (second row). The signed-in views use a test account named "Test Bot", which has 1 title on its watchlist (The Witcher) and 1 favorite (Breaking Bad, also liked).
 
 ## Elements that recur on every view
 
-- **Header.** "PlayNext" logo (goes home) on the left; on the right: Browse (desktop only, since it duplicates the logo link), Search, My List, and either "Sign in" or the user's name (first name on phones, in grey) plus "Sign out". It doesn't stick to the top while scrolling.
-- **Footer.** "PlayNext", a Privacy link, and "Title data from TMDB" (required attribution).
-- **Title card** (home, browse, My List). Poster, title, year and type ("Movie"/"TV Series"), then the **save controls**: ♡ favorite, + watchlist (✓ once saved), 👍 like, 👎 dislike, and a "Rate" select (1/10 to 10/10). The poster and name link to the title page. Saved states show as a filled, darker button (see views 18 to 21).
+- **Header.** "PlayNext" logo (goes home) on the left; on the right: Browse (desktop only, since it duplicates the logo link), Search, My List, and either "Sign in" or the user's name (first name on phones, in muted text) plus "Sign out". It doesn't stick to the top while scrolling.
+- **Footer.** "PlayNext", a Privacy link, "Title data from TMDB" (required attribution), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones).
+- **Title card** (home, browse, My List). Poster, title, year and type ("Movie"/"TV Series"), then the **save controls**: ♡ favorite, + watchlist (✓ once saved), 👍 like, 👎 dislike, and a "Rate" select (1/10 to 10/10). The poster and name link to the title page. Saved states show as a button tinted with the accent color, with an accent border (see views 18 to 21).
 - **Grids.** 2 columns on phones, up to 7 on desktop.
 - **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
 - **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (left border) and in the dots on search results and the title page.
@@ -80,7 +80,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** The tiles are text only (no logos: we have no rights to use the services' logos). On phones the page is long: 12 cards in 2 columns, each with two rows of controls. There's no search box on the home page; search is its own page.
 
-![Phone](images/01-home-phone.png) ![Desktop](images/01-home-desktop.png)
+![Phone, light](images/01-home-phone-light.png) ![Desktop, light](images/01-home-desktop-light.png)
+
+![Phone, dark](images/01-home-phone-dark.png) ![Desktop, dark](images/01-home-desktop-dark.png)
 
 ## View 02: Browse a service
 
@@ -92,7 +94,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** There's no pagination yet. With the real feed, a service could have hundreds or thousands of titles, so the grid will need paging or infinite scroll. The selects are native browser selects.
 
-![Phone](images/02-browse-phone.png) ![Desktop](images/02-browse-desktop.png)
+![Phone, light](images/02-browse-phone-light.png) ![Desktop, light](images/02-browse-desktop-light.png)
+
+![Phone, dark](images/02-browse-phone-dark.png) ![Desktop, dark](images/02-browse-desktop-dark.png)
 
 ## View 03: Browse, sorted and filtered
 
@@ -102,7 +106,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** As view 02, with the chosen values shown in the selects. There's no "clear filters" control while results exist, and no count of results.
 
-![Phone](images/03-browse-sorted-filtered-phone.png) ![Desktop](images/03-browse-sorted-filtered-desktop.png)
+![Phone, light](images/03-browse-sorted-filtered-phone-light.png) ![Desktop, light](images/03-browse-sorted-filtered-desktop-light.png)
+
+![Phone, dark](images/03-browse-sorted-filtered-phone-dark.png) ![Desktop, dark](images/03-browse-sorted-filtered-desktop-dark.png)
 
 ## View 04: Browse, nothing matches the filters
 
@@ -110,7 +116,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** The filter bar, then "Nothing matches these filters. Clear filters" (the link keeps the sort and drops the filters). A service with no titles at all says "Nothing available on <service> yet." instead.
 
-![Phone](images/04-browse-no-matches-phone.png) ![Desktop](images/04-browse-no-matches-desktop.png)
+![Phone, light](images/04-browse-no-matches-phone-light.png) ![Desktop, light](images/04-browse-no-matches-desktop-light.png)
+
+![Phone, dark](images/04-browse-no-matches-phone-dark.png) ![Desktop, dark](images/04-browse-no-matches-desktop-dark.png)
 
 ## View 05: Search, before typing
 
@@ -122,7 +130,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** Results update as you type (after a short pause); there's no submit button. Search is typo-tolerant. No suggestions or recent searches.
 
-![Phone](images/05-search-start-phone.png) ![Desktop](images/05-search-start-desktop.png)
+![Phone, light](images/05-search-start-phone-light.png) ![Desktop, light](images/05-search-start-desktop-light.png)
+
+![Phone, dark](images/05-search-start-phone-dark.png) ![Desktop, dark](images/05-search-start-desktop-dark.png)
 
 ## View 06: Search results
 
@@ -132,14 +142,18 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** Search results have no save controls (unlike cards elsewhere). The service pills aren't links.
 
-![Phone](images/06-search-results-phone.png) ![Desktop](images/06-search-results-desktop.png)
+![Phone, light](images/06-search-results-phone-light.png) ![Desktop, light](images/06-search-results-desktop-light.png)
+
+![Phone, dark](images/06-search-results-phone-dark.png) ![Desktop, dark](images/06-search-results-desktop-dark.png)
 
 ## View 07: Search, no results
 
 
 **What's on it.** "No results for “qwzxv”. Check the spelling, try fewer words, or browse by service." ("browse by service" goes home).
 
-![Phone](images/07-search-no-results-phone.png) ![Desktop](images/07-search-no-results-desktop.png)
+![Phone, light](images/07-search-no-results-phone-light.png) ![Desktop, light](images/07-search-no-results-desktop-light.png)
+
+![Phone, dark](images/07-search-no-results-phone-dark.png) ![Desktop, dark](images/07-search-no-results-desktop-dark.png)
 
 ## View 08: Title page, with a watch link (signed out)
 
@@ -151,7 +165,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** "Where to watch" is at the bottom: on phones it's below the fold, under the poster, controls and summary. With real data it will often list several services. There's no trailer, cast, or season information.
 
-![Phone](images/08-title-with-watch-link-phone.png) ![Desktop](images/08-title-with-watch-link-desktop.png)
+![Phone, light](images/08-title-with-watch-link-phone-light.png) ![Desktop, light](images/08-title-with-watch-link-desktop-light.png)
+
+![Phone, dark](images/08-title-with-watch-link-phone-dark.png) ![Desktop, dark](images/08-title-with-watch-link-desktop-dark.png)
 
 ## View 09: Title page, without a watch link
 
@@ -159,7 +175,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** The "Where to watch" row shows the service and the availability type, with nothing on the right. It doesn't explain how to find the title on that service.
 
-![Phone](images/09-title-without-watch-link-phone.png) ![Desktop](images/09-title-without-watch-link-desktop.png)
+![Phone, light](images/09-title-without-watch-link-phone-light.png) ![Desktop, light](images/09-title-without-watch-link-desktop-light.png)
+
+![Phone, dark](images/09-title-without-watch-link-phone-dark.png) ![Desktop, dark](images/09-title-without-watch-link-desktop-dark.png)
 
 ## View 10: Sign in
 
@@ -171,28 +189,36 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** After signing in you always land on the home page, not on the page you came from.
 
-![Phone](images/10-login-phone.png) ![Desktop](images/10-login-desktop.png)
+![Phone, light](images/10-login-phone-light.png) ![Desktop, light](images/10-login-desktop-light.png)
+
+![Phone, dark](images/10-login-phone-dark.png) ![Desktop, dark](images/10-login-desktop-dark.png)
 
 ## View 11: Sign up
 
 
 **What's on it.** The same page with the "Sign up" tab selected: the button reads "Create account". The page heading still says "Sign in". After submitting, the user must confirm by email (see "Form messages" above).
 
-![Phone](images/11-login-sign-up-phone.png) ![Desktop](images/11-login-sign-up-desktop.png)
+![Phone, light](images/11-login-sign-up-phone-light.png) ![Desktop, light](images/11-login-sign-up-desktop-light.png)
+
+![Phone, dark](images/11-login-sign-up-phone-dark.png) ![Desktop, dark](images/11-login-sign-up-desktop-dark.png)
 
 ## View 12: Forgot password (request a reset link)
 
 
 **What's on it.** Reached from "Forgot password?" on view 10. The password field is replaced by "Enter your account's email and we'll send you a link to set a new password.", the button reads "Send reset link", and "Back to sign in" returns to view 10. Both tabs show as unselected.
 
-![Phone](images/12-login-forgot-password-phone.png) ![Desktop](images/12-login-forgot-password-desktop.png)
+![Phone, light](images/12-login-forgot-password-phone-light.png) ![Desktop, light](images/12-login-forgot-password-desktop-light.png)
+
+![Phone, dark](images/12-login-forgot-password-phone-dark.png) ![Desktop, dark](images/12-login-forgot-password-desktop-dark.png)
 
 ## View 13: Sign in, with an error
 
 
 **What's on it.** What users see when a Google sign-in or an email confirmation link fails: the sign-in form with a red message above the button ("Something went wrong signing you in — please try again."). Wrong-password and validation errors use the same red line.
 
-![Phone](images/13-login-link-error-phone.png) ![Desktop](images/13-login-link-error-desktop.png)
+![Phone, light](images/13-login-link-error-phone-light.png) ![Desktop, light](images/13-login-link-error-desktop-light.png)
+
+![Phone, dark](images/13-login-link-error-phone-dark.png) ![Desktop, dark](images/13-login-link-error-desktop-dark.png)
 
 ## View 14: Set a new password, without a valid link
 
@@ -200,7 +226,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** The heading "Set a new password" and "To set a new password, open the link in your reset email (links work once, for an hour). Request a new one if yours is missing or expired."
 
-![Phone](images/14-reset-password-no-link-phone.png) ![Desktop](images/14-reset-password-no-link-desktop.png)
+![Phone, light](images/14-reset-password-no-link-phone-light.png) ![Desktop, light](images/14-reset-password-no-link-desktop-light.png)
+
+![Phone, dark](images/14-reset-password-no-link-phone-dark.png) ![Desktop, dark](images/14-reset-password-no-link-desktop-dark.png)
 
 ## View 15: Privacy policy
 
@@ -208,7 +236,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** Plain text sections: What we store, How we use it, Who else handles it, Cookies, Your choices, Contact.
 
-![Phone](images/15-privacy-phone.png) ![Desktop](images/15-privacy-desktop.png)
+![Phone, light](images/15-privacy-phone-light.png) ![Desktop, light](images/15-privacy-desktop-light.png)
+
+![Phone, dark](images/15-privacy-phone-dark.png) ![Desktop, dark](images/15-privacy-desktop-dark.png)
 
 ## View 16: Not found
 
@@ -216,7 +246,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** "Not found", "That page doesn't exist, or the title is no longer available on any service we track.", and two links: "Back to home" and "Search the catalog". The error page (described above) uses the same layout.
 
-![Phone](images/16-not-found-phone.png) ![Desktop](images/16-not-found-desktop.png)
+![Phone, light](images/16-not-found-phone-light.png) ![Desktop, light](images/16-not-found-desktop-light.png)
+
+![Phone, dark](images/16-not-found-phone-dark.png) ![Desktop, dark](images/16-not-found-desktop-dark.png)
 
 ## View 17: Home (signed in)
 
@@ -224,21 +256,27 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** The header shows the user's name and "Sign out". The For You caption explains what the list is based on. For this test account it reads "Nothing like your picks is in our catalog yet, so here's what's trending." (the tiny mock catalog has nothing similar to its likes). Other captions: "Based on what you've liked.", "Based on what you've liked, plus trending titles." and, with no likes yet, "Like, favorite, or rate titles 7+ to personalize this. Trending picks for now." Titles the user already saved or rated are left out.
 
-![Phone](images/17-home-signed-in-phone.png) ![Desktop](images/17-home-signed-in-desktop.png)
+![Phone, light](images/17-home-signed-in-phone-light.png) ![Desktop, light](images/17-home-signed-in-desktop-light.png)
+
+![Phone, dark](images/17-home-signed-in-phone-dark.png) ![Desktop, dark](images/17-home-signed-in-desktop-dark.png)
 
 ## View 18: Browse (signed in)
 
 
 **What's on it.** As view 02, with the user's saved states on the cards: Breaking Bad shows a filled ♥ and a highlighted 👍, and The Witcher shows ✓ (on the watchlist).
 
-![Phone](images/18-browse-signed-in-phone.png) ![Desktop](images/18-browse-signed-in-desktop.png)
+![Phone, light](images/18-browse-signed-in-phone-light.png) ![Desktop, light](images/18-browse-signed-in-desktop-light.png)
+
+![Phone, dark](images/18-browse-signed-in-phone-dark.png) ![Desktop, dark](images/18-browse-signed-in-desktop-dark.png)
 
 ## View 19: Title page (signed in)
 
 
-**What's on it.** As view 08, with this account's state: favorited (♥) and liked (👍). Pressed controls are a darker grey fill with a darker border.
+**What's on it.** As view 08, with this account's state: favorited (♥) and liked (👍). Pressed controls have an accent-tinted fill and an accent border.
 
-![Phone](images/19-title-signed-in-phone.png) ![Desktop](images/19-title-signed-in-desktop.png)
+![Phone, light](images/19-title-signed-in-phone-light.png) ![Desktop, light](images/19-title-signed-in-desktop-light.png)
+
+![Phone, dark](images/19-title-signed-in-phone-dark.png) ![Desktop, dark](images/19-title-signed-in-desktop-dark.png)
 
 ## View 20: My List, Watchlist tab
 
@@ -250,14 +288,18 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** There's no "watched" state, sorting, or filtering here. A title can be on the watchlist and in favorites at once.
 
-![Phone](images/20-my-list-watchlist-phone.png) ![Desktop](images/20-my-list-watchlist-desktop.png)
+![Phone, light](images/20-my-list-watchlist-phone-light.png) ![Desktop, light](images/20-my-list-watchlist-desktop-light.png)
+
+![Phone, dark](images/20-my-list-watchlist-phone-dark.png) ![Desktop, dark](images/20-my-list-watchlist-desktop-dark.png)
 
 ## View 21: My List, Favorites tab
 
 
 **What's on it.** As view 20, listing favorites.
 
-![Phone](images/21-my-list-favorites-phone.png) ![Desktop](images/21-my-list-favorites-desktop.png)
+![Phone, light](images/21-my-list-favorites-phone-light.png) ![Desktop, light](images/21-my-list-favorites-desktop-light.png)
+
+![Phone, dark](images/21-my-list-favorites-phone-dark.png) ![Desktop, dark](images/21-my-list-favorites-desktop-dark.png)
 
 ## View 22: My List, empty
 
@@ -266,7 +308,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Known constraints.** This is what every new user sees first on My List.
 
-![Phone](images/22-my-list-empty-phone.png) ![Desktop](images/22-my-list-empty-desktop.png)
+![Phone, light](images/22-my-list-empty-phone-light.png) ![Desktop, light](images/22-my-list-empty-desktop-light.png)
+
+![Phone, dark](images/22-my-list-empty-phone-dark.png) ![Desktop, dark](images/22-my-list-empty-desktop-dark.png)
 
 ## View 23: Set a new password (from a valid reset link)
 
@@ -274,14 +318,6 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **What's on it.** "Set a new password", "For <the account's email>" (shown here as a placeholder address), a "New password" field and "Save password". After saving, the user is signed in and sent home.
 
-![Phone](images/23-reset-password-form-phone.png) ![Desktop](images/23-reset-password-form-desktop.png)
+![Phone, light](images/23-reset-password-form-phone-light.png) ![Desktop, light](images/23-reset-password-form-desktop-light.png)
 
-## View 24: Home in dark mode
-
-**Purpose.** Dark mode follows the device's setting (there's no toggle). Shown for the home page; every page switches the same 4 colors.
-
-![Phone](images/24-dark-home-phone.png) ![Desktop](images/24-dark-home-desktop.png)
-
-## View 25: Title page in dark mode
-
-![Phone](images/25-dark-title-phone.png) ![Desktop](images/25-dark-title-desktop.png)
+![Phone, dark](images/23-reset-password-form-phone-dark.png) ![Desktop, dark](images/23-reset-password-form-desktop-dark.png)

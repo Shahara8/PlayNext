@@ -160,6 +160,7 @@ export default function LoginForm({
         <label className={styles.field}>
           Email
           <input
+            className="input"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -176,6 +177,7 @@ export default function LoginForm({
           <label className={styles.field}>
             Password
             <input
+              className="input"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -190,7 +192,11 @@ export default function LoginForm({
         {error && <p className={styles.error}>{error}</p>}
         {info && <p className={styles.info}>{info}</p>}
 
-        <button type="submit" className={styles.submit} disabled={submitting}>
+        <button
+          type="submit"
+          className={`btn btn-primary ${styles.submit}`}
+          disabled={submitting}
+        >
           {mode === "signup"
             ? "Create account"
             : mode === "reset"
@@ -222,7 +228,7 @@ export default function LoginForm({
 
       <button
         type="button"
-        className={styles.google}
+        className="btn btn-secondary"
         onClick={handleGoogleSignIn}
       >
         Continue with Google

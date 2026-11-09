@@ -12,10 +12,10 @@ export default function ProviderBadges({
       {providers.map((p, i) => {
         const meta = getProviderByCode(p.provider);
         return (
-          <span key={`${p.provider}-${i}`} className={styles.badge}>
+          <span key={`${p.provider}-${i}`} className={`chip ${styles.badge}`}>
             <span
               className={styles.dot}
-              style={{ background: meta?.color ?? "var(--foreground-muted)" }}
+              style={{ background: meta?.color ?? "var(--text-muted)" }}
             />
             {meta?.label ?? p.provider}
           </span>

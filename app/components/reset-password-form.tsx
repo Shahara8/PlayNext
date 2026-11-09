@@ -48,6 +48,7 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
       <label className={styles.field}>
         New password
         <input
+          className="input"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -58,7 +59,11 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      <button type="submit" className={styles.submit} disabled={submitting}>
+      <button
+        type="submit"
+        className={`btn btn-primary ${styles.submit}`}
+        disabled={submitting}
+      >
         Save password
       </button>
     </form>

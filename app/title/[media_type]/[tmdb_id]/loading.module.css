@@ -2,7 +2,7 @@
   flex: 0 0 260px;
   width: 260px;
   aspect-ratio: 2 / 3;
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
 }
 
 .titleSkeleton {

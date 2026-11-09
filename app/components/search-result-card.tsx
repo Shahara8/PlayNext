@@ -13,7 +13,7 @@ export default function SearchResultCard({ row }: { row: SearchResultRow }) {
   const typeLabel = mediaTypeLabel(row.media_type);
 
   return (
-    <Link href={titlePath(row)} className={styles.card}>
+    <Link href={titlePath(row)} className={`card ${styles.card}`}>
       <div className={styles.posterWrap}>
         <Poster
           src={poster}

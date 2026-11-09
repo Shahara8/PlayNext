@@ -15,10 +15,10 @@
 }
 
 .empty {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .emptyLink {
-  color: var(--foreground);
+  color: var(--accent);
   text-decoration: underline;
 }

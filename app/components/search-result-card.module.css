@@ -1,13 +1,12 @@
+/* Base look from the shared .card (app/globals.css). */
 .card {
   display: flex;
   gap: 1rem;
   padding: 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
 }
 
 .card:hover {
-  background: var(--border);
+  background: var(--surface-2);
 }
 
 .posterWrap {
@@ -15,9 +14,9 @@
   flex: 0 0 80px;
   width: 80px;
   aspect-ratio: 2 / 3;
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--border);
+  background: var(--surface-2);
 }
 
 .poster {
@@ -31,7 +30,7 @@
   height: 100%;
   padding: 0.3rem;
   text-align: center;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.7rem;
 }
 
@@ -51,11 +50,11 @@
 .meta {
   display: flex;
   gap: 0.75rem;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
 .unavailable {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.8rem;
 }

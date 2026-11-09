@@ -90,7 +90,7 @@ export default async function TitleDetailPage({ params }: { params: Params }) {
           {title.genres && title.genres.length > 0 && (
             <div className={styles.genres}>
               {title.genres.map((g) => (
-                <span key={g.id} className={styles.genre}>
+                <span key={g.id} className="chip">
                   {g.name}
                 </span>
               ))}
@@ -107,12 +107,14 @@ export default async function TitleDetailPage({ params }: { params: Params }) {
               {rows.map((row) => {
                 const providerMeta = getProviderByCode(row.provider);
                 return (
-                  <li key={row.availability_id} className={styles.providerItem}>
+                  <li
+                    key={row.availability_id}
+                    className={`card ${styles.providerItem}`}
+                  >
                     <span
                       className={styles.providerDot}
                       style={{
-                        background:
-                          providerMeta?.color ?? "var(--foreground-muted)",
+                        background: providerMeta?.color ?? "var(--text-muted)",
                       }}
                     />
                     <span className={styles.providerName}>

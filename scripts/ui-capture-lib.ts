@@ -41,17 +41,39 @@ export function parseCaptureArgs(argv: string[]): CaptureOptions {
   return options;
 }
 
+/** Every view is shot in both themes (docs/UI_DIRECTION.md Section 5). */
+export const THEMES = ["light", "dark"] as const;
+export type CaptureTheme = (typeof THEMES)[number];
+
 /**
- * The image file for one view at one viewport, e.g. `08-title-phone.png` or
- * `24-dark-home-desktop.png`. The document links to these names, so they must
+ * The image file for one view at one viewport and theme, e.g.
+ * `08-title-phone-dark.png`. The document links to these names, so they must
  * stay stable.
  */
-export function imageName(viewId: string, viewport: string): string {
+export function imageName(
+  viewId: string,
+  viewport: string,
+  theme: CaptureTheme,
+): string {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(viewId))
     throw new Error(`view id must be a lowercase slug: ${viewId}`);
   if (!/^[a-z]+$/.test(viewport))
     throw new Error(`viewport name must be lowercase letters: ${viewport}`);
-  return `${viewId}-${viewport}.png`;
+  if (!(THEMES as readonly string[]).includes(theme))
+    throw new Error(`theme must be one of ${THEMES.join(", ")}: ${theme}`);
+  return `${viewId}-${viewport}-${theme}.png`;
+}
+
+/**
+ * The image file names a markdown document links to under `images/`, in
+ * order, without duplicates. Used to catch the document naming a shot the
+ * capture no longer takes.
+ */
+export function referencedImages(markdown: string): string[] {
+  const names = [...markdown.matchAll(/!\[[^\]]*\]\(images\/([^)\s]+)\)/g)].map(
+    (m) => m[1],
+  );
+  return [...new Set(names)];
 }
 
 /**

@@ -6,16 +6,21 @@
 // URL-friendly form used in /browse/[provider]. Region is fixed to IL for MVP
 // (docs/MVP.md Section 5).
 
+import { onColor } from "./color";
+
 export interface Provider {
   code: string;
   slug: string;
   label: string;
+  /** Brand color: the dot next to the name, and the Watch button background. */
   color: string;
+  /** Text color on `color` (white or dark, whichever passes WCAG AA). */
+  onColor: string;
 }
 
 export const REGION = "IL";
 
-export const PROVIDERS: Provider[] = [
+const PROVIDER_LIST: Omit<Provider, "onColor">[] = [
   { code: "NETFLIX", slug: "netflix", label: "Netflix", color: "#e50914" },
   {
     code: "DISNEY_PLUS",
@@ -33,6 +38,11 @@ export const PROVIDERS: Provider[] = [
     color: "#2bb673",
   },
 ];
+
+export const PROVIDERS: Provider[] = PROVIDER_LIST.map((p) => ({
+  ...p,
+  onColor: onColor(p.color),
+}));
 
 export function getProviderBySlug(slug: string): Provider | undefined {
   return PROVIDERS.find((p) => p.slug === slug);

@@ -45,7 +45,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -57,7 +57,7 @@
   white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 500;
-  color: var(--foreground);
+  color: var(--text);
   background: none;
   border: none;
   padding: 0;

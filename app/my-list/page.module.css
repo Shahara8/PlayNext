@@ -22,11 +22,11 @@
 }
 
 .tab {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .tabActive {
-  border-bottom-color: var(--foreground);
+  border-bottom-color: var(--accent);
 }
 
 .grid {
@@ -36,10 +36,10 @@
 }
 
 .empty {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .emptyLink {
-  color: var(--foreground);
+  color: var(--accent);
   text-decoration: underline;
 }

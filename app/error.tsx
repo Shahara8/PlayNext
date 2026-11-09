@@ -34,10 +34,14 @@ export default function ErrorPage({
         We couldn&apos;t load this page. It&apos;s usually temporary.
       </p>
       <div className={styles.actions}>
-        <button type="button" className={styles.button} onClick={() => retry()}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => retry()}
+        >
           Try again
         </button>
-        <Link href="/" className={styles.link}>
+        <Link href="/" className="btn btn-secondary">
           Back to home
         </Link>
       </div>

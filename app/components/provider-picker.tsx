@@ -10,7 +10,7 @@ export default function ProviderPicker() {
         <Link
           key={provider.code}
           href={`/browse/${provider.slug}`}
-          className={styles.tile}
+          className={`card ${styles.tile}`}
           style={{ "--provider-color": provider.color } as CSSProperties}
         >
           {provider.label}

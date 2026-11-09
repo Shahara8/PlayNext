@@ -1,7 +1,8 @@
 // Full-page screenshots of every view and state, for the UI review with
 // Gemini (docs/MVP.md Post-M8 task 5). Reuses the smoke script's headless
 // Chrome helpers: phone and desktop widths, signed out and then signed in as
-// the test account, and a few dark-mode shots.
+// the test account, each view in the light and the dark theme (the device
+// preference, emulated; no theme setting is stored in the throwaway profile).
 //
 // Output (default .ui-review/, gitignored): images/, plus the review document
 // (copied from docs/UI_REVIEW.md, which links to the images by name) and the
@@ -19,7 +20,9 @@
 import { config } from "dotenv";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -37,9 +40,12 @@ import {
   paperHeightInches,
   parseCaptureArgs,
   PDF_MAX_INCHES,
+  referencedImages,
   reviewHtml,
+  THEMES,
   tileClips,
   type CaptureOptions,
+  type CaptureTheme,
 } from "./ui-capture-lib";
 
 const DOC_SOURCE = "docs/UI_REVIEW.md";
@@ -59,7 +65,6 @@ type ViewSpec = {
   ready: string;
   /** Runs after `ready`, before the shot (e.g. switch a tab). */
   prepare?: (page: Page) => Promise<void>;
-  dark?: boolean;
 };
 
 /** Clicks the first `main button` whose text is `text`, once hydrated. */
@@ -149,18 +154,6 @@ const SIGNED_OUT: ViewSpec[] = [
     ready: has.h1("Privacy policy"),
   },
   { id: "16-not-found", path: "/no-such-page", ready: has.h1("Not found") },
-  {
-    id: "24-dark-home",
-    path: "/",
-    ready: `${has.heading2("Trending")} && ${has.titleLinks}`,
-    dark: true,
-  },
-  {
-    id: "25-dark-title",
-    path: TITLE_WITH_LINK,
-    ready: `document.querySelector('main h1') && ${watchLink}`,
-    dark: true,
-  },
 ];
 
 const SIGNED_IN: ViewSpec[] = [
@@ -206,16 +199,14 @@ class Capturer {
     readonly failures: string[],
   ) {}
 
-  async setDark(dark: boolean) {
+  async setTheme(theme: CaptureTheme) {
     await this.cdp.send("Emulation.setEmulatedMedia", {
-      features: [
-        { name: "prefers-color-scheme", value: dark ? "dark" : "light" },
-      ],
+      features: [{ name: "prefers-color-scheme", value: theme }],
     });
   }
 
   /** Loads lazy posters, waits for images and fonts, then shoots the whole page. */
-  async shoot(viewId: string) {
+  async shoot(viewId: string, theme: CaptureTheme) {
     const page = this.page;
     await page.eval(
       `document.querySelectorAll('img[loading="lazy"]').forEach((img) => { img.loading = "eager"; })`,
@@ -248,7 +239,7 @@ class Capturer {
         left: 0,
       });
     }
-    const name = imageName(viewId, page.viewport.name);
+    const name = imageName(viewId, page.viewport.name, theme);
     await sharp({
       create: {
         width: Math.round(full.width * dpr),
@@ -264,18 +255,31 @@ class Capturer {
     console.log(`saved ${name}`);
   }
 
+  /**
+   * Loads the view once and shoots it in each theme. The theme is switched
+   * in place (CSS follows the emulated preference), not by reloading, so a
+   * state set up by `prepare` or a single-use link is shot in both.
+   */
   async view(spec: ViewSpec) {
     if (this.socketClosed) throw new Error("DevTools socket closed");
     try {
-      await this.setDark(Boolean(spec.dark));
+      await this.setTheme(THEMES[0]);
       await this.page.goto(spec.path);
       await this.page.waitFor(spec.ready, spec.id);
       await spec.prepare?.(this.page);
-      await this.shoot(spec.id);
+      for (const theme of THEMES) {
+        await this.setTheme(theme);
+        // The emulated preference applies on the next frame; check it took.
+        await this.page.waitFor(
+          `matchMedia('(prefers-color-scheme: ${theme})').matches`,
+          `the ${theme} theme`,
+        );
+        await this.shoot(spec.id, theme);
+      }
     } catch (err) {
       this.fail(`${this.page.viewport.name} ${spec.id}`, err);
     } finally {
-      if (spec.dark) await this.setDark(false).catch(() => {});
+      await this.setTheme(THEMES[0]).catch(() => {});
     }
   }
 
@@ -485,6 +489,11 @@ async function main() {
     process.exit(2);
   }
   const imagesDir = join(options.outDir, "images");
+  // A full run starts from an empty images/ (PNGs only: our own output), so
+  // shots the capture no longer takes don't linger next to the new ones.
+  if (!options.docOnly && existsSync(imagesDir))
+    for (const f of readdirSync(imagesDir))
+      if (f.endsWith(".png")) rmSync(join(imagesDir, f));
   mkdirSync(imagesDir, { recursive: true });
 
   const chrome = await launchChrome();
@@ -521,6 +530,14 @@ async function main() {
       await resetForm(page, capturer, options, email!).catch((err) =>
         capturer.fail("reset form", err),
       );
+
+      // The document must not name a shot this run didn't take.
+      const saved = new Set(capturer.saved);
+      for (const name of referencedImages(readFileSync(DOC_SOURCE, "utf8")))
+        if (!saved.has(name))
+          failures.push(
+            `${DOC_SOURCE} links to ${name}, which wasn't captured`,
+          );
     }
 
     await buildDocument(options, opened.cdp);

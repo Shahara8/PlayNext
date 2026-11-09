@@ -12,19 +12,21 @@
 
 .tab,
 .tabActive {
-  padding: 0.5rem 0;
+  min-height: var(--control-height);
+  padding: 0.5rem 0.25rem;
+  margin-bottom: -1px;
   font-size: 0.95rem;
   font-weight: 500;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .tabActive {
-  color: var(--foreground);
-  border-bottom-color: var(--foreground);
+  color: var(--text);
+  border-bottom-color: var(--accent);
 }
 
 .form {
@@ -38,64 +40,35 @@
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.85rem;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
-.field input {
-  font-size: 0.95rem;
-  color: var(--foreground);
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  padding: 0.55rem 0.7rem;
-}
-
-.submit,
-.google {
-  font-size: 0.95rem;
-  font-weight: 500;
-  border-radius: 0.4rem;
-  padding: 0.6rem 0.9rem;
-  cursor: pointer;
-}
-
+/* Inputs and buttons: the shared .input / .btn (app/globals.css). */
 .submit {
-  color: var(--background);
-  background: var(--foreground);
-  border: none;
-}
-
-.submit:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.google {
-  color: var(--foreground);
-  background: var(--background);
-  border: 1px solid var(--border);
+  width: 100%;
 }
 
 .divider {
   text-align: center;
   font-size: 0.8rem;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .error {
-  color: #c43d3d;
+  color: var(--danger);
   font-size: 0.85rem;
 }
 
 .info {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
 .textButton {
   align-self: center;
+  min-height: var(--control-height);
   font-size: 0.85rem;
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   background: none;
   border: none;
   padding: 0;
@@ -103,6 +76,6 @@
 }
 
 .textButton:hover {
-  color: var(--foreground);
+  color: var(--text);
   text-decoration: underline;
 }

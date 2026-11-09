@@ -1,7 +1,10 @@
+/* Equal columns, so the selects line up: 2 per row on phones, one row on
+   desktop. */
 .bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  max-width: 52rem;
+  gap: 1rem;
 }
 
 .field {
@@ -9,14 +12,11 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.8rem;
-  color: var(--foreground-muted);
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
+/* Base look from the shared .select (app/globals.css). */
 .field select {
-  font-size: 0.9rem;
-  color: var(--foreground);
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  padding: 0.4rem 0.6rem;
+  font-size: 0.95rem;
 }

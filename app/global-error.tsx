@@ -1,6 +1,7 @@
 "use client";
 
 import "./globals.css";
+import { themeInitScript } from "@/lib/theme";
 import styles from "./status-page.module.css";
 
 // Only errors in the root layout itself land here (everything below it is
@@ -13,7 +14,12 @@ export default function GlobalError({
   retry: () => void;
 }) {
   return (
-    <html lang="en">
+    // The theme script and suppressHydrationWarning as in app/layout.tsx,
+    // so a stored Light/Dark choice holds here too.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+      </head>
       <body>
         <title>Something went wrong · PlayNext</title>
         <main className={styles.main}>
@@ -24,7 +30,7 @@ export default function GlobalError({
           <div className={styles.actions}>
             <button
               type="button"
-              className={styles.button}
+              className="btn btn-primary"
               onClick={() => retry()}
             >
               Try again

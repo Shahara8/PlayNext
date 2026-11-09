@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { PRIVACY_PATH, SITE_NAME } from "@/lib/seo";
 import styles from "./footer.module.css";
+import ThemeControl from "./theme-control";
 
 // Site-wide footer. Google's OAuth review expects the homepage to link to
 // the privacy policy, so this link must stay on every page, home included.
+// The theme setting (System/Light/Dark) lives here to keep the header clear.
 export default function Footer() {
   return (
     <footer className={styles.footer}>
@@ -22,6 +24,9 @@ export default function Footer() {
           >
             TMDB
           </a>
+        </span>
+        <span className={styles.theme}>
+          <ThemeControl />
         </span>
       </div>
     </footer>

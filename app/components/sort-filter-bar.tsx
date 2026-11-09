@@ -37,7 +37,11 @@ export default function SortFilterBar({
     <div className={styles.bar}>
       <label className={styles.field}>
         <span>Sort</span>
-        <select value={sort} onChange={(e) => update("sort", e.target.value)}>
+        <select
+          className="select"
+          value={sort}
+          onChange={(e) => update("sort", e.target.value)}
+        >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -48,7 +52,11 @@ export default function SortFilterBar({
 
       <label className={styles.field}>
         <span>Type</span>
-        <select value={type} onChange={(e) => update("type", e.target.value)}>
+        <select
+          className="select"
+          value={type}
+          onChange={(e) => update("type", e.target.value)}
+        >
           <option value="">All</option>
           {TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -61,6 +69,7 @@ export default function SortFilterBar({
       <label className={styles.field}>
         <span>Availability</span>
         <select
+          className="select"
           value={availabilityType}
           onChange={(e) => update("avail", e.target.value)}
         >
@@ -77,6 +86,7 @@ export default function SortFilterBar({
         <label className={styles.field}>
           <span>Genre</span>
           <select
+            className="select"
             value={genre}
             onChange={(e) => update("genre", e.target.value)}
           >

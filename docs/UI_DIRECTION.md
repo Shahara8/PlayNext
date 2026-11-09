@@ -31,7 +31,7 @@ Post-M8 task 5 (`docs/MVP.md`). This file is the spec for the UI rebuild: what w
 
 - Three settings: **System** (the default: follows the device), **Light**, **Dark**. They're picked with a small segmented control in the footer ("Theme: System · Light · Dark"), so the header stays uncluttered.
 - Stored in `localStorage` (`playnext-theme`). A tiny inline script in `<head>` (root layout) sets `data-theme` on `<html>` before first paint, so there's no flash. Without a stored choice there's no attribute, and CSS follows `prefers-color-scheme`. `<html>` gets `suppressHydrationWarning`. Not a cookie: reading cookies in the root layout would make every page dynamic (the codebase avoids that; see `app/components/auth-nav.tsx`).
-- The pure logic (parse the stored value, resolve the effective theme) lives in `lib/theme.ts` with unit tests. The script and the toggle both use it (the script gets it as a serialized string).
+- The pure logic (parse the stored value, the `data-theme` value per setting, and the inline script, built as a string from the same values) lives in `lib/theme.ts` with unit tests; the script is tested by running it against a fake `localStorage` and `<html>`. The footer control is `app/components/theme-control.tsx`. `app/global-error.tsx` (its own `<html>`) carries the script too.
 - CSS: light tokens on `:root`; dark tokens under `:root[data-theme="dark"]` and under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`. `color-scheme` follows, so native selects and scrollbars match.
 
 ### Tokens (in `app/globals.css`; components use only these)
@@ -41,16 +41,18 @@ Post-M8 task 5 (`docs/MVP.md`). This file is the spec for the UI rebuild: what w
 | `--bg` | `#f6f7fb` | `#0b0e1a` | page background |
 | `--surface` | `#ffffff` | `#151a29` | cards, panels, header |
 | `--surface-2` | `#eef0f6` | `#1e2436` | inputs, chips, pressed buttons, skeletons |
-| `--border` | `#e1e4ee` | `#2a3148` | card and input borders |
+| `--border` | `#e1e4ee` | `#2a3148` | card borders, dividers |
+| `--border-strong` | `#7c859b` | `#6b7591` | form control and secondary button borders (3:1 on every background, WCAG 1.4.11) |
 | `--text` | `#111827` | `#eef1f8` | main text |
 | `--text-muted` | `#5b6478` | `#9aa3b9` | secondary text (must still pass AA on `--surface`) |
 | `--accent` | `#4f46e5` | `#818cf8` | links, focus ring, selected tab, primary buttons |
 | `--accent-contrast` | `#ffffff` | `#0b0e1a` | text on `--accent` |
-| `--rating` | `#b45309` | `#fbbf24` | ★ rating text/badge |
-| `--danger` | `#dc2626` | `#f87171` | errors |
+| `--accent-soft` | `#e6e5fb` | `#2b2f5c` | pressed/selected fill behind `--text` |
+| `--rating` | `#a3480a` | `#fbbf24` | ★ rating text/badge |
+| `--danger` | `#c81e1e` | `#f87171` | errors |
 | `--success` | `#047857` | `#34d399` | "Subscription"/"Free" availability text |
 
-These are starting values: step 0 checks every text/background pair for contrast and adjusts. Radius: `--radius-sm 8px`, `--radius 12px`, `--radius-lg 16px`. Spacing on a 4 px grid. Shadows only in light mode (dark uses borders).
+Checked in step 0: `lib/color.test.ts` reads these from `app/globals.css` and asserts AA for every text token on `--bg`, `--surface` and `--surface-2` in both themes, plus the accent pairs and `--border-strong`'s 3:1. Step 0 changed the starting values: light `--rating` (was `#b45309`, 4.41:1 on `--surface-2`) and `--danger` (was `#dc2626`, 4.24:1), and added `--border-strong` and `--accent-soft`. Radius: `--radius-sm 8px`, `--radius 12px`, `--radius-lg 16px`. Spacing on a 4 px grid. Shadows only in light mode (dark uses borders).
 
 - **Font:** Geist, already loaded in `app/layout.tsx` but unused today (the body says Arial). Switch the body to `var(--font-geist-sans)`. Headings 700, body 400/500. Sizes: page title 28/32 px (phone/desktop), section title 18 px, body 15–16 px, meta 13 px.
 - **Service colors** stay in `lib/providers.ts`. Add an `onColor` field (text color on that brand color) chosen by a contrast helper in `lib/color.ts`, unit-tested so each Watch button passes AA (e.g. yes amber gets dark text). Service colors appear as: a dot next to the name everywhere, the Watch button background, and a thin accent on service tiles.
@@ -58,6 +60,8 @@ These are starting values: step 0 checks every text/background pair for contrast
 ### Shared pieces (styled in step 0, used everywhere)
 
 Buttons (primary = accent, secondary = surface plus border, service = brand color), inputs and native selects (same height, 44 px), chips/pills, cards (surface, border, radius), segmented control, skeletons (on `--surface-2`), focus ring (2 px `--accent` outline, offset 2 px).
+
+Built in step 0 as global classes in `app/globals.css`: `.btn` with `.btn-primary` / `.btn-secondary` / `.btn-service` (the last reads `--service-color` and `--service-on`, set inline from a provider's `color` / `onColor`), `.input`, `.select`, `.chip`, `.card`, `.segmented` (children selected by `aria-pressed="true"` or `aria-current`), `.text-link`, `.skeleton`, and `:focus-visible`. Components combine them with their module class (`className={`card ${styles.tile}`}`); `globals.css` is imported first in the root layout so module rules win ties.
 
 ## 4. The views
 
@@ -125,7 +129,7 @@ For every step:
 
 ## 6. Steps
 
-- [ ] **0. Foundation.** Tokens for both themes; the theme mechanism (`lib/theme.ts` plus tests, the inline script, the footer control); Geist font; shared button/input/select/chip/card/segmented/focus styles; `onColor` per provider (`lib/color.ts` plus tests). Extend `npm run ui-capture` to shoot every view in both themes (a light and a dark image per view and width, set with `Emulation.setEmulatedMedia`; drop the separate dark views 24–25), and update the document's image references. Existing pages should already look coherent in both themes.
+- [x] **0. Foundation.** Done 2026-11-09 (see `docs/MVP.md` Progress Log). Tokens for both themes; the theme mechanism (`lib/theme.ts` plus tests, the inline script, the footer control); Geist font; shared button/input/select/chip/card/segmented/focus styles; `onColor` per provider (`lib/color.ts` plus tests). Extend `npm run ui-capture` to shoot every view in both themes (a light and a dark image per view and width, set with `Emulation.setEmulatedMedia`; drop the separate dark views 24–25), and update the document's image references. Existing pages should already look coherent in both themes.
 - [ ] **1. Header and footer.**
 - [ ] **2. Title page** (Where to watch first, service-colored Watch buttons, labeled actions, desktop two-column; availability sort plus tests).
 - [ ] **3. Title cards and grids** (rating badge, ♡ and + only; `vote_average` in `TitleSummary` plus tests).

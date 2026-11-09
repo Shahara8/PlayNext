@@ -6,10 +6,11 @@
 }
 
 .caption {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .link {
+  color: var(--accent);
   text-decoration: underline;
 }
 

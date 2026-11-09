@@ -16,10 +16,10 @@ export default function NotFound() {
         service we track.
       </p>
       <div className={styles.actions}>
-        <Link href="/" className={styles.link}>
+        <Link href="/" className="btn btn-secondary">
           Back to home
         </Link>
-        <Link href="/search" className={styles.link}>
+        <Link href="/search" className="btn btn-secondary">
           Search the catalog
         </Link>
       </div>

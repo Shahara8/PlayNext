@@ -10,7 +10,7 @@
 }
 
 .message {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
 }
 
 .actions {
@@ -20,28 +20,8 @@
   margin-top: 0.5rem;
 }
 
-.button,
-.link {
-  font-size: 0.95rem;
-  font-weight: 500;
-  border-radius: 0.4rem;
-  padding: 0.6rem 0.9rem;
-}
-
-.button {
-  color: var(--background);
-  background: var(--foreground);
-  border: none;
-  cursor: pointer;
-}
-
-.link {
-  color: var(--foreground);
-  border: 1px solid var(--border);
-}
-
 .reference {
-  color: var(--foreground-muted);
+  color: var(--text-muted);
   font-size: 0.8rem;
   font-family: var(--font-geist-mono), monospace;
 }
