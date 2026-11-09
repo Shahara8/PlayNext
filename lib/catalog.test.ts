@@ -177,6 +177,8 @@ describe("getCatalogByTitle", () => {
     expect(builder.eq.mock.calls).toEqual([
       ["media_type", "tv"],
       ["tmdb_id", 1396],
+      // Only the region's services, never another region's.
+      ["region", "IL"],
     ]);
     expect(builder.order.mock.calls).toEqual([
       ["provider"],
@@ -419,6 +421,217 @@ describe("getCatalogTitlesByRefs", () => {
 
     await expect(getCatalogTitlesByRefs([movie(1)])).rejects.toThrow(
       /getCatalogTitlesByRefs failed: timeout/,
+    );
+  });
+});
+
+describe("getProviderSummaries", () => {
+  // Like makeQueryBuilder, plus `limit` and the count PostgREST sends back.
+  function makeSummaryBuilder(result: {
+    data: unknown;
+    error: { message: string } | null;
+    count: number | null;
+  }) {
+    const builder = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      order: vi.fn(() => builder),
+      limit: vi.fn(() => builder),
+      then: (
+        resolve: (value: typeof result) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve(result).then(resolve, reject),
+    };
+    return builder;
+  }
+
+  it("returns each provider's count and top titles, in the given order", async () => {
+    const { getProviderSummaries, PROVIDER_SAMPLE_SIZE } =
+      await import("./catalog");
+    const netflix = makeSummaryBuilder({
+      data: [
+        { tmdb_id: 66732, media_type: "tv", title: "Stranger Things" },
+        { tmdb_id: 1396, media_type: "tv", title: "Breaking Bad" },
+      ],
+      error: null,
+      count: 12,
+    });
+    const yes = makeSummaryBuilder({ data: [], error: null, count: 0 });
+    const from = vi.fn().mockReturnValueOnce(netflix).mockReturnValueOnce(yes);
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    const result = await getProviderSummaries([
+      { code: "NETFLIX" },
+      { code: "YES" },
+    ]);
+
+    expect(from).toHaveBeenCalledTimes(2);
+    expect(from).toHaveBeenCalledWith("v_catalog");
+    expect(netflix.select).toHaveBeenCalledWith("tmdb_id,media_type,title", {
+      count: "exact",
+    });
+    expect(netflix.eq.mock.calls).toEqual([
+      ["provider", "NETFLIX"],
+      ["region", "IL"],
+    ]);
+    expect(yes.eq).toHaveBeenCalledWith("provider", "YES");
+    // Most popular first, with a tie-break so the pick is stable.
+    expect(netflix.order.mock.calls).toEqual([
+      ["popularity", { ascending: false, nullsFirst: false }],
+      ["tmdb_id", { ascending: true }],
+    ]);
+    expect(netflix.limit).toHaveBeenCalledWith(PROVIDER_SAMPLE_SIZE);
+    expect(result).toEqual([
+      {
+        code: "NETFLIX",
+        count: 12,
+        samples: [
+          { tmdb_id: 66732, media_type: "tv", title: "Stranger Things" },
+          { tmdb_id: 1396, media_type: "tv", title: "Breaking Bad" },
+        ],
+      },
+      { code: "YES", count: 0, samples: [] },
+    ]);
+  });
+
+  it("returns nothing for no providers, without querying", async () => {
+    const { getProviderSummaries } = await import("./catalog");
+    const from = vi.fn();
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    expect(await getProviderSummaries([])).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("throws a descriptive error when a provider's query fails", async () => {
+    const { getProviderSummaries } = await import("./catalog");
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(
+        makeSummaryBuilder({ data: [], error: null, count: 3 }),
+      )
+      .mockReturnValueOnce(
+        makeSummaryBuilder({
+          data: null,
+          error: { message: "timeout" },
+          count: null,
+        }),
+      );
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+
+    await expect(
+      getProviderSummaries([{ code: "NETFLIX" }, { code: "YES" }]),
+    ).rejects.toThrow(/getProviderSummaries failed: timeout/);
+  });
+
+  it("throws rather than showing 0 titles when the count is missing", async () => {
+    const { getProviderSummaries } = await import("./catalog");
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() =>
+        makeSummaryBuilder({ data: [], error: null, count: null }),
+      ),
+    } as never);
+
+    await expect(getProviderSummaries([{ code: "NETFLIX" }])).rejects.toThrow(
+      /no count for NETFLIX/,
+    );
+  });
+});
+
+describe("getFeaturedTitle", () => {
+  // Answers the top-title read, then getCatalogByTitle's read.
+  function mockReads(
+    top: { data: unknown; error: { message: string } | null },
+    byTitle?: { data: unknown; error: { message: string } | null },
+  ) {
+    // The same chainable object, plus `limit`.
+    const topBuilder = Object.assign(makeQueryBuilder(top), {
+      limit: vi.fn(),
+    });
+    topBuilder.limit.mockReturnValue(topBuilder);
+    const titleBuilder = makeQueryBuilder(byTitle ?? { data: [], error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(topBuilder)
+      .mockReturnValueOnce(titleBuilder);
+    mockedCreatePublicClient.mockReturnValue({ from } as never);
+    return { from, topBuilder, titleBuilder };
+  }
+
+  it("reads only the top row's key, in trending order", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    const { topBuilder } = mockReads({ data: [], error: null });
+
+    await getFeaturedTitle();
+
+    expect(topBuilder.select).toHaveBeenCalledWith("tmdb_id,media_type");
+    expect(topBuilder.eq.mock.calls).toEqual([["region", "IL"]]);
+    expect(topBuilder.order.mock.calls).toEqual([
+      ["popularity", { ascending: false, nullsFirst: false }],
+      ["tmdb_id", { ascending: true }],
+      ["availability_id", { ascending: true }],
+    ]);
+    expect(topBuilder.limit).toHaveBeenCalledWith(1);
+  });
+
+  it("throws a descriptive error when the top-title read fails", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    mockReads({ data: null, error: { message: "timeout" } });
+
+    await expect(getFeaturedTitle()).rejects.toThrow(
+      /getFeaturedTitle failed: timeout/,
+    );
+  });
+
+  it("returns every provider row of the most popular title", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    const rows = [
+      { tmdb_id: 66732, media_type: "tv", provider: "NETFLIX" },
+      { tmdb_id: 66732, media_type: "tv", provider: "YES" },
+    ];
+    const { from, titleBuilder } = mockReads(
+      { data: [{ tmdb_id: 66732, media_type: "tv" }], error: null },
+      { data: rows, error: null },
+    );
+
+    const result = await getFeaturedTitle();
+
+    expect(from).toHaveBeenCalledTimes(2);
+    expect(titleBuilder.eq.mock.calls).toEqual([
+      ["media_type", "tv"],
+      ["tmdb_id", 66732],
+      ["region", "IL"],
+    ]);
+    expect(result).toBe(rows);
+  });
+
+  it("is null for an empty catalog, without a second read", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    const { from } = mockReads({ data: [], error: null });
+
+    expect(await getFeaturedTitle()).toBeNull();
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it("is null when the title went away between the two reads", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    mockReads(
+      { data: [{ tmdb_id: 1, media_type: "movie" }], error: null },
+      { data: [], error: null },
+    );
+
+    expect(await getFeaturedTitle()).toBeNull();
+  });
+
+  it("passes on a failed read", async () => {
+    const { getFeaturedTitle } = await import("./catalog");
+    mockReads(
+      { data: [{ tmdb_id: 1, media_type: "movie" }], error: null },
+      { data: null, error: { message: "timeout" } },
+    );
+
+    await expect(getFeaturedTitle()).rejects.toThrow(
+      /getCatalogByTitle failed: timeout/,
     );
   });
 });

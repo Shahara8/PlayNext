@@ -27,3 +27,9 @@ export function ratingLabel(voteAverage: number | null): string | null {
   const label = voteAverage.toFixed(1);
   return voteAverage > 0 && label !== "0.0" ? label : null;
 }
+
+/** "1 title", "1,234 titles"; "No titles yet" for none (a service tile). */
+export function titleCountLabel(count: number): string {
+  if (count === 0) return "No titles yet";
+  return count === 1 ? "1 title" : `${count.toLocaleString("en-US")} titles`;
+}

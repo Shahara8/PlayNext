@@ -1,0 +1,136 @@
+/* The home page's featured title (docs/UI_DIRECTION.md Section 4, Home 3). */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Phone: the poster beside the title block, Where to watch below at full
+   width. Desktop: the poster in its own column, both blocks beside it. */
+.card {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  grid-template-areas:
+    "poster head"
+    "watch watch";
+  gap: 1rem;
+  padding: 1rem;
+  align-items: start;
+}
+
+.posterWrap {
+  grid-area: poster;
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.poster {
+  object-fit: cover;
+}
+
+.posterFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.head {
+  grid-area: head;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rating {
+  font-weight: 600;
+  color: var(--rating);
+}
+
+/* Three lines on phones, where the poster is short. */
+.overview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.watch {
+  grid-area: watch;
+  min-width: 0;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.lineSkeleton {
+  width: 70%;
+  height: 1.4rem;
+}
+
+.metaSkeleton {
+  width: 40%;
+  height: 0.9rem;
+}
+
+.watchSkeleton {
+  height: 5.5rem;
+  border: none;
+}
+
+@media (min-width: 701px) {
+  .card {
+    grid-template-columns: 180px minmax(0, 46rem);
+    grid-template-areas:
+      "poster head"
+      "poster watch";
+    grid-template-rows: auto 1fr;
+    column-gap: 1.5rem;
+    row-gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .posterWrap {
+    border-radius: var(--radius);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .meta {
+    font-size: 0.95rem;
+  }
+
+  .overview {
+    font-size: 0.95rem;
+  }
+}

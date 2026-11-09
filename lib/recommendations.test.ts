@@ -16,6 +16,7 @@ import {
   parseLimit,
   pickSeeds,
   scoreCandidates,
+  withoutTitle,
   type FeedbackRow,
   type Seed,
 } from "./recommendations";
@@ -522,5 +523,34 @@ describe("getRecommendations", () => {
     await expect(
       getRecommendations({ supabase: { from } as never, userId: "u1" }, 5),
     ).rejects.toThrow(/denied/);
+  });
+});
+
+describe("withoutTitle", () => {
+  const recs = (ids: number[]) => ({
+    hasSeeds: true,
+    seedLookupsFailed: false,
+    titles: ids.map((id) => ({ ...title(id), source: "trending" as const })),
+  });
+
+  it("drops the title and keeps the rest, up to the limit", () => {
+    const result = withoutTitle(recs([1, 2, 3, 4]), "tv:2", 3);
+    expect(result.titles.map((t) => t.tmdb_id)).toEqual([1, 3, 4]);
+    expect(result.hasSeeds).toBe(true);
+  });
+
+  it("cuts to the limit when the title isn't there", () => {
+    const result = withoutTitle(recs([1, 2, 3, 4]), "tv:9", 3);
+    expect(result.titles.map((t) => t.tmdb_id)).toEqual([1, 2, 3]);
+  });
+
+  it("matches on the whole key, so a movie with the same id stays", () => {
+    const result = withoutTitle(recs([1, 2]), "movie:1", 2);
+    expect(result.titles.map((t) => t.tmdb_id)).toEqual([1, 2]);
+  });
+
+  it("only cuts when there is no title to drop", () => {
+    const result = withoutTitle(recs([1, 2, 3]), null, 2);
+    expect(result.titles.map((t) => t.tmdb_id)).toEqual([1, 2]);
   });
 });

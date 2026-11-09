@@ -16,15 +16,27 @@ type Row = Pick<
 /**
  * The "Where to watch" card: one row per service, subscription and free
  * first, each with a Watch button in the service's color (or "No direct link
- * yet"). Used by the title page; the home page's featured title reuses it.
+ * yet"). Used by the title page; the home page's featured title reuses it
+ * `plain`: without the card's own frame (it sits inside the featured card)
+ * and with an h3, under that section's h2.
  */
-export default function WhereToWatch({ rows }: { rows: readonly Row[] }) {
+export default function WhereToWatch({
+  rows,
+  plain = false,
+}: {
+  rows: readonly Row[];
+  plain?: boolean;
+}) {
   const headingId = useId();
+  const Heading = plain ? "h3" : "h2";
   return (
-    <section className={`card ${styles.card}`} aria-labelledby={headingId}>
-      <h2 id={headingId} className={styles.heading}>
+    <section
+      className={plain ? styles.plain : `card ${styles.card}`}
+      aria-labelledby={headingId}
+    >
+      <Heading id={headingId} className={styles.heading}>
         Where to watch
-      </h2>
+      </Heading>
       <ul className={styles.list}>
         {sortByAvailability(rows).map((row) => {
           const provider = getProviderByCode(row.provider);

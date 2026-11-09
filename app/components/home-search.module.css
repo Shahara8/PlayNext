@@ -1,0 +1,26 @@
+/* The home page's large search field (docs/UI_DIRECTION.md Section 4,
+   Home 1), with its submit button beside it. */
+.form {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 44rem;
+}
+
+/* Base look from the shared .input (app/globals.css), taller. */
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding-inline: 1rem;
+  font-size: 1.0625rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.button {
+  flex-shrink: 0;
+  min-height: 3.25rem;
+  min-width: 3.25rem;
+  border-radius: var(--radius);
+}

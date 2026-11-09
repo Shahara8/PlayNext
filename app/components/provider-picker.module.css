@@ -1,26 +1,114 @@
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
+/* The home page's service tiles (docs/UI_DIRECTION.md Section 4, Home 2).
+   Phones: one row that scrolls sideways with snap, running to the screen's
+   edges. Wider: all the tiles in one row (five today). */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-/* Base look from the shared .card (app/globals.css). */
-.tile {
-  --provider-color: var(--text);
+.row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(9.5rem, 42%);
+  gap: 0.75rem;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--gutter);
+  margin-inline: calc(-1 * var(--gutter));
+  padding-inline: var(--gutter);
+  /* Room for the tiles' shadow and focus ring inside the scroller. */
+  padding-block: 4px;
+  scrollbar-width: none;
+}
+
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+.item {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  border-inline-start: 4px solid var(--provider-color);
-  font-size: 1.1rem;
-  font-weight: 600;
-  text-align: center;
-  transition:
-    border-color 0.15s ease,
-    transform 0.1s ease;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+/* Base look from the shared .card (app/globals.css), with a thin top accent
+   in the service's color (a straight bar: a colored border would curve
+   with the corners). */
+.tile {
+  --service-color: var(--accent);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 1rem 0.9rem 0.9rem;
+  transition: background-color 0.15s ease;
+}
+
+.tile::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 3px;
+  background: var(--service-color);
 }
 
 .tile:hover {
-  border-color: var(--provider-color);
-  transform: translateY(-2px);
+  background: var(--surface-2);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 0.15rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--service-color);
+}
+
+.count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sample {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.countSkeleton {
+  width: 60%;
+  height: 0.85rem;
+  margin-block-start: 0.2rem;
+}
+
+@media (min-width: 761px) {
+  .row {
+    /* One equal column per service, however many there are. */
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 1rem;
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+    padding-block: 0;
+  }
 }

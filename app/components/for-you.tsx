@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import {
   getRecommendations,
+  withoutTitle,
   type Recommendations,
 } from "@/lib/recommendations";
 import {
@@ -9,6 +10,7 @@ import {
   getCurrentUser,
 } from "@/lib/supabase-server";
 import { titleKey } from "@/lib/title-ref";
+import { getHomeFeatured } from "./featured-title";
 import TitleCard, { TitleCardSkeleton } from "./title-card";
 import styles from "./for-you.module.css";
 
@@ -49,7 +51,17 @@ export default async function ForYou() {
     const viewer = user
       ? { supabase: await createServerSupabaseClient(), userId: user.id }
       : null;
-    recommendations = await getRecommendations(viewer, HOME_LIMIT);
+    // One more than shown, so dropping the featured title above (read in
+    // parallel; the grid doesn't depend on it) still leaves HOME_LIMIT.
+    const [recs, featured] = await Promise.all([
+      getRecommendations(viewer, HOME_LIMIT + 1),
+      getHomeFeatured().catch(() => null),
+    ]);
+    recommendations = withoutTitle(
+      recs,
+      featured ? titleKey(featured[0]) : null,
+      HOME_LIMIT,
+    );
   } catch (error) {
     console.error(error);
     return (

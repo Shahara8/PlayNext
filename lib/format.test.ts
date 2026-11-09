@@ -3,6 +3,7 @@ import {
   mediaTypeLabel,
   ratingLabel,
   releaseYear,
+  titleCountLabel,
   titleWithYear,
 } from "./format";
 
@@ -64,5 +65,16 @@ describe("ratingLabel", () => {
     expect(ratingLabel(Number.NaN)).toBeNull();
     expect(ratingLabel(Number.POSITIVE_INFINITY)).toBeNull();
     expect(ratingLabel(-1)).toBeNull();
+  });
+});
+
+describe("titleCountLabel", () => {
+  it.each([
+    [0, "No titles yet"],
+    [1, "1 title"],
+    [2, "2 titles"],
+    [1234, "1,234 titles"],
+  ])("%d → %s", (count, label) => {
+    expect(titleCountLabel(count)).toBe(label);
   });
 });

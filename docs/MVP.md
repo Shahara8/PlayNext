@@ -14,6 +14,50 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 4) — Post-M8 task 5: the home page
+- **Home** (`app/page.tsx`) per `docs/UI_DIRECTION.md` Section 4, top to bottom:
+  - **Search first:** the `h1` "Where can I watch…", a short line, and `app/components/home-search.tsx`: a plain `<form action="/search" role="search">` with `name="q"` (placeholder "e.g. Stranger Things") and a primary Search button. It works before JavaScript and lands on `/search?q=…`.
+  - **Service tiles** ("Browse by service"): `ProviderPicker` changed in place. Each tile has a 3 px top bar in the service color, the dot and name, "N titles" and the two most popular titles, and links to `/browse/<slug>`. Phones: one sideways-scrolling row with snap, to the screen edges; from 761 px, one row of equal columns. The Suspense fallback is `ProviderTiles` without counts, so the links work while data loads, and a failed read leaves just the names.
+  - **Trending now:** `app/components/featured-title.tsx`, the top trending title as a wide card (poster, linked title, "year · type · ★", a 3-line overview) with its Where to watch rows (`WhereToWatch`'s new `plain` prop: no card frame, an `h3`). A failed read leaves the section out; a skeleton shows while loading.
+  - **For You / Trending:** the grid as before, minus the featured title.
+- **Data** (no migration):
+  - `getProviderSummaries(providers)` in `lib/catalog.ts`: one request per provider returning the exact count and its top 2 rows by popularity, with a `tmdb_id` tie-break. Rows equal titles, since `provider_availability` is unique per (provider, region, title). A missing count throws rather than showing "0 titles".
+  - `getFeaturedTitle()`: the top row's key (`limit(1)`), then `getCatalogByTitle`; null for an empty catalog or a title that went away. The page reads it once per request through a React `cache()` wrapper (`getHomeFeatured`), shared with the grid.
+  - `withoutTitle()` in `lib/recommendations.ts`: the grid asks for 13 and drops the featured title, so both reads run in parallel and the title isn't shown twice.
+  - `titleCountLabel()` in `lib/format.ts` ("1 title", "1,234 titles", "No titles yet"), for browse in step 6 too.
+  - **Fix found in review:** `getCatalogByTitle` didn't filter by region, so once the feed has a second region the title page and featured card would list its services. It now filters by `REGION`.
+  - Tests: 18 new (625 total).
+- **Deviations:**
+  - The spec's placeholder "Where can I watch… (e.g. Stranger Things)" doesn't fit a phone-width field, so it's split: the `h1` asks the question and the placeholder gives the example.
+  - A Search button was added beside the field.
+  - The desktop tile row is "one column per provider" rather than a fixed 5.
+  - All recorded in the spec's as-built note.
+- **Smoke** (42 checks, was 41):
+  - `has.homePieces`: the search form, every tile showing a count, and the featured card with a title link and Where to watch, not repeated in the grid. It runs on the home page signed out and signed in.
+  - New check "home search form → search results": types a typo, submits, and expects the search page with Stranger Things.
+- **Found in the screenshots and fixed:**
+  - the tiles' colored top border curved with the corners (now a straight bar);
+  - a large gap under the featured card's "Where to watch";
+  - an orphaned word in the intro line on phones.
+- **`/code-review` (medium)**, fixed:
+  - the region filter above;
+  - `getFeaturedTitle` read a whole 100-row trending page for one title (now `limit(1)` of two columns);
+  - an inline copy of `titleKey()`;
+  - the fixed 5-column tile row;
+  - the signed-in smoke check not covering the featured card;
+  - `docs/UI_REVIEW.md`.
+
+  Declined:
+  - caching the five tile counts: they are small indexed reads today; revisit at the real-feed cutover, if home latency shows it;
+  - filtering the featured title by the viewer's dislikes or watchlist: it's the global "Trending now" pick by spec, not a recommendation.
+- `docs/UI_REVIEW.md`: views 01 and 17, and the service-colors and loading-skeleton lines. `docs/UI_DIRECTION.md`: step 4 ticked, with an as-built note in the Home spec.
+- Checked:
+  - Typecheck, lint and 625 tests clean. `format:check` flags only `CLAUDE.md` (CRLF working copy, as before).
+  - `ui-capture` against a local build: views 01 and 17 reviewed in both themes at both widths, and view 08 (the title page, after the region filter) is unchanged.
+  - Local smoke 42/42.
+  - PRODUCTION_RESULT
+- Next step: `docs/UI_DIRECTION.md` step 5 (search).
+
 ### 2026-11-09 (UI step 3) — Post-M8 task 5: title cards and grids
 - **Card** (`app/components/title-card.tsx`) per `docs/UI_DIRECTION.md` Section 4: the 2:3 poster (`--radius`, a border) with a **★ rating badge** at its top inline-end corner (`--rating` on `--surface`), the title clamped to 2 lines, and "year · type". The poster, title and meta are one link; the badge is last in its DOM, so it reads "title, meta, TMDB rating 7.8", and the poster image is decorative (new `decorative` prop on `Poster`) so the title isn't read twice. Below: only **♡ and +**, 36 px icon buttons with a 44 px hit area (`::after`), pressed in the accent tint with an accent icon, pinned to the card's bottom so a row keeps them aligned when a title wraps.
 - **`TitleActions`**: without `labeled` it now renders only favorite and watchlist (like, dislike and Rate are the title page's alone). `data-action` stays on both.

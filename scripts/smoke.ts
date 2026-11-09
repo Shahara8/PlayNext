@@ -346,6 +346,24 @@ export const has = {
     (p) =>
       `document.querySelector(${JSON.stringify(`main a[href="/browse/${p.slug}"]`)})`,
   ).join(" && "),
+  /** The home page's search (step 4): a plain GET form to /search with `q`. */
+  homeSearch: `document.querySelector('main form[action="/search"][role="search"] input[name="q"]')`,
+  /** Every service tile shows its title count ("8 titles", "No titles yet"),
+   * so getProviderSummaries() worked. */
+  serviceTileCounts: `[${PROVIDERS.map((p) => JSON.stringify(`main a[href="/browse/${p.slug}"]`)).join(",")}].every((s) => document.querySelector(s)?.textContent.includes(" title"))`,
+  /** The featured title (step 4): "Trending now" with a title link and its
+   * Where to watch rows, and not repeated in the grid below. */
+  featured: `(() => {
+    const section = [...document.querySelectorAll('main section')].find((s) => s.querySelector('h2')?.textContent.trim() === 'Trending now');
+    const link = section?.querySelector('h3 a[href^="/title/"]');
+    if (!link || ![...section.querySelectorAll('h3')].some((h) => h.textContent.trim() === 'Where to watch')) return false;
+    // No grid is fine (a signed-in home with nothing to recommend).
+    const grid = document.querySelector('main .title-grid');
+    return !grid?.querySelector('a[href="' + link.getAttribute('href') + '"]');
+  })()`,
+  get homePieces() {
+    return `${this.homeSearch} && ${this.serviceTileCounts} && ${this.featured}`;
+  },
 };
 
 type PageSpec = { label: string; path: string; ready: string };
@@ -360,7 +378,7 @@ function signedOutPages(
       path: "/",
       // The footer's privacy link: Google's OAuth review wants the homepage
       // to link to the privacy policy.
-      ready: `${has.heading2("Trending")} && ${has.titleLinks} && ${has.titleCards} && document.querySelector('footer a[href="/privacy"]') && ${has.headerNav} && ${has.providerTiles}`,
+      ready: `${has.heading2("Trending")} && ${has.titleLinks} && ${has.titleCards} && document.querySelector('footer a[href="/privacy"]') && ${has.headerNav} && ${has.providerTiles} && ${has.homePieces}`,
     },
     {
       label: "browse",
@@ -425,7 +443,7 @@ function signedInPages(titlePath: string): PageSpec[] {
     {
       label: "home",
       path: "/",
-      ready: `${has.heading2("For You")} && ${has.signOut} && ${has.cardsIfAny}`,
+      ready: `${has.heading2("For You")} && ${has.signOut} && ${has.cardsIfAny} && ${has.homePieces}`,
     },
     {
       label: "my list",
@@ -633,6 +651,22 @@ async function resetLinkGate(page: Page, options: SmokeOptions, email: string) {
   );
 }
 
+/**
+ * The home page's search form lands on the search page with the query, and
+ * the search there finds the title (a typo, as in the search page check).
+ */
+async function homeSearchSubmits(page: Page): Promise<string> {
+  await page.goto("/");
+  await page.waitFor(has.homeSearch, "the home search form");
+  await page.fill('main form[role="search"] input[name="q"]', "strnger");
+  await page.click('main form[role="search"] button[type="submit"]');
+  await page.waitFor(
+    `location.pathname === '/search' && new URLSearchParams(location.search).get('q') === 'strnger' && ${has.titleLink("Stranger Things")}`,
+    "the search page with the results",
+  );
+  return page.path();
+}
+
 /** A small phone, below VIEWPORTS' 412 px, for the header's one-row check. */
 const NARROW_PHONE: Viewport = {
   ...VIEWPORTS[0],
@@ -807,6 +841,9 @@ async function main() {
     );
     await runner.check("header one row on phones (signed out)", () =>
       headerOneRow(page, false),
+    );
+    await runner.check("home search form → search results", () =>
+      homeSearchSubmits(page),
     );
 
     if (!options.signedOutOnly) {

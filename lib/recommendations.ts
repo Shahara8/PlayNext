@@ -295,3 +295,21 @@ export function parseLimit(value: string | null): number {
   if (!value || !/^\d+$/.test(value)) return MAX_RECOMMENDATIONS;
   return Math.min(Math.max(Number(value), 1), MAX_RECOMMENDATIONS);
 }
+
+/**
+ * `recommendations` without one title (by titleKey), cut to `limit`. The home
+ * page asks for one title more than it shows and drops its featured title,
+ * which sits just above the grid, so the two reads can run in parallel.
+ */
+export function withoutTitle(
+  recommendations: Recommendations,
+  key: string | null,
+  limit: number,
+): Recommendations {
+  return {
+    ...recommendations,
+    titles: recommendations.titles
+      .filter((title) => titleKey(title) !== key)
+      .slice(0, limit),
+  };
+}

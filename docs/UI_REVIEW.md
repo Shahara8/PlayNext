@@ -57,11 +57,11 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 - **Title card** (home, browse, My List; rebuilt in UI step 3). The poster (2:3, rounded) with a **★ rating badge** (TMDB's score, in the rating color on a surface chip) at its top inline-end corner, the title (2 lines at most) and "year · type" ("2016 · TV Series"). The poster, title and meta are one link to the title page. Below them just two 36 px icon buttons: **♡ favorite** and **+ watchlist** (✓ once saved); like, dislike and rating are on the title page only. Saved states show as a button tinted with the accent color, with an accent border and an accent icon (see views 18 to 21). The buttons sit at the bottom of the card, so a row of cards keeps them in line when one title wraps to two lines. A title with no TMDB score (or a score of 0, meaning no votes) has no badge.
 - **Grids.** 2 columns on phones, 3 on tablets (601–899 px), 5 from 900 px and 6 from 1180 px. The home, browse and My List pages use the `--gutter` side padding, so the grid lines up with the logo.
 - **Search result card.** A horizontal card: small poster, title, year, type, TMDB rating (★), and a pill per service the title is on (colored dot plus name).
-- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (left border), in the dots on search results and the title page, and as the Watch buttons on the title page.
+- **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (a bar across the top and a dot), in the dots on search results and the title page, and as the Watch buttons on the title page.
 
 ## Not shown in screenshots (described only)
 
-- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse, search, My List, a title page and the For You section load. They're usually gone in well under a second.
+- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse, search, My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
 - **Error page.** If a page fails to load: heading "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a "Try again" button, a "Back to home" link and a small reference code. Same layout as the Not found page (view 16).
 - **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
 - **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
@@ -72,13 +72,17 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 ## View 01: Home (signed out)
 
-**Purpose.** The landing page: pick a streaming service to browse, or see what's trending.
+**Purpose.** The landing page: search for a title to see where it's streaming, browse a service, or see what's trending.
 
 **How users get here.** The site's address, the logo, or "Browse" in the header.
 
-**What's on it.** The heading "PlayNext" and the line "Pick a streaming service to browse what's on it."; five service tiles (colored left border), 2 per row on phones and 5 in a row on desktop; then a **Trending** section: the line "Sign in and like a few titles to get personal picks" and 12 title cards.
+**What's on it** (rebuilt in UI step 4), top to bottom:
+1. The heading **"Where can I watch…"**, the line "Find which services have a movie or show.", and a large search field (placeholder "e.g. Stranger Things") with a primary **Search** button. It's a plain form, so pressing Enter or Search opens the search page with the results (works before the page's scripts load).
+2. **Browse by service:** a tile per service, each with a thin bar in the service's color across its top, a colored dot and the name, the number of titles ("8 titles"; "No titles yet" for none), and its two most popular titles in muted text (cut with "…" when long). The whole tile links to that service's browse page. On phones the tiles sit in one row that scrolls sideways (about two and a half visible, so the next one peeks in), running to the screen's edges; from 761 px all five sit in one row.
+3. **Trending now:** the single most popular title as a wide card: poster, title (links to the title page), "year · type · ★ rating", the overview (3 lines at most), then a divider and its **Where to watch** rows (the title page's component, with Watch buttons in the service's color, or "No direct link yet"). Phones: the poster sits beside the title block, Where to watch is full width below. Desktop: the poster in its own column, everything else beside it. Today's top title, Project Hail Mary, is on Partner TV without a direct link, so the screenshots show "No direct link yet".
+4. **Trending:** the line "Sign in and like a few titles to get personal picks" and 12 title cards. The featured title is left out, so it isn't shown twice.
 
-**Known constraints.** The tiles are text only (no logos: we have no rights to use the services' logos). On phones the page is long: 12 cards in 2 columns. There's no search box on the home page; search is its own page.
+**Known constraints.** The tiles are text only (no logos: we have no rights to use the services' logos). "Trending" is TMDB's worldwide popularity, not Israel's. On phones the page is long: 12 cards in 2 columns. While the tiles, the featured card and the grid load, the tiles show just the names (already linking) and the other two show skeletons; if the counts can't be read, the tiles stay names only, and if the featured title can't be read, its section is left out.
 
 ![Phone, light](images/01-home-phone-light.png) ![Desktop, light](images/01-home-desktop-light.png)
 
@@ -257,7 +261,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 17: Home (signed in)
 
-**Purpose.** As view 01, but the second section is **For You** (personal picks).
+**Purpose.** As view 01, but the last section is **For You** (personal picks). The search, the service tiles and the Trending now card are the same as signed out; For You also leaves out the featured title.
 
 **What's on it.** The header shows the user's first name and "Sign out". The For You caption explains what the list is based on. For this test account it reads "Nothing like your picks is in our catalog yet, so here's what's trending." (the tiny mock catalog has nothing similar to its likes). Other captions: "Based on what you've liked.", "Based on what you've liked, plus trending titles." and, with no likes yet, "Like, favorite, or rate titles 7+ to personalize this. Trending picks for now." Titles the user already saved or rated are left out.
 

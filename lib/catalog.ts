@@ -138,7 +138,10 @@ export async function getProviderGenres(
   return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
-/** All live provider rows for one title (a title can be on several providers). */
+/**
+ * All live provider rows for one title in the region (a title can be on
+ * several providers), so Where to watch never lists another region's.
+ */
 export async function getCatalogByTitle(ref: TitleRef): Promise<CatalogRow[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
@@ -146,6 +149,7 @@ export async function getCatalogByTitle(ref: TitleRef): Promise<CatalogRow[]> {
     .select("*")
     .eq("media_type", ref.media_type)
     .eq("tmdb_id", ref.tmdb_id)
+    .eq("region", REGION)
     // A stable order, so the page and its metadata list providers the same
     // way on every request.
     .order("provider")
@@ -251,4 +255,83 @@ export async function getCatalogTitlesByRefs(
       return data as CatalogTitle[];
     }),
   );
+}
+
+// --- Home page ---------------------------------------------------------------
+
+/** A sample title on a service tile: enough to name and link it. */
+export type ProviderSample = Pick<
+  CatalogRow,
+  "tmdb_id" | "media_type" | "title"
+>;
+
+/** A home page service tile's data: how many titles, and the top few. */
+export interface ProviderSummary {
+  code: string;
+  /** Titles on the provider in the region. */
+  count: number;
+  /** Up to PROVIDER_SAMPLE_SIZE of its most popular titles. */
+  samples: ProviderSample[];
+}
+
+export const PROVIDER_SAMPLE_SIZE = 2;
+
+/**
+ * Per provider (in the given order): its title count and most popular
+ * titles, for the home page's service tiles. One request per provider that
+ * returns both (the count rides along with the sample rows). The count is of
+ * v_catalog rows, which is titles: provider_availability is unique per
+ * (provider, region, title) (migration 0001).
+ */
+export async function getProviderSummaries(
+  providers: readonly { code: string }[],
+): Promise<ProviderSummary[]> {
+  const supabase = createPublicClient();
+  const { column, ascending } = SORT_COLUMNS.trending;
+  return Promise.all(
+    providers.map(async ({ code }) => {
+      const { data, error, count } = await supabase
+        .from("v_catalog")
+        .select("tmdb_id,media_type,title", { count: "exact" })
+        .eq("provider", code)
+        .eq("region", REGION)
+        .order(column, { ascending, nullsFirst: false })
+        // A stable pick among equally popular titles.
+        .order("tmdb_id", { ascending: true })
+        .limit(PROVIDER_SAMPLE_SIZE);
+      if (error)
+        throw new Error(`getProviderSummaries failed: ${error.message}`);
+      // Asked for, so a missing count is a broken response, not zero titles.
+      if (count == null)
+        throw new Error(`getProviderSummaries failed: no count for ${code}`);
+      return { code, count, samples: data as ProviderSample[] };
+    }),
+  );
+}
+
+/**
+ * The home page's featured title: the most popular one in the region, as
+ * all its provider rows (for its Where to watch card), or null when the
+ * catalog is empty or the title went away between the two reads.
+ */
+export async function getFeaturedTitle(): Promise<CatalogRow[] | null> {
+  const supabase = createPublicClient();
+  const { column, ascending } = SORT_COLUMNS.trending;
+  // Just the key of the top row (the same order as getTrendingTitles).
+  const { data, error } = await supabase
+    .from("v_catalog")
+    .select("tmdb_id,media_type")
+    .eq("region", REGION)
+    .order(column, { ascending, nullsFirst: false })
+    .order("tmdb_id", { ascending: true })
+    .order("availability_id", { ascending: true })
+    .limit(1);
+  if (error) throw new Error(`getFeaturedTitle failed: ${error.message}`);
+  const [top] = data as TitleRef[];
+  if (!top) return null;
+  const rows = await getCatalogByTitle({
+    media_type: top.media_type,
+    tmdb_id: top.tmdb_id,
+  });
+  return rows.length > 0 ? rows : null;
 }

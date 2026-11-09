@@ -5,6 +5,18 @@
 
 .heading {
   margin-block-end: 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* Inside the home page's featured card: a smaller heading, no frame. */
+.plain .heading {
+  font-size: 0.95rem;
+  margin-block-end: 0;
+}
+
+.plain .item:first-child {
+  padding-block-start: 0.25rem;
 }
 
 .list {
