@@ -26,7 +26,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - **Screenshots** (views 20, 21 and 22 in both themes at both widths): nothing needed fixing. The empty Favorites panel isn't in a capture (the test account has a favorite); it's the same markup with the other copy.
 - **`/code-review` (medium):** no correctness bugs. Fixed: the ready expressions checked the current tab twice (`has.myList` plus `has.myListPieces`), and the desktop tab skeleton's width was a bare number (now a `calc()` of the same values). Declined: raising the `.tabs` overrides' specificity over `.segmented`, since `globals.css` loads first so module rules win ties (Section 3's convention, which every step relies on). The other two findings were the docs below, not written yet when the review ran.
 - `docs/UI_REVIEW.md`: views 20, 21 and 22 and the skeleton line. `docs/UI_DIRECTION.md`: step 7 ticked, with an as-built note in the My List spec. `CLAUDE.md`: the step 7 pieces.
-- Checked: typecheck, lint and 664 tests clean (`format:check` flags only `CLAUDE.md`, CRLF working copy, as before); `ui-capture` against a local build; local smoke 47/47.
+- Checked: typecheck, lint and 664 tests clean (`format:check` flags only `CLAUDE.md`, CRLF working copy, as before); `ui-capture` against a local build; local smoke 47/47.; committed and pushed as `c4eb30d`; **production smoke 47/47** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 8 (sign in, reset, privacy, 404, error, skeletons).
 
 ### 2026-11-09 (UI step 6) — Post-M8 task 5: browse
