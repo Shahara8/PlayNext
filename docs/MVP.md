@@ -33,7 +33,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   Declined:
   - the specificity of module rules against the shared classes (by design since step 0: `globals.css` is imported first, so module rules win ties);
   - the `grid-column` rule on `.info`'s children above 800 px (it has no effect in the flex column).
-- Checked: lint, typecheck and build clean. `format:check` flags only `CLAUDE.md`, whose working copy has CRLF line endings from `core.autocrlf` (the committed file is LF and passes). `ui-capture` against a local build: views 08, 09 and 19 were reviewed in both themes at both widths, plus a 360 px phone and a 4-service page (scratch script), and browse cards are unchanged. Local smoke 41/41.
+- Checked: lint, typecheck and build clean. `format:check` flags only `CLAUDE.md`, whose working copy has CRLF line endings from `core.autocrlf` (the committed file is LF and passes). `ui-capture` against a local build: views 08, 09 and 19 were reviewed in both themes at both widths, plus a 360 px phone and a 4-service page (scratch script), and browse cards are unchanged. Local smoke 41/41. Committed and pushed as `bce6ede`; **production smoke 41/41** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 3 (title cards and grids).
 
 ### 2026-11-09 (UI step 1) — Post-M8 task 5: header and footer
