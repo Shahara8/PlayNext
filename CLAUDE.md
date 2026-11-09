@@ -6,8 +6,10 @@ Helps users find where to watch a movie/show across streaming services (Netflix,
 
 1. **`docs/MVP.md`** — product scope, architecture, and the ordered implementation plan (milestones M0→M8 with task checklists). This is the source of truth for what the app is and what's left to build.
 2. **`docs/INGESTION.md`** — the daily catalog ingestion pipeline design (Post-M8 task 3). Built and running on GitHub with a mock stand-in; **paused until the external developer's collector arrives** (its Status section says what's left). Read its Status and Progress Log; read it in full when working on ingestion.
+3. **`docs/FEED_REQUIREMENTS.md`** — the contract for the external developer's feed (row format, provider codes, the manifest, an acceptance checklist). The pipeline's code in `ingestion/src/` validates against it.
+4. **`docs/UI_DIRECTION.md`** — the chosen UI direction (Direction 1 "Watch-First" plus two additions, light and dark themes): rules, visual system, a spec per view, and the build steps 0–9 with their checklist. Read it in full before any UI work.
 
-The **current workstream** is Post-M8 task 5 in `docs/MVP.md`: a UI review with Gemini (screenshots and descriptions of every view, the user brings back Gemini's suggestions, then we decide together what to implement). 3. **`docs/FEED_REQUIREMENTS.md`** — the contract for the external developer's feed (row format, provider codes, the manifest, an acceptance checklist). The pipeline's code in `ingestion/src/` validates against it.
+The **current workstream** is Post-M8 task 5 in `docs/MVP.md`: building the UI direction in `docs/UI_DIRECTION.md`, one step at a time (next unchecked step in its Section 6). `docs/UI_REVIEW.md` describes every view as it is now (keep it updated as views change), and `npm run ui-capture` screenshots them all.
 
 `docs/MVP.md` and `docs/INGESTION.md` each have a **Progress Log** near the top — read it first to see what prior sessions already did and what the next step is. Don't ask the user to re-explain context that's already in these files.
 

@@ -206,6 +206,8 @@ type Pending = {
  */
 export class CdpClient {
   private nextId = 1;
+  /** Set by close(): later sends fail at once instead of waiting out their timeout. */
+  private closedReason: string | null = null;
   private pending = new Map<number, Pending>();
   private listeners = new Set<(method: string, params: unknown) => void>();
 
@@ -217,6 +219,8 @@ export class CdpClient {
     params: Record<string, unknown> = {},
     timeoutMs = 30_000,
   ): Promise<T> {
+    if (this.closedReason !== null)
+      return Promise.reject(new Error(this.closedReason));
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -281,8 +285,9 @@ export class CdpClient {
     });
   }
 
-  /** Fails every in-flight request, e.g. when the socket closes. */
+  /** Fails every in-flight request and every later one, e.g. when the socket closes. */
   close(reason: string): void {
+    this.closedReason = reason;
     for (const entry of this.pending.values()) entry.reject(new Error(reason));
     this.pending.clear();
   }

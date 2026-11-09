@@ -252,6 +252,13 @@ describe("CdpClient", () => {
     await expect(req).rejects.toThrow("socket closed");
   });
 
+  it("fails later requests at once after close, without sending them", async () => {
+    const { cdp, sent } = client();
+    cdp.close("socket closed");
+    await expect(cdp.send("Page.enable")).rejects.toThrow("socket closed");
+    expect(sent).toHaveLength(0);
+  });
+
   it("times out a request Chrome never answers", async () => {
     vi.useFakeTimers();
     try {

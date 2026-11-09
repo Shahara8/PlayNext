@@ -14,6 +14,34 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI direction chosen) — Post-M8 task 5: Direction 1 + two additions, light and dark; build plan written
+- The user published Gemini's three mockups as Google Sites pages. Claude captured them with headless Chrome (the mockups are in cross-origin frames; their tabs were clicked with real mouse events), and the screenshots are in `.ui-review/gemini/` (gitignored). They were compared against the platform's four jobs.
+- **Decided (user):** Direction 1 "Watch-First / Quick Guide" plus a Watch button per service on search results (from Direction 3) and service tiles with counts and sample titles on home (from Direction 2). Both light and dark themes; the build order was left to Claude: **foundation tokens first, then one view at a time in both themes**.
+- Wrote **`docs/UI_DIRECTION.md`**: the decision, rules (only data we have, keep routes, no component library, AA contrast, logical CSS properties for later RTL), the visual system (tokens for both themes, a System/Light/Dark setting in localStorage with an inline no-flash script, Geist, provider `onColor`), a spec per view, and steps 0–9 with a per-step check routine. `CLAUDE.md` now lists it as required reading.
+- Earlier the same day (2026-11-07 session, continued): `docs/UI_REVIEW.md` gained a "Purpose of the platform" section, and its brief now asks first for 2–3 directions with mockups; `ui-capture --doc-only` rebuilt the PDF.
+- No app code changed.
+- **Code review** (`/code-review` medium) of all the uncommitted work, before committing. Fixed 7 findings:
+  - The watchlist is restored oldest first, so its order survives a capture.
+  - A crash later in the run no longer drops the view failures already recorded.
+  - `1. ` lists render in the PDF (the purpose list was one paragraph).
+  - The reset-form shot is refused if the test account's email is still on the page.
+  - That shot also checks the page's origin, since Supabase silently falls back to production for an unlisted redirect URL.
+  - `CdpClient` (`scripts/smoke-lib.ts`) now fails every request at once after its socket closes, instead of each one waiting out 30 s; this also covers the smoke script.
+  - The run warns when a PDF section hits Chrome's 200-inch page limit.
+
+  Not changed: the header shows the account's display name ("Test Bot"), not its email; the argv parser that `ui-capture` and `smoke` each have stays as is; one redundant `setEmulatedMedia` call per view.
+- After the fixes: 567 tests; lint, typecheck and format clean; a full `npm run ui-capture` against production (50 images, watchlist restored); production smoke 38/38. Everything from the 2026-11-07 session and this one was committed and pushed.
+- Next step: `docs/UI_DIRECTION.md` step 0 (foundation), in a new session.
+
+### 2026-11-07 (UI review captures) — Post-M8 task 5, first item: screenshots and descriptions for Gemini
+- Built `npm run ui-capture` (`scripts/ui-capture.ts`, pure helpers plus 18 tests in `scripts/ui-capture-lib.ts`): full-page screenshots of 25 views and states at phone and desktop widths, signed out and signed in, including the empty states (no filter matches, no search results, empty My List), the login variants (sign up, forgot password, link error), both reset-password states, 404, and 2 dark-mode views. 50 images. Details and gotchas are in Section 8 Testing.
+- Wrote `docs/UI_REVIEW.md`: a brief asking Gemini for concrete suggestions per view (what, why, size S/M/L, priority P1–P3, a cross-cutting section and a top 10, no redesign), the product context and constraints, the recurring elements, the states that aren't screenshotted (skeletons, error page, save failure, post-submit messages), and a description per view.
+- Deliverable folder (gitignored, regenerate with `npm run ui-capture`): `.ui-review/`, with `images/`, `PlayNext-UI-review.md` and `PlayNext-UI-review.pdf` (29 pages, about 32 MB, one view per page). The PDF is there because the Gemini app caps how many files one message takes.
+- Other changes: `scripts/smoke.ts` now exports `has` and `signIn` (no behavior change); `sharp` is a pinned devDependency (the version Next already installed). No app UI changes. The test account's watchlist was emptied and restored during the captures (The Witcher, `created_at` now 2026-11-07).
+- State: 565 tests; lint and typecheck clean; production smoke 38/38 after the changes. Committed on 2026-11-09 after a code review (see that entry).
+- Scope change, same session (user): the review now first asks Gemini for 2–3 UI directions with mockups (home, browse, search, title page; phone first), plus a recommendation. The per-view suggestions became part 2. `docs/UI_REVIEW.md` gained a "Purpose of the platform" section, and the triage step now starts with choosing a direction.
+- Next step: the user gives the folder (or just the PDF) to Gemini and pastes its suggestions back; then we triage them together (Post-M8 task 5, items 2–3) before implementing anything.
+
 ### 2026-11-07 (session end) — ingestion paused for Noam; next: UI review with Gemini
 - Ingestion is built and running on GitHub with a mock stand-in. It's paused until Noam's collector passes `docs/FEED_REQUIREMENTS.md` section 7 (what's left: `docs/INGESTION.md` Status steps 5-6).
 - Open product decision for the cutover: what the site shows for the providers still on mock data (Netflix, Disney+, Prime) next to real YES/Partner TV.
@@ -650,6 +678,12 @@ Multi-region/i18n beyond Israel; native/mobile apps; collaborative-filtering rec
 - Gotchas it handles: plain `chrome --headless --window-size` can't go below about 500px on Windows (hence device-metrics emulation). Server HTML appears before React hydrates it, and a click or input before hydration is silently lost, so `click`/`fill` first wait for React's `__reactProps$…` key on the element. React inputs need the native value setter plus an `input` event.
 - If you write a one-off DevTools script under Git Bash, set `MSYS_NO_PATHCONV=1` (it rewrites `name=/path` arguments).
 
+**UI review captures (`npm run ui-capture`, built 2026-11-07 for Post-M8 task 5):** `scripts/ui-capture.ts` (helpers and tests in `scripts/ui-capture-lib.ts`) reuses the smoke script's Chrome helpers to take **full-page** screenshots of 25 views and states (signed out, signed in, empty states, dark mode) at both widths into `.ui-review/images/` (gitignored). It then copies `docs/UI_REVIEW.md` (the review brief plus one description per view, which links to those image names) next to them and prints it to one PDF with the images inline. `--doc-only` rebuilds just the document and PDF.
+- Full-page shots are taken in 1200px tiles and stitched with `sharp` (now a pinned devDependency; Next already shipped that version): a single full-page PNG of a poster-heavy page is too big for one DevTools message, and Chrome drops the socket (close 1006). The PDF is read the same way, as a stream (`transferMode: "ReturnAsStream"` plus `IO.read`).
+- Lazy posters are switched to eager before each shot, or below-the-fold posters come out blank.
+- Live side effects: the "empty My List" shot removes the test account's watchlist titles through the UI and restores them in a `finally` (their `created_at` changes). The reset-form shots use admin-minted recovery links, as in the smoke check. The form's "For <email>" line is replaced with a placeholder before the shot, since these images go to a third party.
+- When a view's markup or copy changes, update its description in `docs/UI_REVIEW.md`, and add a `ViewSpec` for any new page.
+
 **Safety rule for test files**: never import a script that performs live network/DB calls as a side effect of module import — guard its entrypoint (e.g. `scripts/seed-mock-data.ts`'s `isMainModule` check) so importing it for a pure helper (like its Zod schema) can't trigger a real run. This was discovered the hard way: an early version of `scripts/seed-mock-data.test.ts` imported the un-guarded script and briefly caused a real `main()` run (live TMDB calls + Supabase upserts) during `npm test`, before the guard was added.
 
 ---
@@ -783,15 +817,15 @@ Agreed order (2026-11-06; SMTP moved last the same day, when it got blocked):
 2. [x] **Live smoke checks** per Section 8 Testing: `npm run smoke` (`scripts/smoke.ts`), run against production with the test account (2026-11-06: 30/30; 32 checks after `/privacy` was added).
 3. [ ] **Real catalog ingestion**, below. **In progress.** Steps 1–4 done (step 4 on 2026-11-07; migration 0009 live); **step 5 (the daily GitHub Action) is in progress**: built and passing on GitHub with a mock stand-in; only the collector and the daily schedule wait for Noam. The step checklist and the feed's state are in `docs/INGESTION.md` Status, and the feed contract is in `docs/FEED_REQUIREMENTS.md`.
 5. [ ] **UI review with Gemini** (queued 2026-11-07 by the user, while waiting for Noam's collector). **Current workstream.**
-   - [ ] Claude: screenshots of every view, plus a description of each, for the user to give Gemini.
+   - [x] Claude: screenshots of every view, plus a description of each, for the user to give Gemini. Done 2026-11-07: `npm run ui-capture` writes `.ui-review/` (50 full-page images, `PlayNext-UI-review.md` copied from `docs/UI_REVIEW.md`, and the same as one PDF).
      - Cover phone and desktop widths, signed out and signed in (the test account), and full page, not just the first screen.
      - Include the states a user can meet: empty My List, no search results, not found, the login and reset forms, and a title page with and without a watch link.
      - `npm run smoke` already captures most views in `.smoke/` (gitignored), but as viewport shots. Extend it, or add a separate capture script, rather than asking the user for screenshots.
      - Each description says what the view is for, what's on it, how the user gets there, and the known constraints. Constraints: Israeli audience, phone first, the mock catalog (Netflix, Disney+ and Prime titles are made up until phase 2), Next.js with server-rendered pages, no design system.
-     - Deliver one folder of images plus one document, with a short brief at the top. The brief asks Gemini for concrete, prioritized suggestions per view (what, why, and how big a change), not a redesign.
-   - [ ] User: gives them to Gemini and pastes Gemini's suggestions back.
-   - [ ] Together: triage each suggestion (fit with the MVP scope, effort, risk), and the user decides which to do.
-   - [ ] Implement the chosen ones. UI changes are checked with `npm run smoke` and screenshots (no component tests, per Section 8); any logic they touch gets unit tests.
+     - Deliver one folder of images plus one document, with a short brief at the top. The brief asks Gemini for concrete, prioritized suggestions per view (what, why, and how big a change). **Changed 2026-11-07 by the user:** it now first asks for 2–3 distinct UI directions with mockups, so we can choose a direction, and the per-view suggestions are part 2. The document opens with the platform's purpose, so the directions are grounded in it.
+   - [x] User: gave them to Gemini, which returned 3 UI directions as published mockups (2026-11-09).
+   - [x] Together: chose a direction. **Direction 1 "Watch-First" plus two additions, both light and dark themes** (2026-11-09). The decision and the full spec are in **`docs/UI_DIRECTION.md`**. Gemini's per-view suggestions (Part 2 of the brief) were never requested: the direction replaced them.
+   - [ ] Implement it, in the steps of `docs/UI_DIRECTION.md` Section 6 (0 foundation, 1 header/footer, 2 title page, 3 cards, 4 home, 5 search, 6 browse, 7 My List, 8 auth/static pages, 9 wrap-up). Each step is checked in both themes with `npm run ui-capture` and `npm run smoke` (no component tests, per Section 8); any logic it touches gets unit tests. Progress is ticked there, not here.
 4. [x] **Custom SMTP** (deferred, then finished later the same day, 2026-11-06). Email sign-up confirmations and resets now reach any address (reset emails may land in spam until there's a domain + Resend).
    - [x] User: turn on 2-Step Verification for `play.next.app8@gmail.com` and create an app password (first blocked with "We couldn't verify that it's you", a common hold on brand-new accounts when tried from a phone; it worked on a later attempt).
    - [x] User: Supabase → Authentication → Emails → SMTP Settings (saved; Supabase warns Gmail is a personal provider, expected until there's a domain): host `smtp.gmail.com`, port `465`, username = the full Gmail address, password = the app password, sender email = the same address, sender name `PlayNext`. Then raise Authentication → Rate Limits → emails per hour (custom SMTP starts at about 30).

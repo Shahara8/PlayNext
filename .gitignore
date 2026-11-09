@@ -45,3 +45,6 @@ next-env.d.ts
 
 # live smoke-check screenshots (npm run smoke)
 /.smoke/
+
+# UI review captures (npm run ui-capture)
+/.ui-review/

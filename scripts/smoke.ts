@@ -306,7 +306,7 @@ export class Page {
 // --- Checks ------------------------------------------------------------------
 
 /** JS expressions for "this page's key content has rendered". */
-const has = {
+export const has = {
   heading2: (text: string) =>
     `[...document.querySelectorAll('h2')].some((h) => h.textContent.trim() === ${JSON.stringify(text)})`,
   h1: (text: string) =>
@@ -501,7 +501,7 @@ async function findTitlePath(page: Page): Promise<string> {
   );
 }
 
-async function signIn(page: Page, email: string, password: string) {
+export async function signIn(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.waitFor(has.passwordInput, "the sign-in form");
   await page.fill("input[type=email]", email);
