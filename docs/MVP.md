@@ -25,7 +25,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 - `docs/UI_REVIEW.md`: the Title card and Grids lines, plus views 01 and 18. `docs/UI_DIRECTION.md`: step 3 ticked, with an as-built note in the cards spec.
 - **Found in the screenshots and fixed:** the ♡/+ row of a card with a two-line title sat lower than its neighbors' (now pinned to the bottom); ♡ drew smaller than + (bigger glyph).
 - **`/code-review` (medium)**, all fixed: the search result card still printed "★ 0.0" (now `ratingLabel`); the For You skeleton drew 6 cards for up to 12 (a layout shift on desktop); the card guard only ran on browse (now home and My List too); the `.card > :last-child` rule depended on DOM order (now a wrapper with its own class); the step tick and this entry.
-- Checked: typecheck, lint and tests clean; `format:check` flags only `CLAUDE.md` (CRLF working copy, as before). `ui-capture` against a local build: views 01, 02, 03, 17, 18, 20 and 21 reviewed in both themes at both widths, plus 06 and 08 (rating helper). Local smoke 41/41.
+- Checked: typecheck, lint and tests clean; `format:check` flags only `CLAUDE.md` (CRLF working copy, as before). `ui-capture` against a local build: views 01, 02, 03, 17, 18, 20 and 21 reviewed in both themes at both widths, plus 06 and 08 (rating helper). Local smoke 41/41. Committed and pushed as `7764c75`; **production smoke 41/41** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 4 (home).
 
 ### 2026-11-09 (UI step 2) — Post-M8 task 5: the title page
