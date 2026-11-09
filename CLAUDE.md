@@ -9,7 +9,7 @@ Helps users find where to watch a movie/show across streaming services (Netflix,
 3. **`docs/FEED_REQUIREMENTS.md`** — the contract for the external developer's feed (row format, provider codes, the manifest, an acceptance checklist). The pipeline's code in `ingestion/src/` validates against it.
 4. **`docs/UI_DIRECTION.md`** — the chosen UI direction (Direction 1 "Watch-First" plus two additions, light and dark themes): rules, visual system, a spec per view, and the build steps 0–9 with their checklist. Read it in full before any UI work.
 
-The **current workstream** is Post-M8 task 5 in `docs/MVP.md`: building the UI direction in `docs/UI_DIRECTION.md`, one step at a time (next unchecked step in its Section 6). `docs/UI_REVIEW.md` describes every view as it is now (keep it updated as views change), and `npm run ui-capture` screenshots them all, in light and dark. Components use only the theme tokens and shared classes in `app/globals.css` (built in step 0).
+The **current workstream** is Post-M8 task 5 in `docs/MVP.md`: building the UI direction in `docs/UI_DIRECTION.md`, one step at a time (next unchecked step in its Section 6). `docs/UI_REVIEW.md` describes every view as it is now (keep it updated as views change), and `npm run ui-capture` screenshots them all, in light and dark. Components use only the theme tokens and shared classes in `app/globals.css` (built in step 0); page side padding uses the `--gutter` token (added in step 1, so content lines up with the header), adopted page by page in steps 2–8.
 
 `docs/MVP.md` and `docs/INGESTION.md` each have a **Progress Log** near the top — read it first to see what prior sessions already did and what the next step is. Don't ask the user to re-explain context that's already in these files.
 
