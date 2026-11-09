@@ -7,7 +7,7 @@ import {
 import { RESET_MODE_PARAM } from "@/lib/auth";
 import ResetPasswordForm from "@/app/components/reset-password-form";
 import RecoverySession from "@/app/components/recovery-session";
-import styles from "@/app/components/auth-page.module.css";
+import styles from "@/app/components/center-card.module.css";
 
 // Reads cookies() for the session check, same as /login (see its comment).
 export const instant = false;
@@ -32,25 +32,34 @@ export default async function ResetPasswordPage() {
 
   return (
     <main className={styles.main}>
-      <h1>Set a new password</h1>
-      <RecoverySession
-        canReset={canReset}
-        fallback={
-          <p>
-            To set a new password, open the link in your reset email (links work
-            once, for an hour).{" "}
-            <Link
-              href={`/login?mode=${RESET_MODE_PARAM}`}
-              className={styles.link}
-            >
-              Request a new one
-            </Link>{" "}
-            if yours is missing or expired.
-          </p>
-        }
-      >
-        <ResetPasswordForm email={user?.email ?? null} />
-      </RecoverySession>
+      <div className={`card ${styles.card}`}>
+        <h1>Set a new password</h1>
+        <RecoverySession
+          canReset={canReset}
+          fallback={
+            <>
+              <p className={styles.lead}>
+                To set a new password, open the link in your reset email. Each
+                link works once, for an hour, so request a new one if yours is
+                missing or expired.
+              </p>
+              <div className={styles.actions}>
+                <Link
+                  href={`/login?mode=${RESET_MODE_PARAM}`}
+                  className="btn btn-primary"
+                >
+                  Request a new link
+                </Link>
+                <Link href="/" className="btn btn-secondary">
+                  Back to home
+                </Link>
+              </div>
+            </>
+          }
+        >
+          <ResetPasswordForm email={user?.email ?? null} />
+        </RecoverySession>
+      </div>
     </main>
   );
 }

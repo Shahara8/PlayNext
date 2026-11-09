@@ -21,6 +21,8 @@ import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import { PROVIDERS } from "../lib/providers";
 import { MY_LIST_TABS, myListEmptyCopy, type MyListView } from "../lib/my-list";
+import { LOGIN_TABS, loginCopy, type LoginMode } from "../lib/login";
+import { AUTH_CALLBACK_ERROR_MESSAGE, RESET_MODE_PARAM } from "../lib/auth";
 import { createPublicClient } from "../lib/supabase";
 import { LEGACY_TITLE_IDS } from "../lib/legacy-title-ids";
 import { titlePath as newTitlePath, type TitleRef } from "../lib/title-ref";
@@ -392,6 +394,70 @@ export const has = {
     const button = empty.querySelector('a.btn.btn-primary[href="/"]');
     return empty.querySelector('h2')?.textContent.trim() === ${JSON.stringify(myListEmptyCopy(view).line)} && button?.textContent.trim() === 'Find something to watch';
   })()`,
+  /** A centered card (step 8: reset password, Not found, the sign-in
+   * form): at most 400 px wide, centered, with the given heading; when
+   * `actions` is given, exactly those buttons/links (label, href) in order,
+   * the first primary and the rest secondary. */
+  centerCard: (heading: string, actions?: [label: string, href: string][]) =>
+    `(() => {
+    const card = document.querySelector('main .card');
+    if (!card || card.querySelector('h1')?.textContent.trim() !== ${JSON.stringify(heading)}) return false;
+    const r = card.getBoundingClientRect();
+    // clientWidth: without the scrollbar, if one shows.
+    if (r.width > 400.5 || Math.abs(r.left - (document.documentElement.clientWidth - r.right)) > 2) return false;
+    const want = ${JSON.stringify(actions ?? null)};
+    if (!want) return true;
+    const got = [...card.querySelectorAll('.btn')];
+    return got.length === want.length && want.every(([label, href], i) => got[i].textContent.trim() === label && got[i].getAttribute('href') === href && got[i].classList.contains(i === 0 ? 'btn-primary' : 'btn-secondary'));
+  })()`,
+  /** /login (step 8) in the given mode: the card's heading follows it; Sign
+   * in · Sign up are a .segmented pair with only the current one pressed (no
+   * pair in forgot-password mode); a full-width primary submit with the
+   * mode's label; then "or" and a secondary "Continue with Google". */
+  loginPieces(mode: LoginMode) {
+    const copy = loginCopy(mode);
+    const tabs =
+      mode === "reset" ? [] : LOGIN_TABS.map((t) => [t.label, t.mode === mode]);
+    return `${this.centerCard(copy.heading)} && (() => {
+      const card = document.querySelector('main .card');
+      const tabs = [...card.querySelectorAll('.segmented > button')];
+      const want = ${JSON.stringify(tabs)};
+      if (tabs.length !== want.length || !want.every(([label, pressed], i) => tabs[i].textContent.trim() === label && (tabs[i].getAttribute('aria-pressed') === 'true') === pressed)) return false;
+      const email = card.querySelector('form input[type=email].input');
+      const submit = card.querySelector('form button[type=submit].btn-primary');
+      if (!email || !submit || submit.textContent.trim() !== ${JSON.stringify(copy.submit)}) return false;
+      if (Math.abs(submit.getBoundingClientRect().width - email.getBoundingClientRect().width) > 1) return false;
+      if (Boolean(card.querySelector('input[type=password]')) !== ${mode !== "reset"}) return false;
+      const google = card.querySelector('button.btn-secondary');
+      return google?.textContent.trim() === 'Continue with Google' && [...card.children].some((el) => el.textContent.trim() === 'or');
+    })()`;
+  },
+  /** /reset-password without a usable link: the card, a primary link to
+   * request a new one and a secondary one home. */
+  get resetNoLinkCard() {
+    return this.centerCard("Set a new password", [
+      ["Request a new link", `/login?mode=${RESET_MODE_PARAM}`],
+      ["Back to home", "/"],
+    ]);
+  },
+  /** A form's error or confirmation (FormMessage) with the given text. */
+  formMessage: (kind: "error" | "info", text: string) =>
+    `document.querySelector(${JSON.stringify(`main [data-form-message="${kind}"]`)})?.textContent.includes(${JSON.stringify(text)})`,
+  /** The privacy page's reading column (step 8): its paragraphs no wider
+   * than about 70 characters, and centered. */
+  readingColumn: `(() => {
+    const p = document.querySelector('main p:not([class])');
+    if (!p) return false;
+    const ctx = document.createElement('canvas').getContext('2d');
+    // From the longhands: the font shorthand reads as '' whenever a
+    // longhand it can't express is set, which would leave canvas's default.
+    const cs = getComputedStyle(p);
+    ctx.font = [cs.fontStyle, cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ');
+    const text = p.textContent;
+    const perLine = p.getBoundingClientRect().width / (ctx.measureText(text).width / text.length);
+    const r = p.getBoundingClientRect();
+    return perLine <= 80 && Math.abs(r.left - (document.documentElement.clientWidth - r.right)) < 2;
+  })()`,
   /** No link or button inside a link anywhere on the page. */
   noNestedLinks: `!document.querySelector('main a a, main a button, main button a')`,
   /** The search page (step 5) after a typo search: its search form keeps the
@@ -480,19 +546,36 @@ function signedOutPages(
     {
       label: "login",
       path: "/login",
-      ready: `document.querySelector('input[type=email]') && ${has.passwordInput}`,
+      ready: `document.querySelector('input[type=email]') && ${has.passwordInput} && ${has.loginPieces("signin")}`,
+    },
+    {
+      label: "login forgot password",
+      path: `/login?mode=${RESET_MODE_PARAM}`,
+      ready: `${has.loginPieces("reset")} && !document.querySelector('main [data-form-message]')`,
+    },
+    {
+      label: "login link error",
+      path: "/login?error=auth_callback",
+      ready: `${has.loginPieces("signin")} && ${has.formMessage("error", AUTH_CALLBACK_ERROR_MESSAGE)}`,
     },
     {
       label: "reset password",
       path: "/reset-password",
-      ready: has.text("open the link in your reset email"),
+      ready: `${has.text("open the link in your reset email")} && ${has.resetNoLinkCard}`,
     },
     {
       label: "privacy",
       path: "/privacy",
-      ready: `${has.h1("Privacy policy")} && ${has.text("Supabase")}`,
+      ready: `${has.h1("Privacy policy")} && ${has.text("Supabase")} && ${has.readingColumn}`,
     },
-    { label: "not found", path: "/no-such-page", ready: has.h1("Not found") },
+    {
+      label: "not found",
+      path: "/no-such-page",
+      ready: has.centerCard("Not found", [
+        ["Back to home", "/"],
+        ["Search the catalog", "/search"],
+      ]),
+    },
   ];
 }
 
@@ -522,7 +605,7 @@ function signedInPages(titlePath: string): PageSpec[] {
       // A password session must not get the new-password form.
       label: "reset password (password session)",
       path: "/reset-password",
-      ready: `${has.text("open the link in your reset email")} && !${has.passwordInput}`,
+      ready: `${has.text("open the link in your reset email")} && ${has.resetNoLinkCard} && !${has.passwordInput}`,
     },
   ];
 }
@@ -707,6 +790,46 @@ async function resetLinkGate(page: Page, options: SmokeOptions, email: string) {
     `${has.text("open the link in your reset email")} && !${has.passwordInput}`,
     "the reused link to be refused",
   );
+}
+
+/** Clicks the `main` button labelled `text`, once hydrated. */
+export async function clickByText(page: Page, text: string) {
+  await page.waitInteractive("main button");
+  await page.eval(`(() => {
+    const b = [...document.querySelectorAll('main button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)});
+    if (!b) throw new Error("no button " + ${JSON.stringify(text)});
+    b.click();
+  })()`);
+}
+
+/**
+ * /login's modes through the real UI: Sign up (the heading and button
+ * follow), back to Sign in, Forgot password (no tabs), and back. Each switch
+ * clears the form's messages; a validation error shows as the error line.
+ */
+async function loginModes(page: Page): Promise<string> {
+  await page.goto("/login");
+  await page.waitFor(has.loginPieces("signin"), "the sign-in card");
+  await page.click("main .segmented > button:nth-child(2)");
+  await page.waitFor(has.loginPieces("signup"), "the sign-up card");
+  // A short password: the schema's message, in the error line.
+  await page.fill("main input[type=email]", "someone@example.com");
+  await page.fill("main input[type=password]", "short");
+  await page.click("main form button[type=submit]");
+  await page.waitFor(
+    has.formMessage("error", "at least 8 characters"),
+    "the validation error",
+  );
+  await page.click("main .segmented > button:nth-child(1)");
+  await page.waitFor(
+    `${has.loginPieces("signin")} && !document.querySelector('main [data-form-message]')`,
+    "sign-in again, the error cleared",
+  );
+  await clickByText(page, "Forgot password?");
+  await page.waitFor(has.loginPieces("reset"), "the forgot-password card");
+  await clickByText(page, "Back to sign in");
+  await page.waitFor(has.loginPieces("signin"), "back to sign-in");
+  return "sign up → sign in → forgot password → sign in";
 }
 
 /**
@@ -919,6 +1042,9 @@ async function main() {
     );
     await runner.check("search page: results as you type", () =>
       searchAsYouType(page),
+    );
+    await runner.check("login: switch modes, validation error", () =>
+      loginModes(page),
     );
 
     if (!options.signedOutOnly) {

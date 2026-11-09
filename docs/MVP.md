@@ -14,6 +14,40 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 8) — Post-M8 task 5: sign in, reset, privacy, 404, error, skeletons
+- **Views** per `docs/UI_DIRECTION.md` Section 4. Every route and behavior is kept: `/login` (Sign in, Sign up, Forgot password, Google, the redirect after sign-in, `?mode=reset` and `?error=`), `/reset-password` (both states), `/privacy`, Not found, the error pages, and server rendering where it was used.
+  - **Centered card**, shared: `app/components/center-card.module.css` replaces `auth-page.module.css` and `status-page.module.css`. It's a `.card` at most 400 px wide, centered in the header's width with `--gutter`, with the `h1` inside, a muted `.lead` line, and `.actions` (full-width buttons, `.btn-primary` first).
+  - **Sign in:** `LoginForm` renders the whole card, so the heading follows the mode ("Sign in" / "Create account" / "Reset password"), and so does the tab title. Sign in · Sign up are `.segmented` buttons with `aria-pressed`. Inputs and buttons are full width, then "or" between two rules and a secondary "Continue with Google".
+  - **Messages:** new `app/components/form-message.tsx` (`FormMessage`): an icon plus text, errors in `--danger` (`role="alert"`) and confirmations in `--success` (`role="status"`), with `data-form-message`. The reset form and the reset link's retry state use it too.
+  - **Reset password without a link:** primary "Request a new link" (`/login?mode=reset`), secondary "Back to home"; the copy is reworded but keeps "open the link in your reset email". **Not found:** primary "Back to home", secondary "Search the catalog". **Error:** primary "Try again", secondary "Back to home", then the reference. **Global error:** the same card with "Try again".
+  - **Privacy:** a centered reading column, links as `.text-link`, headings on the global scale.
+  - **Skeletons:** title, browse, search and My List already matched (rebuilt in their steps). Checked here by catching each one mid-navigation under a throttled network (a scratch script, not committed). No changes were needed.
+- **Decisions** (recorded in the spec's as-built note):
+  - Forgot-password mode hides the Sign in · Sign up control (it used to show both unselected); its heading names the mode and "Back to sign in" leaves it. Google still shows in every mode.
+  - The privacy column is `33rem`, not `70ch`: Geist's "0" is wide, so `70ch` held ~99 characters per line (measured); `33rem` holds ~71.
+  - The forgot-password intro line stays muted; only results of an action are `--success`.
+- **Logic and tests** (11 new, 675 total): `lib/login.ts` has `LOGIN_TABS`, `loginCopy()` (heading and submit label per mode), `loginDocumentTitle()` and `parseLoginParams()` (moved out of the page). `/login` now has a `generateMetadata` that titles it after the starting mode.
+- **Smoke** (52 checks, was 47):
+  - New helpers: `has.centerCard(heading, actions)` (at most 400 px, centered, the buttons in order with the primary first), `has.loginPieces(mode)`, `has.formMessage(kind, text)`, `has.resetNoLinkCard` and `has.readingColumn` (characters per line measured with a canvas, at most 80).
+  - The login, reset, privacy and not-found checks use them. New pages "login forgot password" and "login link error", and a new check "login: switch modes, validation error" (sign up, a short password's error, back to sign in with it cleared, forgot password, back).
+  - Sign-in still goes through `form button[type=submit]`. `clickByText()` is exported and `ui-capture` uses it instead of its own copy; the ready checks for capture views 10–16 use the new helpers.
+- **Screenshots** (views 10–16 and 23, both themes, both widths): fixed from the first capture: the privacy column (above), and the loose spacing around "Forgot password?" (a negative block margin keeps its 44 px target).
+- **`/code-review` (medium)**, fixed:
+  - `readingColumn` set the canvas font from the `font` shorthand, which can read as `''`.
+  - The centering checks measured against `innerWidth` (includes a scrollbar); they now use `clientWidth`.
+  - `loginModes` clicked the text buttons by a generic selector; it now clicks them by label.
+  - Google sign-in didn't clear a previous confirmation.
+  - The tab title stayed "Sign in" in the other modes.
+  - The Google button borrowed the submit's class; it's now `.fullWidth`.
+
+  Declined:
+  - Showing the sign-up and reset confirmations as neutral rather than `--success`: the spec asks for info in `--success`, and both confirm the action went through.
+  - Raising the `.tabs` overrides' specificity over `.segmented`: globals load first, the convention every step relies on (declined in step 7 too).
+  - `has.loginPieces` using `this`: the existing `has` getters do the same.
+- `docs/UI_REVIEW.md`: views 10–16 and 23, the error page and form messages. `docs/UI_DIRECTION.md`: step 8 ticked, with an as-built note. `CLAUDE.md`: the step 8 pieces.
+- Checked: typecheck, lint and 675 tests clean; `ui-capture` against a local build; local smoke 52/52.
+- Next step: `docs/UI_DIRECTION.md` step 9 (wrap-up: full `ui-capture` review, contrast and focus pass, `docs/UI_REVIEW.md` fully updated, production smoke, then ask about a second Gemini review).
+
 ### 2026-11-09 (UI step 7) — Post-M8 task 5: My List
 - **My List** (`app/my-list/page.tsx`) per `docs/UI_DIRECTION.md` Section 4. It keeps `/my-list?view=favorites`, server rendering, and the signed-out redirect to `/login`.
   - The header's width and `--gutter`.

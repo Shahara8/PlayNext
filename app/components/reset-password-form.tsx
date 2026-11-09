@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import { firstIssueMessage, newPasswordSchema, runAuthCall } from "@/lib/auth";
+import FormMessage from "./form-message";
+import card from "./center-card.module.css";
 import styles from "./login-form.module.css";
 
 export default function ResetPasswordForm({ email }: { email: string | null }) {
@@ -44,7 +46,7 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      {email && <p className={styles.info}>For {email}</p>}
+      {email && <p className={card.lead}>For {email}</p>}
       <label className={styles.field}>
         New password
         <input
@@ -57,11 +59,11 @@ export default function ResetPasswordForm({ email }: { email: string | null }) {
         />
       </label>
 
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <FormMessage kind="error">{error}</FormMessage>}
 
       <button
         type="submit"
-        className={`btn btn-primary ${styles.submit}`}
+        className={`btn btn-primary ${styles.fullWidth}`}
         disabled={submitting}
       >
         Save password

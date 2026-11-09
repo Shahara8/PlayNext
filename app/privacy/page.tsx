@@ -12,7 +12,11 @@ export const metadata: Metadata = PRIVACY_METADATA;
 const LAST_UPDATED = "6 November 2026";
 
 export default function PrivacyPage() {
-  const mail = <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>;
+  const mail = (
+    <a href={`mailto:${SUPPORT_EMAIL}`} className="text-link">
+      {SUPPORT_EMAIL}
+    </a>
+  );
 
   return (
     <main className={styles.main}>
@@ -105,7 +109,9 @@ export default function PrivacyPage() {
       <p>Questions about this policy or your data: {mail}.</p>
 
       <p className={styles.back}>
-        <Link href="/">Back to {SITE_NAME}</Link>
+        <Link href="/" className="text-link">
+          Back to {SITE_NAME}
+        </Link>
       </p>
     </main>
   );

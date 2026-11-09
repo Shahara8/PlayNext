@@ -1,16 +1,25 @@
+/* A reading column (docs/UI_DIRECTION.md Section 4, step 8): about 70
+   characters per line, centered, with --gutter at the sides. 33rem rather
+   than 70ch: Geist's "0" (what ch measures) is wide, so 70ch held ~99
+   characters of body text. Headings are the global type scale (h1 28/32
+   px, h2 18 px). */
 .main {
-  max-width: 720px;
+  width: 100%;
+  max-width: calc(33rem + 2 * var(--gutter));
   margin: 0 auto;
-  padding: 3rem 1.5rem;
-  line-height: 1.6;
+  padding: 2rem var(--gutter) 3rem;
+  line-height: 1.65;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
+.main h1 {
+  margin-block-end: 0.25rem;
+}
+
 .main h2 {
-  font-size: 1.2rem;
-  margin-top: 1.25rem;
+  margin-block-start: 1.5rem;
 }
 
 .main ul {
@@ -21,22 +30,20 @@
 }
 
 .main a {
-  color: var(--accent);
-  text-decoration: underline;
   overflow-wrap: anywhere;
 }
 
 .updated {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
 }
 
 .back {
-  margin-top: 1.5rem;
+  margin-block-start: 1.5rem;
 }
 
-@media (max-width: 600px) {
+@media (min-width: 761px) {
   .main {
-    padding: 2rem 1rem;
+    padding-block-start: 3rem;
   }
 }

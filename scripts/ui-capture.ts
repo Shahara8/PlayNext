@@ -32,7 +32,15 @@ import { pathToFileURL } from "url";
 import { createClient } from "@supabase/supabase-js";
 import sharp, { type OverlayOptions } from "sharp";
 import { CdpClient, VIEWPORTS, type Viewport } from "./smoke-lib";
-import { has, launchChrome, openPage, Page, signIn, stopChrome } from "./smoke";
+import {
+  clickByText,
+  has,
+  launchChrome,
+  openPage,
+  Page,
+  signIn,
+  stopChrome,
+} from "./smoke";
 import {
   fullPageClip,
   imageName,
@@ -66,16 +74,6 @@ type ViewSpec = {
   /** Runs after `ready`, before the shot (e.g. switch a tab). */
   prepare?: (page: Page) => Promise<void>;
 };
-
-/** Clicks the first `main button` whose text is `text`, once hydrated. */
-async function clickButton(page: Page, text: string) {
-  await page.waitInteractive("main button");
-  await page.eval(`(() => {
-    const b = [...document.querySelectorAll('main button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)});
-    if (!b) throw new Error("no button " + ${JSON.stringify(text)});
-    b.click();
-  })()`);
-}
 
 const SIGNED_OUT: ViewSpec[] = [
   {
@@ -122,38 +120,42 @@ const SIGNED_OUT: ViewSpec[] = [
   {
     id: "10-login",
     path: "/login",
-    ready: `document.querySelector('input[type=email]') && ${has.passwordInput}`,
+    ready: has.loginPieces("signin"),
   },
   {
     id: "11-login-sign-up",
     path: "/login",
-    ready: `document.querySelector('input[type=email]') && ${has.passwordInput}`,
+    ready: has.loginPieces("signin"),
     prepare: async (page) => {
-      await clickButton(page, "Sign up");
-      await page.waitFor(has.text("Create account"), "the sign-up form");
+      await clickByText(page, "Sign up");
+      await page.waitFor(has.loginPieces("signup"), "the sign-up form");
     },
   },
   {
     id: "12-login-forgot-password",
     path: "/login?mode=reset",
-    ready: has.text("Send reset link"),
+    ready: has.loginPieces("reset"),
   },
   {
     id: "13-login-link-error",
     path: "/login?error=auth_callback",
-    ready: `document.querySelector('input[type=email]') && ${has.passwordInput}`,
+    ready: `${has.loginPieces("signin")} && document.querySelector('main [data-form-message="error"]')`,
   },
   {
     id: "14-reset-password-no-link",
     path: "/reset-password",
-    ready: has.text("open the link in your reset email"),
+    ready: `${has.text("open the link in your reset email")} && ${has.resetNoLinkCard}`,
   },
   {
     id: "15-privacy",
     path: "/privacy",
-    ready: has.h1("Privacy policy"),
+    ready: `${has.h1("Privacy policy")} && ${has.readingColumn}`,
   },
-  { id: "16-not-found", path: "/no-such-page", ready: has.h1("Not found") },
+  {
+    id: "16-not-found",
+    path: "/no-such-page",
+    ready: has.centerCard("Not found"),
+  },
 ];
 
 const SIGNED_IN: ViewSpec[] = [

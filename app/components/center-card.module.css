@@ -1,0 +1,53 @@
+/* The centered-card pages (docs/UI_DIRECTION.md Section 4, step 8): sign in,
+   reset password, Not found and the error pages. One card, at most 400 px,
+   centered in the header's width; its actions are full-width buttons,
+   primary first. */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem var(--gutter) 3rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* The line under the heading. */
+.lead {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.actions > * {
+  width: 100%;
+}
+
+.reference {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-family: var(--font-geist-mono), monospace;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 601px) {
+  .main {
+    padding-block-start: 4rem;
+  }
+
+  .card {
+    padding: 2rem;
+  }
+}

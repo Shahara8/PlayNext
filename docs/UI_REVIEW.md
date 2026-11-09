@@ -62,10 +62,10 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 ## Not shown in screenshots (described only)
 
 - **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List (the title, the control and the grid), a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
-- **Error page.** If a page fails to load: heading "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a "Try again" button, a "Back to home" link and a small reference code. Same layout as the Not found page (view 16).
+- **Error page.** If a page fails to load: the same centered card as the Not found page (view 16), with "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a primary "Try again" button, a secondary "Back to home" and a small reference code. If the whole site fails to load, the card has only "Try again".
 - **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
 - **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
-- **Form messages after submitting.** After sign-up: "Check your email to confirm your account before signing in." After a reset request: "If an account exists for that email, a link to reset your password is on its way." Validation errors (e.g. a short password) appear in red above the button, as in view 13.
+- **Form messages after submitting.** Confirmations are green with a check-circle icon: after sign-up, "Check your email to confirm your account before signing in."; after a reset request, "If an account exists for that email, a link to reset your password is on its way." Validation errors (e.g. a short password) appear in red with an alert icon above the button, as in view 13.
 - **My List signed out.** It redirects to the sign-in page (view 10).
 
 ---
@@ -194,7 +194,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **How users get here.** "Sign in" in the header, the "Sign in" link on the home page, any save control while signed out, or My List while signed out.
 
-**What's on it.** The heading "Sign in", tabs "Sign in" and "Sign up", Email and Password fields, a "Sign in" button, a "Forgot password?" link-button, an "or" divider and "Continue with Google". The form is a narrow centered column on desktop.
+**What's on it.** A centered card (at most 400 px wide; nearly the full width on phones): the heading "Sign in", then "Sign in · Sign up" as a segmented control (the current one filled with the accent), full-width Email and Password fields with labels above them, a full-width primary "Sign in" button, a "Forgot password?" link in the accent color, an "or" between two thin rules, and a full-width secondary "Continue with Google" button.
 
 **Known constraints.** After signing in you always land on the home page, not on the page you came from.
 
@@ -205,7 +205,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ## View 11: Sign up
 
 
-**What's on it.** The same page with the "Sign up" tab selected: the button reads "Create account". The page heading still says "Sign in". After submitting, the user must confirm by email (see "Form messages" above).
+**What's on it.** The same card with "Sign up" selected: the heading and the button read "Create account", and there's no "Forgot password?" link. After submitting, the user must confirm by email (see "Form messages" above).
 
 ![Phone, light](images/11-login-sign-up-phone-light.png) ![Desktop, light](images/11-login-sign-up-desktop-light.png)
 
@@ -214,7 +214,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ## View 12: Forgot password (request a reset link)
 
 
-**What's on it.** Reached from "Forgot password?" on view 10. The password field is replaced by "Enter your account's email and we'll send you a link to set a new password.", the button reads "Send reset link", and "Back to sign in" returns to view 10. Both tabs show as unselected.
+**What's on it.** Reached from "Forgot password?" on view 10 (or from view 14's "Request a new link"). The same card, headed "Reset password", without the Sign in · Sign up control: the muted line "Enter your account's email and we'll send you a link to set a new password.", the Email field, a "Send reset link" button and "Back to sign in" (returns to view 10), then "or" and "Continue with Google".
 
 ![Phone, light](images/12-login-forgot-password-phone-light.png) ![Desktop, light](images/12-login-forgot-password-desktop-light.png)
 
@@ -223,7 +223,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ## View 13: Sign in, with an error
 
 
-**What's on it.** What users see when a Google sign-in or an email confirmation link fails: the sign-in form with a red message above the button ("Something went wrong signing you in — please try again."). Wrong-password and validation errors use the same red line.
+**What's on it.** What users see when a Google sign-in or an email confirmation link fails: the sign-in card with a red message and an alert icon above the button ("Something went wrong signing you in — please try again."). Wrong-password and validation errors use the same line. A failed reset link opens view 12 with its own message in the same style.
 
 ![Phone, light](images/13-login-link-error-phone-light.png) ![Desktop, light](images/13-login-link-error-desktop-light.png)
 
@@ -233,7 +233,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **Purpose.** The page the reset email links to. Without a fresh link (opened directly, or a used or expired link) it explains what to do.
 
-**What's on it.** The heading "Set a new password" and "To set a new password, open the link in your reset email (links work once, for an hour). Request a new one if yours is missing or expired."
+**What's on it.** The same centered card: the heading "Set a new password", the muted line "To set a new password, open the link in your reset email. Each link works once, for an hour, so request a new one if yours is missing or expired.", a full-width primary "Request a new link" (view 12) and a secondary "Back to home".
 
 ![Phone, light](images/14-reset-password-no-link-phone-light.png) ![Desktop, light](images/14-reset-password-no-link-desktop-light.png)
 
@@ -243,7 +243,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **Purpose.** Required for Google sign-in; linked from the footer.
 
-**What's on it.** Plain text sections: What we store, How we use it, Who else handles it, Cookies, Your choices, Contact.
+**What's on it.** A centered reading column (about 70 characters per line on desktop) with the page title, a small muted "Last updated" line, then sections with 18 px headings: What we store, How we use it, Who else handles it, Cookies, Your choices, Contact. Links (the contact email, "Back to PlayNext") are underlined in the accent color.
 
 ![Phone, light](images/15-privacy-phone-light.png) ![Desktop, light](images/15-privacy-desktop-light.png)
 
@@ -253,7 +253,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **Purpose.** Unknown addresses, unknown services, and titles no longer on any tracked service (e.g. an old shared link).
 
-**What's on it.** "Not found", "That page doesn't exist, or the title is no longer available on any service we track.", and two links: "Back to home" and "Search the catalog". The error page (described above) uses the same layout.
+**What's on it.** The same centered card as sign-in: "Not found", the muted line "That page doesn't exist, or the title is no longer available on any service we track.", then two full-width buttons: primary "Back to home" and secondary "Search the catalog". The error page (described above) uses the same card.
 
 ![Phone, light](images/16-not-found-phone-light.png) ![Desktop, light](images/16-not-found-desktop-light.png)
 
@@ -325,7 +325,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 **Purpose.** The form a valid reset email link opens.
 
-**What's on it.** "Set a new password", "For <the account's email>" (shown here as a placeholder address), a "New password" field and "Save password". After saving, the user is signed in and sent home.
+**What's on it.** The centered card: "Set a new password", a muted "For <the account's email>" (shown here as a placeholder address), a "New password" field and a full-width primary "Save password". Errors show as in view 13. While the link is being checked, the card says "Checking your reset link…". After saving, the user is signed in and sent home.
 
 ![Phone, light](images/23-reset-password-form-phone-light.png) ![Desktop, light](images/23-reset-password-form-desktop-light.png)
 

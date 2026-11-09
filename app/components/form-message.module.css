@@ -1,0 +1,22 @@
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.icon {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-block-start: 1px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.info {
+  color: var(--success);
+}

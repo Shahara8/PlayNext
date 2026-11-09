@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createBrowserSupabaseClient,
@@ -14,10 +14,15 @@ import {
   signInSchema,
   signUpSchema,
 } from "@/lib/auth";
+import {
+  LOGIN_TABS,
+  loginCopy,
+  loginDocumentTitle,
+  type LoginMode as Mode,
+} from "@/lib/login";
+import FormMessage from "./form-message";
+import card from "./center-card.module.css";
 import styles from "./login-form.module.css";
-
-// "reset": the forgot-password form, reached from sign-in.
-type Mode = "signin" | "signup" | "reset";
 
 export default function LoginForm({
   initialError = null,
@@ -128,6 +133,7 @@ export default function LoginForm({
 
   async function handleGoogleSignIn() {
     setError(null);
+    setInfo(null);
     const { message } = await runAuthCall(() =>
       createBrowserSupabaseClient().auth.signInWithOAuth({
         provider: "google",
@@ -137,26 +143,43 @@ export default function LoginForm({
     if (message) setError(message);
   }
 
+  const copy = loginCopy(mode);
+  // The tab's title follows the heading too (the server sets the first one,
+  // see app/login/page.tsx).
+  useEffect(() => {
+    document.title = loginDocumentTitle(mode);
+  }, [mode]);
+
+  // The whole card, heading included, so the heading follows the tab.
   return (
-    <div className={styles.container}>
-      <div className={styles.tabs}>
-        <button
-          type="button"
-          className={mode === "signin" ? styles.tabActive : styles.tab}
-          onClick={() => switchMode("signin")}
+    <div className={`card ${card.card}`}>
+      <h1>{copy.heading}</h1>
+      {mode !== "reset" && (
+        <div
+          className={`segmented ${styles.tabs}`}
+          role="group"
+          aria-label="Sign in or sign up"
         >
-          Sign in
-        </button>
-        <button
-          type="button"
-          className={mode === "signup" ? styles.tabActive : styles.tab}
-          onClick={() => switchMode("signup")}
-        >
-          Sign up
-        </button>
-      </div>
+          {LOGIN_TABS.map((tab) => (
+            <button
+              key={tab.mode}
+              type="button"
+              aria-pressed={mode === tab.mode}
+              onClick={() => switchMode(tab.mode)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form className={styles.form} onSubmit={handleSubmit}>
+        {mode === "reset" && (
+          <p className={card.lead}>
+            Enter your account&apos;s email and we&apos;ll send you a link to
+            set a new password.
+          </p>
+        )}
         <label className={styles.field}>
           Email
           <input
@@ -168,12 +191,7 @@ export default function LoginForm({
             required
           />
         </label>
-        {mode === "reset" ? (
-          <p className={styles.info}>
-            Enter your account&apos;s email and we&apos;ll send you a link to
-            set a new password.
-          </p>
-        ) : (
+        {mode !== "reset" && (
           <label className={styles.field}>
             Password
             <input
@@ -189,25 +207,21 @@ export default function LoginForm({
           </label>
         )}
 
-        {error && <p className={styles.error}>{error}</p>}
-        {info && <p className={styles.info}>{info}</p>}
+        {error && <FormMessage kind="error">{error}</FormMessage>}
+        {info && <FormMessage kind="info">{info}</FormMessage>}
 
         <button
           type="submit"
-          className={`btn btn-primary ${styles.submit}`}
+          className={`btn btn-primary ${styles.fullWidth}`}
           disabled={submitting}
         >
-          {mode === "signup"
-            ? "Create account"
-            : mode === "reset"
-              ? "Send reset link"
-              : "Sign in"}
+          {copy.submit}
         </button>
 
         {mode === "signin" && (
           <button
             type="button"
-            className={styles.textButton}
+            className={`text-link ${styles.textButton}`}
             onClick={() => switchMode("reset")}
           >
             Forgot password?
@@ -216,7 +230,7 @@ export default function LoginForm({
         {mode === "reset" && (
           <button
             type="button"
-            className={styles.textButton}
+            className={`text-link ${styles.textButton}`}
             onClick={() => switchMode("signin")}
           >
             Back to sign in
@@ -225,10 +239,9 @@ export default function LoginForm({
       </form>
 
       <div className={styles.divider}>or</div>
-
       <button
         type="button"
-        className="btn btn-secondary"
+        className={`btn btn-secondary ${styles.fullWidth}`}
         onClick={handleGoogleSignIn}
       >
         Continue with Google

@@ -8,6 +8,7 @@ import {
   type RecoveryLinkOutcome,
 } from "@/lib/recovery-link";
 import { NETWORK_ERROR_MESSAGE } from "@/lib/auth";
+import FormMessage from "./form-message";
 
 // Wraps /reset-password's content. A reset link (implicit flow, see
 // getImplicitFlowClient) carries the recovery session in the URL's
@@ -55,8 +56,13 @@ export default function RecoverySession({
       console.error("reset link: session not visible after refresh");
   }, [settled, canReset]);
 
-  if (outcome === null || refreshing) return <p>Checking your reset link…</p>;
+  if (outcome === null || refreshing)
+    return <p role="status">Checking your reset link…</p>;
   if (outcome === "retry")
-    return <p>{NETWORK_ERROR_MESSAGE} Reload this page to retry the link.</p>;
+    return (
+      <FormMessage kind="error">
+        {NETWORK_ERROR_MESSAGE} Reload this page to retry the link.
+      </FormMessage>
+    );
   return outcome !== "invalid" && canReset ? children : fallback;
 }
