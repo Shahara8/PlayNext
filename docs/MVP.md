@@ -31,7 +31,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   Declined:
   - the auth skeleton can't match the signed-in width (the session is unknown until it streams; this was already the case);
   - the TMDB link's inline alignment (it looks aligned in all 92 captures).
-- Checked: lint, typecheck, format and build clean. `ui-capture` against a local build: the header and footer were reviewed in every view, both themes and both widths (contact sheets of the top and bottom strips). Local smoke 41/41.
+- Checked: lint, typecheck, format and build clean. `ui-capture` against a local build: the header and footer were reviewed in every view, both themes and both widths (contact sheets of the top and bottom strips). Local smoke 41/41. Committed and pushed as `b2e2c24`; **production smoke 41/41** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 2 (title page).
 
 ### 2026-11-09 (UI step 0) — Post-M8 task 5: the foundation (tokens, theme setting, Geist, shared styles)
