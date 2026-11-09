@@ -61,7 +61,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 ## Not shown in screenshots (described only)
 
-- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse, search (the field, the results line and result cards with a button), My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
+- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List, a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
 - **Error page.** If a page fails to load: heading "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a "Try again" button, a "Back to home" link and a small reference code. Same layout as the Not found page (view 16).
 - **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
 - **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
@@ -94,9 +94,9 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **How users get here.** A service tile on the home page. The URL is `/browse/netflix`, `/browse/yes`, etc.
 
-**What's on it.** The service's name as the heading, a bar of four selects (Sort: Trending, Newest, Rating, A–Z; Type: All, Movies, TV Series; Availability: All, Subscription, Rent, Buy, Free; Genre: built from the service's titles), then the grid of title cards. Changing a select reloads the list and updates the URL, so a filtered list can be shared.
+**What's on it.** A header block: the service's colored dot and name as the page heading, and under it the number of titles in muted text ("8 titles"; the same count as the service's home tile). Then four labelled selects (Sort: Trending, Newest, Rating, A–Z; Type: All, Movies, TV Series; Availability: All, Subscription, Rent, Buy, Free; Genre: All plus the service's genres), in a 2×2 grid on phones and one row from 601 px. Then the grid of title cards. Changing a select reloads the list and updates the URL, so a filtered list can be shared. Sorting alone isn't filtering: the count stays "8 titles" and there's no Clear filters.
 
-**Known constraints.** There's no pagination yet. With the real feed, a service could have hundreds or thousands of titles, so the grid will need paging or infinite scroll. The selects are native browser selects.
+**Known constraints.** There's no pagination yet. With the real feed, a service could have hundreds or thousands of titles, so the grid will need paging or infinite scroll (the count is exact, but the grid would stop at the database's 1,000-row response cap). The selects are native browser selects.
 
 ![Phone, light](images/02-browse-phone-light.png) ![Desktop, light](images/02-browse-desktop-light.png)
 
@@ -108,7 +108,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **How users get here.** Changing the selects on view 02.
 
-**What's on it.** As view 02, with the chosen values shown in the selects. There's no "clear filters" control while results exist, and no count of results.
+**What's on it.** As view 02, with the chosen values shown in the selects. The count line reads "6 of 8 titles · Clear filters": how many match out of the service's whole catalog, and a link that drops the filters but keeps the sort (here it goes to `/browse/netflix?sort=rating`).
 
 ![Phone, light](images/03-browse-sorted-filtered-phone-light.png) ![Desktop, light](images/03-browse-sorted-filtered-desktop-light.png)
 
@@ -118,7 +118,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** The empty state when the filters exclude everything (here: Availability is Free on Netflix).
 
-**What's on it.** The filter bar, then "Nothing matches these filters. Clear filters" (the link keeps the sort and drops the filters). A service with no titles at all says "Nothing available on <service> yet." instead.
+**What's on it.** The header block says "0 of 8 titles" (no link there), then the selects, then a panel: "Nothing matches these filters. Clear filters" (the link keeps the sort and drops the filters). A service with no titles at all says "No titles yet" in the header and "Nothing available on <service> yet." in the panel instead.
 
 ![Phone, light](images/04-browse-no-matches-phone-light.png) ![Desktop, light](images/04-browse-no-matches-desktop-light.png)
 

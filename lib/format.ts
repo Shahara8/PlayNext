@@ -33,3 +33,20 @@ export function titleCountLabel(count: number): string {
   if (count === 0) return "No titles yet";
   return count === 1 ? "1 title" : `${count.toLocaleString("en-US")} titles`;
 }
+
+/**
+ * A browse page's count: "8 titles" (titleCountLabel of the provider's whole
+ * catalog, `total`) without filters, and "3 of 8 titles" with them, where
+ * `shown` is the titles that match. The two come from separate reads, so
+ * `total` is never shown below `shown`.
+ */
+export function browseCountLabel(
+  shown: number,
+  total: number,
+  filtered: boolean,
+): string {
+  const all = Math.max(total, shown);
+  if (!filtered) return titleCountLabel(all);
+  const n = (count: number) => count.toLocaleString("en-US");
+  return `${n(shown)} of ${n(all)} ${all === 1 ? "title" : "titles"}`;
+}

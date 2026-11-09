@@ -12,6 +12,7 @@ vi.mock("./supabase", () => ({
 function makeQueryBuilder(result: {
   data: unknown;
   error: { message: string } | null;
+  count?: number | null;
 }) {
   const builder = {
     select: vi.fn(() => builder),
@@ -117,9 +118,9 @@ describe("getCatalogByProvider", () => {
   });
 });
 
-describe("getProviderGenres", () => {
-  it("returns distinct genre names, sorted, for a provider+region", async () => {
-    const { getProviderGenres } = await import("./catalog");
+describe("getProviderFacets", () => {
+  it("returns distinct genre names, sorted, and the title count, for a provider+region", async () => {
+    const { getProviderFacets } = await import("./catalog");
     const rows = [
       {
         genres: [
@@ -130,21 +131,45 @@ describe("getProviderGenres", () => {
       { genres: [{ id: 18, name: "Drama" }] },
       { genres: null },
     ];
-    const builder = makeQueryBuilder({ data: rows, error: null });
+    // The count is PostgREST's, past the rows it returned (its row cap).
+    const builder = makeQueryBuilder({ data: rows, error: null, count: 3456 });
     const from = vi.fn(() => builder);
     mockedCreatePublicClient.mockReturnValue({ from } as never);
 
-    const result = await getProviderGenres("NETFLIX");
+    const result = await getProviderFacets("NETFLIX");
 
     expect(from).toHaveBeenCalledWith("v_catalog");
-    expect(builder.select).toHaveBeenCalledWith("genres");
+    expect(builder.select).toHaveBeenCalledWith("genres", { count: "exact" });
     expect(builder.eq).toHaveBeenNthCalledWith(1, "provider", "NETFLIX");
     expect(builder.eq).toHaveBeenNthCalledWith(2, "region", "IL");
-    expect(result).toEqual(["Comedy", "Drama"]);
+    expect(result).toEqual({ genres: ["Comedy", "Drama"], total: 3456 });
+  });
+
+  it("an empty provider: no genres, no titles", async () => {
+    const { getProviderFacets } = await import("./catalog");
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => makeQueryBuilder({ data: [], error: null, count: 0 })),
+    } as never);
+
+    await expect(getProviderFacets("PARTNER")).resolves.toEqual({
+      genres: [],
+      total: 0,
+    });
+  });
+
+  it("throws rather than show 0 titles when the count is missing", async () => {
+    const { getProviderFacets } = await import("./catalog");
+    mockedCreatePublicClient.mockReturnValue({
+      from: vi.fn(() =>
+        makeQueryBuilder({ data: [], error: null, count: null }),
+      ),
+    } as never);
+
+    await expect(getProviderFacets("NETFLIX")).rejects.toThrow(/no count/);
   });
 
   it("throws a descriptive error when the query fails", async () => {
-    const { getProviderGenres } = await import("./catalog");
+    const { getProviderFacets } = await import("./catalog");
     const builder = makeQueryBuilder({
       data: null,
       error: { message: "timeout" },
@@ -153,7 +178,9 @@ describe("getProviderGenres", () => {
       from: vi.fn(() => builder),
     } as never);
 
-    await expect(getProviderGenres("NETFLIX")).rejects.toThrow(/timeout/);
+    await expect(getProviderFacets("NETFLIX")).rejects.toThrow(
+      /getProviderFacets failed: timeout/,
+    );
   });
 });
 

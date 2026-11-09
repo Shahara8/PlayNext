@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  browseCountLabel,
   mediaTypeLabel,
   ratingLabel,
   releaseYear,
@@ -76,5 +77,30 @@ describe("titleCountLabel", () => {
     [1234, "1,234 titles"],
   ])("%d → %s", (count, label) => {
     expect(titleCountLabel(count)).toBe(label);
+  });
+});
+
+describe("browseCountLabel", () => {
+  it("is titleCountLabel of the whole catalog without filters", () => {
+    expect(browseCountLabel(8, 8, false)).toBe("8 titles");
+    // The rows read stop at PostgREST's cap; the count doesn't.
+    expect(browseCountLabel(1000, 3456, false)).toBe("3,456 titles");
+    expect(browseCountLabel(1, 1, false)).toBe("1 title");
+    expect(browseCountLabel(0, 0, false)).toBe("No titles yet");
+  });
+
+  it.each([
+    [3, 8, "3 of 8 titles"],
+    [0, 8, "0 of 8 titles"],
+    [1, 8, "1 of 8 titles"],
+    [1, 1, "1 of 1 title"],
+    [0, 0, "0 of 0 titles"],
+    [1200, 3456, "1,200 of 3,456 titles"],
+  ])("filtered: %d of %d → %s", (shown, total, label) => {
+    expect(browseCountLabel(shown, total, true)).toBe(label);
+  });
+
+  it("never shows a total below the titles shown (separate reads)", () => {
+    expect(browseCountLabel(5, 4, true)).toBe("5 of 5 titles");
   });
 });

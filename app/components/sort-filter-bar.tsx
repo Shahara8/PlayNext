@@ -33,6 +33,11 @@ export default function SortFilterBar({
     );
   }
 
+  // A genre from the URL that the provider's list lacks (an old link) still
+  // shows as selected, so the select matches what the grid is filtered by.
+  const genreOptions =
+    genre && !genres.includes(genre) ? [...genres, genre] : genres;
+
   return (
     <div className={styles.bar}>
       <label className={styles.field}>
@@ -82,23 +87,23 @@ export default function SortFilterBar({
         </select>
       </label>
 
-      {genres.length > 0 && (
-        <label className={styles.field}>
-          <span>Genre</span>
-          <select
-            className="select"
-            value={genre}
-            onChange={(e) => update("genre", e.target.value)}
-          >
-            <option value="">All</option>
-            {genres.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {/* Always shown, so the bar keeps its 2×2 shape (a service with no
+            titles yet has just "All"). */}
+      <label className={styles.field}>
+        <span>Genre</span>
+        <select
+          className="select"
+          value={genre}
+          onChange={(e) => update("genre", e.target.value)}
+        >
+          <option value="">All</option>
+          {genreOptions.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

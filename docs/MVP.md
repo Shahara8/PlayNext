@@ -14,6 +14,43 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
 
 ## Progress Log
 
+### 2026-11-09 (UI step 6) — Post-M8 task 5: browse
+- **Browse page** (`app/browse/[provider]/page.tsx`) per `docs/UI_DIRECTION.md` Section 4. It keeps every query parameter (`sort`, `type`, `avail`, `genre`) and server rendering.
+  - The header's width and `--gutter`.
+  - A header block: the service's dot and name as the `h1`, then a muted count line ("8 titles"; with filters "6 of 8 titles · Clear filters").
+  - The four selects (`SortFilterBar`, restyled): 2×2 on phones, one row from 601 px.
+  - The shared `.title-grid` of `TitleCard`s. The empty states keep their copy, now in a `.card` panel.
+  - The loading skeleton follows the new shape and reuses the bar's grid.
+- **Logic and tests** (22 new, 657 total):
+  - `lib/browse.ts`: `parseBrowseParams()` (moved out of the page: an unknown sort falls back, an unknown type or availability is ignored), `hasActiveFilters()` and `clearFiltersHref()`.
+  - `browseCountLabel()` in `lib/format.ts`: `titleCountLabel()` without filters, "N of M titles" with them, pluralized on M, and never showing M below N (the two are separate reads).
+  - `getProviderFacets()` in `lib/catalog.ts` replaces `getProviderGenres()`: the genres plus PostgREST's exact count, from the same read. A missing count throws rather than showing "0 titles".
+- **Decisions** (recorded in the spec's as-built note):
+  - **Clear filters keeps the sort**, so sort alone isn't a filter: no "of M" and no link. Sort orders the list rather than narrowing it, the spec lists it apart from the filters, and the old empty-state link already kept it.
+  - **The link sits in the count line, not the filter bar.** The first build put it after the selects. On phones that gave it a row of its own and left a gap (seen in the screenshots); next to the count it also explains itself.
+  - When nothing matches, only the empty panel's "Clear filters" shows.
+  - The Genre select always shows (just "All" for a service with no titles), so the bar keeps its 2×2 shape. A genre from the URL that isn't in the list still shows as selected.
+- **Smoke** (47 checks, was 43):
+  - `has.browsePieces(clearHref)`: the count's wording, the four labelled selects in order, and `data-clear-filters` only when filtered, pointing at the right URL. It runs on "browse" and "browse sorted"; the old `main select` check is replaced.
+  - New checks "browse filtered" (`?sort=rating&type=tv_series` → `/browse/netflix?sort=rating`) and "browse no matches" (`?avail=free`: one Clear filters link, no grid).
+  - Both new checks rely on the mock seed, like the Partner TV check.
+- **`/code-review` (medium)**, fixed:
+  - The total was `rows.length`, which PostgREST caps at 1,000 rows. A large service would read "1,000 titles" on browse and "3,456 titles" on its home tile. It's now the exact count, and the unfiltered label uses it too.
+  - Two Clear filters links on the no-matches view.
+  - The skeleton copied the bar's grid CSS.
+
+  Declined:
+  - The second read of the provider's rows (the old page did it too; paging will restructure these reads).
+  - Sorting or dropping a URL genre missing from the list: showing what the grid is filtered by is honest.
+  - The new smoke checks depending on the seed: noted in the script, revisit at the real-feed cutover.
+- Noted, not changed: with filters, N is still the length of the rows read, so it would stop at 1,000. This comes with paging, which the real feed will need anyway (`docs/UI_REVIEW.md` view 02).
+- `docs/UI_REVIEW.md`: views 02, 03 and 04 and the skeleton line (view 18 is "as view 02", still true). `docs/UI_DIRECTION.md`: step 6 ticked, with an as-built note in the Browse spec. `CLAUDE.md`: the step 6 pieces.
+- Checked:
+  - Typecheck, lint and 657 tests clean. `format:check` flags only `CLAUDE.md` (CRLF working copy, as before).
+  - `ui-capture` against a local build: views 02, 03, 04 and 18 reviewed in both themes at both widths.
+  - Local smoke 47/47.
+- Next step: `docs/UI_DIRECTION.md` step 7 (My List).
+
 ### 2026-11-09 (UI step 5) — Post-M8 task 5: search
 - **Search page** (`app/search/page.tsx`) per `docs/UI_DIRECTION.md` Section 4: the header's width and `--gutter`; the `h1` "Search", then the field; with a query, the line "N results for “q”" (`role="status"`) and, after a typo, a muted "Showing closest matches"; results in one column, two from 900 px. The empty copy is unchanged, and the no-results copy is unchanged too but sits in a `.card` panel ("browse by service" is still a link home). The loading skeleton follows the new shape.
 - **Field:** `SearchBar` now looks like the home page's field (both import `app/components/search-field.module.css`, renamed from `home-search.module.css`, and a shared `SearchIcon` in `search-icon.tsx`, which the header uses too). It stays live and debounced and keeps `/search?q=`, and it is now also a GET form with a Search button, so Enter works before JavaScript and commits right away after it (closing a phone keyboard). It autofocuses only when the page has no query.

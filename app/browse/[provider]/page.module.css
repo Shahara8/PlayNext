@@ -1,17 +1,62 @@
+/* A service's browse page (docs/UI_DIRECTION.md Section 4, Browse). The
+   header's width and --gutter, so the content lines up with the logo. */
 .main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem var(--gutter);
+  padding: 2rem var(--gutter) 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-.empty {
+/* The service's dot and name, then "8 titles" / "3 of 8 titles". */
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--service-color);
+}
+
+/* "3 of 8 titles · Clear filters": the link sits with the count it resets. */
+.countLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
   color: var(--text-muted);
 }
 
-.emptyLink {
-  color: var(--accent);
-  text-decoration: underline;
+/* A 44 px tall tap target without making the line taller. */
+.clear {
+  display: inline-block;
+  padding-block: 0.7rem;
+  margin-block: -0.7rem;
+  font-weight: 500;
+}
+
+/* The empty states: the same copy as before, in a panel. */
+.empty {
+  max-width: 44rem;
+  padding: 1.25rem;
+  color: var(--text-muted);
+}
+
+@media (min-width: 761px) {
+  .main {
+    padding-block-start: 3rem;
+  }
 }

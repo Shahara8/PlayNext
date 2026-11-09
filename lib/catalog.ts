@@ -116,26 +116,45 @@ export async function getCatalogByProvider(
   return data as CatalogRow[];
 }
 
-/** Distinct genre names available on a provider — populates the genre filter's options. */
-export async function getProviderGenres(
+/** What a provider's browse page needs besides its rows. */
+export interface ProviderFacets {
+  /** Distinct genre names, sorted: the genre filter's options. */
+  genres: string[];
+  /** Titles on the provider in the region, unfiltered ("3 of 8 titles"). */
+  total: number;
+}
+
+/**
+ * A provider's genre names and title count, from one read of its rows. The
+ * count is PostgREST's exact count, not the rows returned (those stop at its
+ * 1000-row cap), so it matches the home page's tile. It counts v_catalog
+ * rows, which is titles: provider_availability is unique per provider,
+ * region and title (migration 0001).
+ */
+export async function getProviderFacets(
   providerCode: string,
-): Promise<string[]> {
+): Promise<ProviderFacets> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("v_catalog")
-    .select("genres")
+    .select("genres", { count: "exact" })
     .eq("provider", providerCode)
     .eq("region", REGION);
 
-  if (error) throw new Error(`getProviderGenres failed: ${error.message}`);
+  if (error) throw new Error(`getProviderFacets failed: ${error.message}`);
+  // Asked for, so a missing count is a broken response, not zero titles.
+  if (count == null)
+    throw new Error(`getProviderFacets failed: no count for ${providerCode}`);
 
+  const rows = data as { genres: { id: number; name: string }[] | null }[];
   const names = new Set<string>();
-  for (const row of data as {
-    genres: { id: number; name: string }[] | null;
-  }[]) {
+  for (const row of rows) {
     for (const g of row.genres ?? []) names.add(g.name);
   }
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+  return {
+    genres: Array.from(names).sort((a, b) => a.localeCompare(b)),
+    total: count,
+  };
 }
 
 /**

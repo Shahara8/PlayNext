@@ -1,28 +1,21 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProviderBySlug } from "@/lib/providers";
+import { getCatalogByProvider, getProviderFacets } from "@/lib/catalog";
 import {
-  getCatalogByProvider,
-  getProviderGenres,
-  SORT_OPTIONS,
-  TYPE_OPTIONS,
-  AVAILABILITY_OPTIONS,
-  DEFAULT_SORT,
-  type CatalogRow,
-  type SortKey,
-} from "@/lib/catalog";
+  clearFiltersHref,
+  hasActiveFilters,
+  parseBrowseParams,
+} from "@/lib/browse";
+import { browseCountLabel } from "@/lib/format";
 import TitleCard from "@/app/components/title-card";
 import SortFilterBar from "@/app/components/sort-filter-bar";
-import { firstSearchParam, withUpdatedParam } from "@/lib/query-params";
 import { getViewerTitleStates } from "@/lib/viewer-titles";
 import { titleKey } from "@/lib/title-ref";
 import { browseMetadata, NOT_FOUND_METADATA } from "@/lib/seo";
 import styles from "./page.module.css";
-
-const SORT_KEYS = SORT_OPTIONS.map((o) => o.value) as string[];
-const TYPE_VALUES = TYPE_OPTIONS.map((o) => o.value);
-const AVAILABILITY_VALUES = AVAILABILITY_OPTIONS.map((o) => o.value);
 
 export async function generateMetadata({
   params,
@@ -45,69 +38,68 @@ export default async function BrowsePage({
   const provider = getProviderBySlug(slug);
   if (!provider) notFound();
 
-  const sp = await searchParams;
-  const sortRaw = firstSearchParam(sp.sort);
-  const sort: SortKey = SORT_KEYS.includes(sortRaw)
-    ? (sortRaw as SortKey)
-    : DEFAULT_SORT;
+  const { sort, filters } = parseBrowseParams(await searchParams);
 
-  const typeRaw = firstSearchParam(sp.type);
-  const type = TYPE_VALUES.includes(typeRaw as CatalogRow["type"])
-    ? (typeRaw as CatalogRow["type"])
-    : undefined;
-
-  const availRaw = firstSearchParam(sp.avail);
-  const availabilityType = AVAILABILITY_VALUES.includes(
-    availRaw as CatalogRow["availability_type"],
-  )
-    ? (availRaw as CatalogRow["availability_type"])
-    : undefined;
-
-  const genre = firstSearchParam(sp.genre) || undefined;
-
-  const [rows, genres] = await Promise.all([
-    getCatalogByProvider(provider.code, {
-      sort,
-      filters: { type, availabilityType, genre },
-    }),
-    getProviderGenres(provider.code),
+  const [rows, facets] = await Promise.all([
+    getCatalogByProvider(provider.code, { sort, filters }),
+    getProviderFacets(provider.code),
   ]);
 
   const { userId, states, unavailable } = await getViewerTitleStates(rows);
 
-  const filtersActive = Boolean(type || availabilityType || genre);
+  const filtered = hasActiveFilters(filters);
+  const clearHref = filtered ? clearFiltersHref(provider.slug, sort) : null;
+  // With nothing to show, the empty panel's own link is the one.
+  const clearInCountLine = clearHref !== null && rows.length > 0;
 
   return (
     <main className={styles.main}>
-      <h1>{provider.label}</h1>
-      <SortFilterBar
-        sort={sort}
-        type={type ?? ""}
-        availabilityType={availabilityType ?? ""}
-        genre={genre ?? ""}
-        genres={genres}
-      />
-      {rows.length === 0 ? (
-        <p className={styles.empty}>
-          {filtersActive ? (
+      <div
+        className={styles.top}
+        style={{ "--service-color": provider.color } as CSSProperties}
+      >
+        <h1 className={styles.title}>
+          <span className={styles.dot} aria-hidden="true" />
+          {provider.label}
+        </h1>
+        <p className={styles.countLine}>
+          <span data-browse-count>
+            {browseCountLabel(rows.length, facets.total, filtered)}
+          </span>
+          {clearInCountLine && (
             <>
-              Nothing matches these filters.{" "}
+              <span aria-hidden="true">·</span>
               <Link
-                href={withUpdatedParam(
-                  "",
-                  `/browse/${provider.slug}`,
-                  "sort",
-                  sort === DEFAULT_SORT ? "" : sort,
-                )}
-                className={styles.emptyLink}
+                href={clearHref}
+                className={`text-link ${styles.clear}`}
+                data-clear-filters
               >
                 Clear filters
               </Link>
             </>
-          ) : (
-            `Nothing available on ${provider.label} yet.`
           )}
         </p>
+      </div>
+      <SortFilterBar
+        sort={sort}
+        type={filters.type ?? ""}
+        availabilityType={filters.availabilityType ?? ""}
+        genre={filters.genre ?? ""}
+        genres={facets.genres}
+      />
+      {rows.length === 0 ? (
+        <div className={`card ${styles.empty}`}>
+          {clearHref ? (
+            <p>
+              Nothing matches these filters.{" "}
+              <Link href={clearHref} className="text-link" data-clear-filters>
+                Clear filters
+              </Link>
+            </p>
+          ) : (
+            <p>{`Nothing available on ${provider.label} yet.`}</p>
+          )}
+        </div>
       ) : (
         <div className="title-grid">
           {rows.map((row) => (

@@ -1,22 +1,31 @@
-/* Equal columns, so the selects line up: 2 per row on phones, one row on
-   desktop. */
+/* Browse's filter bar (docs/UI_DIRECTION.md Section 4, Browse): the four
+   selects 2×2 on phones and in one row from 601 px. "Clear filters" is the
+   page's, beside the count. */
 .bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
   max-width: 52rem;
-  gap: 1rem;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  font-size: 0.8rem;
+  min-width: 0;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-muted);
 }
 
 /* Base look from the shared .select (app/globals.css). */
 .field select {
-  font-size: 0.95rem;
+  font-size: 1rem;
+}
+
+@media (min-width: 601px) {
+  .bar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+  }
 }

@@ -364,6 +364,18 @@ export const has = {
   get homePieces() {
     return `${this.homeSearch} && ${this.serviceTileCounts} && ${this.featured}`;
   },
+  /** A browse page (step 6): the count ("8 titles", or "3 of 8 titles"
+   * with filters), the four labelled selects, and "Clear filters" only while
+   * filtered, pointing at `clearHref` (the sort kept, the filters dropped). */
+  browsePieces: (clearHref: string | null) => `(() => {
+    const count = document.querySelector('main [data-browse-count]')?.textContent.trim() ?? '';
+    const pattern = ${clearHref ? "/^[0-9,]+ of [0-9,]+ titles?$/" : "/^([0-9,]+ titles?|No titles yet)$/"};
+    if (!pattern.test(count)) return false;
+    const labels = [...document.querySelectorAll('main label')].filter((l) => l.querySelector('select.select')).map((l) => l.querySelector('span')?.textContent.trim());
+    if (labels.join() !== 'Sort,Type,Availability,Genre') return false;
+    const clear = document.querySelector('main a[data-clear-filters]');
+    return ${clearHref ? `clear?.getAttribute('href') === ${JSON.stringify(clearHref)} && clear.textContent.trim() === 'Clear filters'` : "!clear"};
+  })()`,
   /** No link or button inside a link anywhere on the page. */
   noNestedLinks: `!document.querySelector('main a a, main a button, main button a')`,
   /** The search page (step 5) after a typo search: its search form keeps the
@@ -399,7 +411,7 @@ function signedOutPages(
     {
       label: "browse",
       path: "/browse/netflix",
-      ready: `${has.titleLinks} && ${has.titleCards}`,
+      ready: `${has.titleLinks} && ${has.titleCards} && ${has.browsePieces(null)}`,
     },
     {
       label: "browse partner tv",
@@ -411,7 +423,21 @@ function signedOutPages(
     {
       label: "browse sorted",
       path: "/browse/netflix?sort=rating",
-      ready: `${has.titleLinks} && document.querySelector('main select')`,
+      // Sort isn't a filter: no "of M", no Clear filters.
+      ready: `${has.titleLinks} && ${has.browsePieces(null)}`,
+    },
+    {
+      // Netflix's mock-seed TV series: revisit at the real-feed cutover.
+      label: "browse filtered",
+      path: "/browse/netflix?sort=rating&type=tv_series",
+      ready: `${has.titleLinks} && ${has.browsePieces("/browse/netflix?sort=rating")}`,
+    },
+    {
+      // Nothing on Netflix is free in the mock seed: the empty panel carries
+      // the one Clear filters link.
+      label: "browse no matches",
+      path: "/browse/netflix?avail=free",
+      ready: `${has.text("Nothing matches these filters.")} && ${has.browsePieces("/browse/netflix")} && document.querySelectorAll('main a[data-clear-filters]').length === 1 && !document.querySelector('main .title-grid')`,
     },
     {
       // A typo, to check search stays typo-tolerant.
