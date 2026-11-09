@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getProviderBySlug } from "@/lib/providers";
 import { getCatalogByProvider, getProviderFacets } from "@/lib/catalog";
 import {
+  browseEmptyCopy,
   clearFiltersHref,
   hasActiveFilters,
   parseBrowseParams,
@@ -51,6 +52,7 @@ export default async function BrowsePage({
   const clearHref = filtered ? clearFiltersHref(provider.slug, sort) : null;
   // With nothing to show, the empty panel's own link is the one.
   const clearInCountLine = clearHref !== null && rows.length > 0;
+  const empty = browseEmptyCopy(provider.label, clearHref);
 
   return (
     <main className={styles.main}>
@@ -88,17 +90,16 @@ export default async function BrowsePage({
         genres={facets.genres}
       />
       {rows.length === 0 ? (
-        <div className={`card ${styles.empty}`}>
-          {clearHref ? (
-            <p>
-              Nothing matches these filters.{" "}
-              <Link href={clearHref} className="text-link" data-clear-filters>
-                Clear filters
-              </Link>
-            </p>
-          ) : (
-            <p>{`Nothing available on ${provider.label} yet.`}</p>
-          )}
+        <div className="card empty-state" data-empty-state>
+          <h2>{empty.line}</h2>
+          <p>{empty.hint}</p>
+          <Link
+            href={empty.action.href}
+            className="btn btn-primary"
+            data-clear-filters={empty.action.clearsFilters ? "" : undefined}
+          >
+            {empty.action.label}
+          </Link>
         </div>
       ) : (
         <div className="title-grid">

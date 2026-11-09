@@ -119,7 +119,7 @@ export default function TitleActions({
 
   const buttonClass = labeled
     ? `btn btn-secondary ${styles.labeled}`
-    : styles.icon;
+    : `tap-target ${styles.icon}`;
   // Compact buttons are icons, named by aria-label. Labeled ones are named by
   // their visible text (the icon is hidden), so the name always matches what's
   // on screen ("On watchlist" included). `data-action` is the stable hook for

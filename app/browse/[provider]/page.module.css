@@ -48,13 +48,6 @@
   font-weight: 500;
 }
 
-/* The empty states: the same copy as before, in a panel. */
-.empty {
-  max-width: 44rem;
-  padding: 1.25rem;
-  color: var(--text-muted);
-}
-
 @media (min-width: 761px) {
   .main {
     padding-block-start: 3rem;

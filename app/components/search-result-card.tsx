@@ -43,7 +43,7 @@ export default function SearchResultCard({ row }: { row: SearchResultRow }) {
       </Link>
       <div className={styles.head}>
         <h2 className={styles.title}>
-          <Link href={href} className={styles.titleLink}>
+          <Link href={href} className={`tap-target ${styles.titleLink}`}>
             {row.title}
           </Link>
         </h2>

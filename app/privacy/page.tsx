@@ -109,7 +109,7 @@ export default function PrivacyPage() {
       <p>Questions about this policy or your data: {mail}.</p>
 
       <p className={styles.back}>
-        <Link href="/" className="text-link">
+        <Link href="/" className="text-link tap-target">
           Back to {SITE_NAME}
         </Link>
       </p>

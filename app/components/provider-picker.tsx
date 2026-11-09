@@ -5,6 +5,7 @@ import { getProviderSummaries, type ProviderSummary } from "@/lib/catalog";
 import { titleCountLabel } from "@/lib/format";
 import { PROVIDERS } from "@/lib/providers";
 import { titleKey } from "@/lib/title-ref";
+import { ScrollRow } from "./scroll-row";
 import styles from "./provider-picker.module.css";
 
 const HEADING_ID = "services-heading";
@@ -25,7 +26,7 @@ export function ProviderTiles({
   return (
     <section className={styles.section} aria-labelledby={HEADING_ID}>
       <h2 id={HEADING_ID}>Browse by service</h2>
-      <ul className={styles.row}>
+      <ScrollRow className={styles.row}>
         {PROVIDERS.map((provider) => {
           const summary = summaries?.get(provider.code);
           return (
@@ -62,7 +63,7 @@ export function ProviderTiles({
             </li>
           );
         })}
-      </ul>
+      </ScrollRow>
     </section>
   );
 }

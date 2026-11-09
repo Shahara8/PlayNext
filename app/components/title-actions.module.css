@@ -5,8 +5,9 @@
   gap: 0.3rem;
 }
 
-/* Cards: ♡ and + as 36 px icon buttons. The ::after stretches each one's hit
-   area to 44 px (the row's 8 px gap keeps neighbors from overlapping). */
+/* Cards: ♡ and + as 36 px icon buttons. The shared .tap-target stretches
+   each one's hit area to 44 px (the row's 8 px gap keeps neighbors from
+   overlapping). */
 .actions:not(.large) {
   gap: 0.5rem;
 }
@@ -32,18 +33,15 @@
   font-size: 1.3rem;
 }
 
-.icon::after {
-  content: "";
-  position: absolute;
-  inset: -0.25rem;
-}
-
 .icon:hover:not(:disabled):not([aria-pressed="true"]) {
   background: var(--surface-2);
 }
 
+/* --text, not --accent, on --accent-soft: dark --accent on it is 4.23:1
+   (below AA), and the title page's pressed buttons use --text too. The
+   glyph itself changes (♡ → ♥, + → ✓), so pressed doesn't rest on color. */
 .icon[aria-pressed="true"] {
-  color: var(--accent);
+  color: var(--text);
   background: var(--accent-soft);
   border-color: var(--accent);
 }

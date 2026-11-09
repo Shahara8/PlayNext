@@ -15,28 +15,23 @@ PlayNext doesn't stream anything itself: every path ends with the user leaving f
 
 ## Brief
 
-**What we're asking for.** You're reviewing the user interface of PlayNext. Each view below has full-page screenshots at phone width (412 px, left) and desktop width (1280 px, right), plus a description: what the view is for, how users reach it, what's on it, and known constraints. The current UI is functional but plain: it was built for function first, with no designer and no design system. We want to choose a visual and interaction direction before polishing details.
+**Where we are.** This is the second review. In the first, you proposed three UI directions from screenshots of the original, function-first UI. We chose **Direction 1, "Watch-First / Quick Guide"**, with two ideas from the others: a Watch button straight on search results (from Direction 3) and home-page service tiles with a title count and sample titles (from Direction 2). It's now built across every view, in a light and a dark theme, on shared design tokens and components. The screenshots below are the built app.
 
-**Part 1 (the main ask): two to three distinct UI directions, with mockups.** Each direction should be a different answer to the purpose above, not three color schemes on the same layout. For each one, give:
+**What we're asking for.** A review of the build, not new directions:
 
-- **A name and a one-paragraph concept:** what it puts first and why that serves the jobs above. What feeling does it aim for?
-- **Mockups of the key screens at phone width:** home, a service's browse page, search with results, and a title page with several services under "Where to watch". Add the title page at desktop width too. Use real-looking content (posters, titles like the ones in the screenshots) and readable text, not lorem ipsum.
-- **The visual system in brief:** color palette (light and dark), typography, spacing and shape (corners, cards), and how the five services' brand colors are used.
-- **What changes from today**, view by view in a few lines, and what stays.
-- **Trade-offs:** what it's best at, what it gives up, and the rough effort to build on our stack (S/M/L, see below).
+1. **Does it deliver the direction?** Is "where can I watch X?" answered fast on a phone, from home, search and the title page? Where does the hierarchy still get in the way?
+2. **Concrete problems and fixes, view by view:** bugs, inconsistencies between views (spacing, type, buttons, empty states), unclear copy, layout problems at either width or in either theme, and accessibility issues you can see.
 
-End Part 1 with your recommendation: which direction you'd pick for this audience and purpose, and why.
+For each suggestion:
 
-**Part 2: concrete suggestions for the current UI, view by view.** These are problems and fixes that apply whichever direction we choose (bugs, unclear copy, layout problems, accessibility). For each suggestion:
-
-- **What:** the specific change (e.g. "make the whole card tappable and move the rating select into the title page only"), not a general principle.
+- **What:** the specific change (e.g. "move the Share button under Where to watch on phones"), not a general principle.
 - **Why:** the problem it fixes for a user, and what you saw in the screenshot that shows it.
 - **Size:** S (CSS or copy, under an hour), M (one component restructured), or L (a new component or flow, or changes across many views).
 - **Priority:** P1 (hurts using the app now), P2 (clear improvement), P3 (polish).
 
-**Format for Part 2.** One heading per view, using the view numbers below (e.g. "View 08: Title page"), with that view's suggestions as a numbered list, most important first. Put suggestions that apply to many views (header, cards, buttons, typography, color, spacing) in a "Cross-cutting" section at the start. End with your overall **top 10**, ordered by value for effort. Skip views you have nothing useful to say about. If something looks like a bug rather than a design choice, say so.
+**Format.** One heading per view, using the view numbers below (e.g. "View 08: Title page"), with that view's suggestions as a numbered list, most important first. Put suggestions that apply to many views in a "Cross-cutting" section at the start. End with your overall **top 10**, ordered by value for effort. Skip views you have nothing useful to say about. If something looks like a bug rather than a design choice, say so.
 
-**Limits for both parts.** Directions can rethink layout, navigation, hierarchy and visual style freely. They should not depend on new data or backend features (e.g. "only show my services" settings, notifications, trailers, cast, social). If a direction needs one, label it as an optional extra. They must also not use the streaming services' logos (we have no rights to them; names and brand colors are fine). Everything must be buildable with hand-written CSS on our current stack (see Tech below), and must work well on phones first.
+**Limits.** Suggestions should not depend on new data or backend features (e.g. "only show my services" settings, notifications, trailers, cast, seasons, social); if one does, label it as an optional extra. No streaming-service logos (we have no rights to them; names and brand colors are fine). Everything must be buildable with hand-written CSS on our current stack (see Tech below), phone first.
 
 ---
 
@@ -45,27 +40,34 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 - **Who uses it.** Israeli viewers deciding what to watch tonight and where. **Phone first:** most visits are expected on phones; desktop must work well but is secondary.
 - **Language.** The UI is English-only today, left-to-right. Hebrew and RTL are not built. Title names come from TMDB in English. You can note places where Hebrew would later strain the layout, but don't plan around it.
 - **The catalog is small and partly mock.** About 32 titles across 5 services. Netflix, Disney+ and Prime Video titles are **made-up stand-in data** until a real feed arrives (phase 2), so each title currently appears on exactly one service. In the real data a title can be on several services, so the "Where to watch" list on the title page will often have 2 to 4 rows. yes and Partner TV are moving to real data first. Partner TV rows currently have **no watch link**.
-- **Tech.** Next.js (App Router) with server-rendered pages and small client components. Styling is hand-written CSS modules, with **no component library**. Colors are theme tokens in `app/globals.css` (background, surfaces, borders, text, muted text, an indigo accent, rating, danger, success), defined for a light and a dark theme and checked against WCAG AA. Shared button, input/select, chip, card and segmented-control styles sit on those tokens. The theme follows the device by default; a footer setting (System · Light · Dark) overrides it. The font is Geist. Posters and metadata come from TMDB.
+- **Tech.** Next.js (App Router) with server-rendered pages and small client components. Styling is hand-written CSS modules, with **no component library**. Colors are theme tokens in `app/globals.css` (background, surfaces, borders, text, muted text, an indigo accent, rating, danger, success), defined for a light and a dark theme and checked against WCAG AA. Shared button, input/select, chip, card, segmented-control and empty-state styles sit on those tokens. The theme follows the device by default; a footer setting (System · Light · Dark) overrides it. The font is Geist. Posters and metadata come from TMDB.
 - **Accounts.** Browsing and search work signed out. Saving anything (favorite, watchlist, like/dislike, rating) needs an account: email and password, or Google. Signed out, every save control sends you to the sign-in page.
 - **Recommendations** ("For You") are basic: titles similar to what you liked, favorited, or rated 7+, then topped up with trending titles. With the tiny catalog, the list is often mostly trending.
-- **Screenshots.** Taken from the live site (production) in headless Chrome, full page (from top to bottom of the page, not just the first screen). Phone at 412 px wide, 2x pixel density; desktop at 1280 px. Each view is shown in the light theme (first row) and the dark theme (second row). The signed-in views use a test account named "Test Bot", which has 1 title on its watchlist (The Witcher) and 1 favorite (Breaking Bad, also liked).
+- **Screenshots.** Taken from a production build of the site, reading the live database, in headless Chrome, full page (from top to bottom of the page, not just the first screen). Phone at 412 px wide, 2x pixel density; desktop at 1280 px. Each view is shown in the light theme (first row) and the dark theme (second row). The signed-in views use a test account named "Test Bot", which has 1 title on its watchlist (The Witcher) and 1 favorite (Breaking Bad, also liked).
 
 ## Elements that recur on every view
 
 - **Header.** A white (dark: dark navy) bar with a bottom border; it doesn't stick to the top while scrolling. "PlayNext" logo (goes home) on the left; on the right: a magnifier icon button (goes to Search; screen readers hear "Search"), Browse (desktop only, since it duplicates the logo link), My List, and either a "Sign in" button in the accent color or the user's first name (muted) plus "Sign out". Every item is a 44 px tap target, with a light gray fill on hover.
-- **Footer.** The same surface and a top border, matching the header. "PlayNext" (bold), a Privacy link, "Title data from TMDB" (required attribution; the links are underlined, muted, 44 px tall), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones). The header and footer share a side padding (16 px on phones, 24 px wider); the pages don't all use it yet, so some phone pages are indented 8 px more than the header.
-- **Title card** (home, browse, My List; rebuilt in UI step 3). The poster (2:3, rounded) with a **★ rating badge** (TMDB's score, in the rating color on a surface chip) at its top inline-end corner, the title (2 lines at most) and "year · type" ("2016 · TV Series"). The poster, title and meta are one link to the title page. Below them just two 36 px icon buttons: **♡ favorite** and **+ watchlist** (✓ once saved); like, dislike and rating are on the title page only. Saved states show as a button tinted with the accent color, with an accent border and an accent icon (see views 18 to 21). The buttons sit at the bottom of the card, so a row of cards keeps them in line when one title wraps to two lines. A title with no TMDB score (or a score of 0, meaning no votes) has no badge.
+- **Footer.** The same surface and a top border, matching the header. "PlayNext" (bold), a Privacy link, "Title data from TMDB" (required attribution; the links are underlined, muted, 44 px tall), and the theme setting: "Theme" with a System · Light · Dark segmented control (at the far end on desktop, on its own line on phones). The header, the footer and every page share one side padding (16 px on phones, 24 px wider) and one maximum width (1200 px), so page content lines up with the logo. Every page's content starts the same distance below the header (32 px on phones, 48 px from 761 px), except the centered-card pages (views 10–14, 16, 23), whose card sits lower on desktop.
+- **Title card** (home, browse, My List; rebuilt in UI step 3). The poster (2:3, rounded) with a **★ rating badge** (TMDB's score, in the rating color on a surface chip) at its top inline-end corner, the title (2 lines at most) and "year · type" ("2016 · TV Series"). The poster, title and meta are one link to the title page. Below them just two 36 px icon buttons: **♡ favorite** and **+ watchlist** (✓ once saved); like, dislike and rating are on the title page only. Saved states show as a button tinted with the accent color and an accent border, with a filled icon (♥, ✓) in the text color (see views 18 to 21). The buttons sit at the bottom of the card, so a row of cards keeps them in line when one title wraps to two lines. A title with no TMDB score (or a score of 0, meaning no votes) has no badge.
 - **Grids.** 2 columns on phones, 3 on tablets (601–899 px), 5 from 900 px and 6 from 1180 px. The home, browse and My List pages use the `--gutter` side padding, so the grid lines up with the logo.
 - **Search result card** (rebuilt in UI step 5). A horizontal card: the poster at the inline start; beside it the title (bold), "year · type · ★ rating" (the rating in the rating color), and one item per service, subscription and free first. A service with a link is a **service-colored button "Watch on Netflix →"** that opens the service in a new tab; one without a link is a pill with the service's dot, its name and the availability ("● Partner TV · Subscription"). The poster and the title each link to the title page; the card itself isn't a link, so nothing is nested (the poster link is skipped by the keyboard and screen readers, since the title link goes to the same place). A title on no tracked service says "Not currently available on any tracked provider".
+- **Buttons.** One set everywhere, each 44 px tall: **primary** (filled with the accent: the main action of a view, e.g. Search, Sign in, Find something to watch), **secondary** (surface with a gray border: Share, Continue with Google, the title page's save buttons), and **service** (filled with the service's color: the Watch buttons). Only the cards' ♡ and + are smaller (36 px), with a 44 px tap area around them.
+- **Empty states.** One panel everywhere a list has nothing to show (views 04, 07 and 22): a card at most 32rem wide at the start of the content (where the grid or results would begin), with a bold line, a muted hint and a way out, centered inside it. Browse's and My List's way out is a primary button; search's is a link in the hint.
+- **Segmented controls.** Theme (footer), Sign in · Sign up (view 10) and Watchlist · Favorites (view 20) share one style: a gray track with the current choice filled in the accent color. Each segment is 36 px tall inside the track, with a 44 px tap area.
 - **Service colors.** Netflix red, Disney+ blue, Prime Video cyan, yes amber, Partner TV green. They're used on the home page's service tiles (a bar across the top and a dot), in the dots on the title page and on search result pills, and as the Watch buttons on the title page, the home page's Trending now card and search results.
 
 ## Not shown in screenshots (described only)
 
-- **Loading skeletons.** Grey pulsing placeholders shaped like the page (poster boxes and lines) show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List (the title, the control and the grid), a title page and the home page's Trending now card and For You section load. They're usually gone in well under a second.
-- **Error page.** If a page fails to load: the same centered card as the Not found page (view 16), with "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a primary "Try again" button, a secondary "Back to home" and a small reference code. If the whole site fails to load, the card has only "Try again".
-- **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls.
-- **For You failure.** If recommendations can't load, the section shows "Couldn't load recommendations right now." in place of the grid.
+- **Loading skeletons.** Gray pulsing placeholders (still, with reduced motion) shaped like the page show while browse (the title, the count, the four selects and the grid), search (the field, the results line and result cards with a button), My List (the title, the control and the grid), a title page, and the home page's service counts, Trending now card and For You section load. They're usually gone in well under a second. Sign-in and the reset pages have none.
+- **Keyboard focus.** Every link, button, field and select shows the same focus ring when reached with the keyboard: a 2 px accent-colored outline, 2 px outside the element. Mouse and touch don't show it. On phones, tabbing to a service tile that's partly off screen scrolls the row so the whole tile shows.
+- **Error page.** If a page fails to load: the same centered card as the Not found page (view 16), with "Something went wrong", the line "We couldn't load this page. It's usually temporary.", a primary "Try again" button, a secondary "Back to home" and a small reference code. If the whole site fails to load, the card says "PlayNext couldn't load. It's usually temporary." and has only "Try again".
+- **Save failure.** If saving a favorite, watchlist, like or rating fails, the control flips back and a small red "Couldn't save. Try again." appears under the controls. If the saved states can't be read, the save buttons are disabled, with the tooltip "Couldn't load your saved state".
+- **Share.** On phones, Share opens the phone's share sheet. Where there isn't one, it copies the link and the button reads "Link copied" for two seconds ("Couldn't share" if that fails too).
+- **For You failure.** If personal picks can't be worked out, the caption says "Couldn't fetch personal picks right now, so here's what's trending." over trending titles; if no titles can load at all, the section shows "Couldn't load recommendations right now." in place of the grid.
 - **Form messages after submitting.** Confirmations are green with a check-circle icon: after sign-up, "Check your email to confirm your account before signing in."; after a reset request, "If an account exists for that email, a link to reset your password is on its way." Validation errors (e.g. a short password) appear in red with an alert icon above the button, as in view 13.
+- **A service with no titles.** Its browse page says "No titles yet" under the heading and shows the empty panel "Nothing available on <service> yet" / "Its titles will show here once we have them." with a primary "Browse other services" (home). Its home tile says "No titles yet".
+- **My List, empty Favorites.** As view 22, with "No favorites yet" and "Tap ♡ on any title to add it here."
 - **My List signed out.** It redirects to the sign-in page (view 10).
 
 ---
@@ -118,7 +120,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** The empty state when the filters exclude everything (here: Availability is Free on Netflix).
 
-**What's on it.** The header block says "0 of 8 titles" (no link there), then the selects, then a panel: "Nothing matches these filters. Clear filters" (the link keeps the sort and drops the filters). A service with no titles at all says "No titles yet" in the header and "Nothing available on <service> yet." in the panel instead.
+**What's on it.** The header block says "0 of 8 titles" (no link there), then the selects, then the empty-state panel: "Nothing matches these filters" in bold, the muted hint "Try a different type, availability or genre." and a primary **Clear filters** button (it keeps the sort and drops the filters). A service with no titles at all is described under "Not shown in screenshots".
 
 ![Phone, light](images/04-browse-no-matches-phone-light.png) ![Desktop, light](images/04-browse-no-matches-desktop-light.png)
 
@@ -142,7 +144,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 **Purpose.** The answer to "where can I watch X": each result lists the services it's on.
 
-**What's on it.** The query "strnger" (a deliberate typo) finds Stranger Things. Above the results, the line "1 result for “strnger”", followed by a muted **"Showing closest matches"** because no result's title contains what was typed (a typo match). At the result limit (20) the line says "Top 20 results for …". Each result is a search result card (see "Shared pieces"): Stranger Things has a red **"Watch on Netflix →"** button. One column on phones, two from 900 px.
+**What's on it.** The query "strnger" (a deliberate typo) finds Stranger Things. Above the results, the line "1 result for “strnger”", followed by a muted **"Showing closest matches"** because no result's title contains what was typed (a typo match). At the result limit (20) the line says "Top 20 results for …". Each result is a search result card (see "Elements that recur on every view"): Stranger Things has a red **"Watch on Netflix →"** button. One column on phones, two from 900 px.
 
 **Known constraints.** Search results have no save controls (unlike cards elsewhere). The Watch button doesn't say whether the title is included or rented (screen readers hear it: "Watch on Netflix, Subscription"); the title page shows it. Titles available on several services aren't in today's catalog, so a card with several buttons and pills isn't in the screenshots (checked by hand: they wrap).
 
@@ -152,8 +154,7 @@ End Part 1 with your recommendation: which direction you'd pick for this audienc
 
 ## View 07: Search, no results
 
-
-**What's on it.** The field (with "qwzxv"), then a panel: "No results for “qwzxv”." in bold, and "Check the spelling, try fewer words, or browse by service." ("browse by service" is a link to the home page).
+**What's on it.** The field (with "qwzxv"), then the empty-state panel: "No results for “qwzxv”" in bold, and the muted hint "Check the spelling, try fewer words, or browse by service." ("browse by service" is a link to the home page).
 
 ![Phone, light](images/07-search-no-results-phone-light.png) ![Desktop, light](images/07-search-no-results-desktop-light.png)
 
@@ -204,7 +205,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 11: Sign up
 
-
 **What's on it.** The same card with "Sign up" selected: the heading and the button read "Create account", and there's no "Forgot password?" link. After submitting, the user must confirm by email (see "Form messages" above).
 
 ![Phone, light](images/11-login-sign-up-phone-light.png) ![Desktop, light](images/11-login-sign-up-desktop-light.png)
@@ -213,7 +213,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 12: Forgot password (request a reset link)
 
-
 **What's on it.** Reached from "Forgot password?" on view 10 (or from view 14's "Request a new link"). The same card, headed "Reset password", without the Sign in · Sign up control: the muted line "Enter your account's email and we'll send you a link to set a new password.", the Email field, a "Send reset link" button and "Back to sign in" (returns to view 10), then "or" and "Continue with Google".
 
 ![Phone, light](images/12-login-forgot-password-phone-light.png) ![Desktop, light](images/12-login-forgot-password-desktop-light.png)
@@ -221,7 +220,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ![Phone, dark](images/12-login-forgot-password-phone-dark.png) ![Desktop, dark](images/12-login-forgot-password-desktop-dark.png)
 
 ## View 13: Sign in, with an error
-
 
 **What's on it.** What users see when a Google sign-in or an email confirmation link fails: the sign-in card with a red message and an alert icon above the button ("Something went wrong signing you in — please try again."). Wrong-password and validation errors use the same line. A failed reset link opens view 12 with its own message in the same style.
 
@@ -271,7 +269,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 18: Browse (signed in)
 
-
 **What's on it.** As view 02, with the user's saved states on the cards: Breaking Bad shows a filled ♥ (its like shows only on the title page), and The Witcher shows ✓ (on the watchlist).
 
 ![Phone, light](images/18-browse-signed-in-phone-light.png) ![Desktop, light](images/18-browse-signed-in-desktop-light.png)
@@ -279,7 +276,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 ![Phone, dark](images/18-browse-signed-in-phone-dark.png) ![Desktop, dark](images/18-browse-signed-in-desktop-dark.png)
 
 ## View 19: Title page (signed in)
-
 
 **What's on it.** As view 08, with this account's state: favorited ("♥ Favorite") and liked (👍). Pressed buttons have an accent-tinted fill and an accent border.
 
@@ -303,7 +299,6 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 21: My List, Favorites tab
 
-
 **What's on it.** As view 20, listing favorites.
 
 ![Phone, light](images/21-my-list-favorites-phone-light.png) ![Desktop, light](images/21-my-list-favorites-desktop-light.png)
@@ -312,8 +307,7 @@ On desktop there are two columns: the poster (260 px, lined up with the header's
 
 ## View 22: My List, empty
 
-
-**What's on it.** The heading and segmented control as in view 20, then a centered panel (a card, at most 32rem wide) instead of the grid: a bold line "Your watchlist is empty", a muted hint "Tap + on any title to save it for later.", and a primary button "Find something to watch" that goes home. The empty Favorites tab is the same with "No favorites yet" and "Tap ♡ on any title to add it here." (not in the screenshots: the test account has a favorite).
+**What's on it.** The heading and segmented control as in view 20, then the empty-state panel instead of the grid (at the start of the content, where the grid would begin): a bold line "Your watchlist is empty", a muted hint "Tap + on any title to save it for later.", and a primary button "Find something to watch" that goes home. The empty Favorites tab is the same with its own copy (see "Not shown in screenshots": the test account has a favorite).
 
 **Known constraints.** This is what every new user sees first on My List.
 

@@ -54,9 +54,9 @@ export default async function MyListPage({
         </nav>
       </div>
       {titles.length === 0 ? (
-        <div className={`card ${styles.empty}`} data-empty-state>
-          <h2 className={styles.emptyLine}>{empty.line}</h2>
-          <p className={styles.emptyHint}>{empty.hint}</p>
+        <div className="card empty-state" data-empty-state>
+          <h2>{empty.line}</h2>
+          <p>{empty.hint}</p>
           <Link href="/" className="btn btn-primary">
             Find something to watch
           </Link>

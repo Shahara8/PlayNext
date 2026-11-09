@@ -64,7 +64,7 @@ export default async function FeaturedTitle() {
         </Link>
         <div className={styles.head}>
           <h3 className={styles.title}>
-            <Link href={href} className={styles.titleLink}>
+            <Link href={href} className={`tap-target ${styles.titleLink}`}>
               {title.title}
             </Link>
           </h3>

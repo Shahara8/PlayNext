@@ -28,28 +28,6 @@
   padding-inline: 1.25rem;
 }
 
-/* The empty state: a centered panel with one line, a hint and a way out. */
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 32rem;
-  margin-inline: auto;
-  padding: 2rem 1.25rem;
-  text-align: center;
-}
-
-.emptyLine {
-  font-size: 1.125rem;
-}
-
-.emptyHint {
-  color: var(--text-muted);
-  margin-block-end: 0.75rem;
-}
-
 @media (min-width: 601px) {
   .top {
     flex-direction: row;

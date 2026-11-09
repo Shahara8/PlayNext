@@ -11,14 +11,14 @@ export default function Footer() {
     <footer className={styles.footer}>
       <div className={styles.inner}>
         <span className={styles.brand}>{SITE_NAME}</span>
-        <Link href={PRIVACY_PATH} className={styles.link}>
+        <Link href={PRIVACY_PATH} className={`tap-target ${styles.link}`}>
           Privacy
         </Link>
         <span>
           Title data from{" "}
           <a
             href="https://www.themoviedb.org/"
-            className={styles.link}
+            className={`tap-target ${styles.link}`}
             target="_blank"
             rel="noopener noreferrer"
           >

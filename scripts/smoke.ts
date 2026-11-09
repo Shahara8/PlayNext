@@ -40,6 +40,17 @@ import {
   type SmokeOptions,
   type Viewport,
 } from "./smoke-lib";
+import {
+  contrastFailures,
+  focusFailures,
+  tapTargetFailures,
+  type FocusSample,
+} from "./a11y-lib";
+import {
+  focusSampleProbe,
+  tapTargetsProbe,
+  textSamplesProbe,
+} from "./a11y-probe";
 
 const NAV_TIMEOUT_MS = 30_000;
 const WAIT_TIMEOUT_MS = 20_000;
@@ -278,6 +289,76 @@ export class Page {
   }
 
   /**
+   * The accessibility rules (docs/UI_DIRECTION.md Section 2), on the page as
+   * it is now: every visible text meets WCAG AA in the light and the dark
+   * theme, every interactive element is at least 44×44 px (links inside a
+   * sentence excepted), and every Tab stop shows an unclipped focus ring
+   * with 3:1 contrast. The judging is scripts/a11y-lib.ts (unit-tested).
+   * Leaves the color scheme at the default and focus somewhere on the page.
+   */
+  async assertAccessible() {
+    const problems: string[] = [];
+    try {
+      for (const scheme of ["light", "dark"] as const) {
+        await this.setColorScheme(scheme);
+        await this.waitFor(
+          `matchMedia('(prefers-color-scheme: ${scheme})').matches`,
+          `the ${scheme} theme`,
+        );
+        // Buttons fade their colors over 0.15s; read them settled.
+        await new Promise((r) => setTimeout(r, 250));
+        for (const line of contrastFailures(await this.eval(textSamplesProbe)))
+          problems.push(`${scheme}: ${line}`);
+        // The ring's color and what's behind it differ per theme.
+        for (const line of focusFailures(await this.tabThrough()))
+          problems.push(`${scheme}: ${line}`);
+      }
+    } finally {
+      await this.setColorScheme(null);
+    }
+    problems.push(...tapTargetFailures(await this.eval(tapTargetsProbe)));
+    if (problems.length)
+      throw new Error(
+        `accessibility: ${problems.slice(0, 6).join("; ")}${problems.length > 6 ? ` (+${problems.length - 6} more)` : ""}`,
+      );
+  }
+
+  /**
+   * Tabs through the page from the top, sampling each focused element's
+   * ring, until focus leaves the page or comes back to one already seen.
+   * Throws at `maxStops` rather than pass with the rest unchecked (raise it
+   * if a page legitimately has more).
+   */
+  async tabThrough(maxStops = 300): Promise<FocusSample[]> {
+    await this.eval(`window.scrollTo(0, 0); document.activeElement?.blur()`);
+    const samples: FocusSample[] = [];
+    const seen = new Set<string>();
+    for (;;) {
+      if (samples.length === maxStops)
+        throw new Error(
+          `still tabbing after ${maxStops} stops on ${await this.path()}`,
+        );
+      for (const type of ["keyDown", "keyUp"])
+        await this.cdp.send("Input.dispatchKeyEvent", {
+          type,
+          key: "Tab",
+          code: "Tab",
+          windowsVirtualKeyCode: 9,
+        });
+      const sample = await this.eval<
+        (FocusSample & { box: { x: number; y: number } }) | null
+      >(focusSampleProbe);
+      if (!sample) break;
+      const key = `${sample.label}@${Math.round(sample.box.x)},${Math.round(sample.box.y)}`;
+      if (seen.has(key)) break;
+      seen.add(key);
+      samples.push(sample);
+    }
+    if (samples.length === 0) throw new Error("Tab never focused anything");
+    return samples;
+  }
+
+  /**
    * Waits until React has hydrated the element (it carries React's
    * `__reactProps$…` key) and it's enabled. Server HTML shows up first, and
    * input before hydration is lost: a click does nothing and a filled value
@@ -393,6 +474,30 @@ export const has = {
     if (grid) return true;
     const button = empty.querySelector('a.btn.btn-primary[href="/"]');
     return empty.querySelector('h2')?.textContent.trim() === ${JSON.stringify(myListEmptyCopy(view).line)} && button?.textContent.trim() === 'Find something to watch';
+  })()`,
+  /** The shared empty-state panel (step 9: My List, browse, search): one
+   * `.card.empty-state` with data-empty-state, the given line as its h2,
+   * at most 32rem wide at main's inline start (where the field, selects
+   * or grid start), and no card grid beside it.
+   * With `action` (label, href), its one primary button. */
+  emptyState: (line: string, action?: [label: string, href: string]) =>
+    `(() => {
+    const panels = document.querySelectorAll('main [data-empty-state]');
+    if (panels.length !== 1 || document.querySelector('main .title-grid')) return false;
+    const p = panels[0];
+    if (!p.matches('.card.empty-state')) return false;
+    if (p.querySelector('h2')?.textContent.trim() !== ${JSON.stringify(line)}) return false;
+    const r = p.getBoundingClientRect();
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const m = p.parentElement.getBoundingClientRect();
+    const start = m.left + parseFloat(getComputedStyle(p.parentElement).paddingInlineStart);
+    if (r.width > 32 * rem + 1 || Math.abs(r.left - start) > 1) return false;
+    ${
+      action
+        ? `const b = p.querySelector('a.btn.btn-primary');
+    return b?.textContent.trim() === ${JSON.stringify(action[0])} && b.getAttribute('href') === ${JSON.stringify(action[1])};`
+        : "return true;"
+    }
   })()`,
   /** A centered card (step 8: reset password, Not found, the sign-in
    * form): at most 400 px wide, centered, with the given heading; when
@@ -519,13 +624,19 @@ function signedOutPages(
       // the one Clear filters link.
       label: "browse no matches",
       path: "/browse/netflix?avail=free",
-      ready: `${has.text("Nothing matches these filters.")} && ${has.browsePieces("/browse/netflix")} && document.querySelectorAll('main a[data-clear-filters]').length === 1 && !document.querySelector('main .title-grid')`,
+      ready: `${has.emptyState("Nothing matches these filters", ["Clear filters", "/browse/netflix"])} && ${has.browsePieces("/browse/netflix")} && document.querySelectorAll('main a[data-clear-filters]').length === 1`,
     },
     {
       // A typo, to check search stays typo-tolerant.
       label: "search",
       path: "/search?q=strnger",
       ready: `${has.titleLink("Stranger Things")} && ${has.searchPieces("strnger")} && ${has.noNestedLinks}`,
+    },
+    {
+      // No title is called this: the shared empty-state panel, its link home.
+      label: "search no results",
+      path: "/search?q=qwzxv",
+      ready: `${has.emptyState("No results for “qwzxv”")} && document.querySelector('main [data-empty-state] a.text-link[href="/"]')`,
     },
     {
       label: "title",
@@ -637,6 +748,7 @@ class Runner {
           await page.waitFor(spec.ready, spec.label);
           await page.assertHealthy();
           await page.screenshot(`${prefix} ${spec.label}`);
+          await page.assertAccessible();
         },
       );
   }

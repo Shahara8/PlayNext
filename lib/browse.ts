@@ -66,3 +66,41 @@ export function clearFiltersHref(providerSlug: string, sort: SortKey): string {
     sort === DEFAULT_SORT ? "" : sort,
   );
 }
+
+/** The empty panel's copy and its one action (the shared .empty-state). */
+export type BrowseEmptyCopy = {
+  line: string;
+  hint: string;
+  action: { label: string; href: string; clearsFilters: boolean };
+};
+
+/**
+ * What the browse page says when it has no titles to show. With filters
+ * (`clearHref` set), nothing matched them, and the action clears them,
+ * keeping the sort; without, the service has no titles at all, and the
+ * action goes home to the other services.
+ */
+export function browseEmptyCopy(
+  providerLabel: string,
+  clearHref: string | null,
+): BrowseEmptyCopy {
+  return clearHref !== null
+    ? {
+        line: "Nothing matches these filters",
+        hint: "Try a different type, availability or genre.",
+        action: {
+          label: "Clear filters",
+          href: clearHref,
+          clearsFilters: true,
+        },
+      }
+    : {
+        line: `Nothing available on ${providerLabel} yet`,
+        hint: "Its titles will show here once we have them.",
+        action: {
+          label: "Browse other services",
+          href: "/",
+          clearsFilters: false,
+        },
+      };
+}

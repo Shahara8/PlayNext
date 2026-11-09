@@ -34,11 +34,9 @@ export default async function SearchPage({
       {!q ? (
         <p className={styles.empty}>Start typing to search the catalog.</p>
       ) : results.length === 0 ? (
-        <div className={`card ${styles.noResults}`} role="status">
-          <p className={styles.noResultsTitle}>
-            No results for &ldquo;{q}&rdquo;.
-          </p>
-          <p className={styles.empty}>
+        <div className="card empty-state" role="status" data-empty-state>
+          <h2>No results for &ldquo;{q}&rdquo;</h2>
+          <p>
             Check the spelling, try fewer words, or{" "}
             <Link href="/" className="text-link">
               browse by service

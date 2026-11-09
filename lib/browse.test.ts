@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  browseEmptyCopy,
   clearFiltersHref,
   hasActiveFilters,
   parseBrowseParams,
@@ -87,5 +88,29 @@ describe("clearFiltersHref", () => {
     expect(clearFiltersHref("partner-tv", "rating")).toBe(
       "/browse/partner-tv?sort=rating",
     );
+  });
+});
+
+describe("browseEmptyCopy", () => {
+  it("offers to clear the filters when nothing matched them", () => {
+    expect(browseEmptyCopy("Netflix", "/browse/netflix?sort=rating")).toEqual({
+      line: "Nothing matches these filters",
+      hint: "Try a different type, availability or genre.",
+      action: {
+        label: "Clear filters",
+        href: "/browse/netflix?sort=rating",
+        clearsFilters: true,
+      },
+    });
+  });
+
+  it("names the service and goes home when it has no titles", () => {
+    const copy = browseEmptyCopy("Partner TV", null);
+    expect(copy.line).toBe("Nothing available on Partner TV yet");
+    expect(copy.action).toEqual({
+      label: "Browse other services",
+      href: "/",
+      clearsFilters: false,
+    });
   });
 });

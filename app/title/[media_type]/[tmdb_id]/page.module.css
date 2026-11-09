@@ -3,7 +3,7 @@
 .main {
   max-width: 1200px;
   margin-inline: auto;
-  padding: 1.5rem var(--gutter) 3rem;
+  padding: 2rem var(--gutter) 3rem;
 }
 
 /* Phone and tablet: a compact top block (poster beside the title block),
@@ -80,13 +80,17 @@
   line-height: 1.6;
 }
 
+/* The same top space as the other pages (2rem, then 3rem from 761 px), so
+   headings start at the same height across views. */
+@media (min-width: 761px) {
+  .main {
+    padding-block-start: 3rem;
+  }
+}
+
 /* Desktop: two columns, the poster (260 px) at the inline start and the
    rest beside it. */
 @media (min-width: 801px) {
-  .main {
-    padding-block-start: 2.5rem;
-  }
-
   .layout {
     grid-template-columns: 260px minmax(0, 46rem);
     column-gap: 2.5rem;

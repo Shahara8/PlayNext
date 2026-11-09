@@ -52,19 +52,6 @@
   color: var(--text-muted);
 }
 
-/* No results: the same copy as before, in a panel. */
-.noResults {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  max-width: 44rem;
-  padding: 1.25rem;
-}
-
-.noResultsTitle {
-  font-weight: 600;
-}
-
 @media (min-width: 761px) {
   .main {
     padding-block-start: 3rem;
