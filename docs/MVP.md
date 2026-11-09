@@ -45,7 +45,7 @@ Related doc: `docs/INGESTION.md` covers the daily catalog ingestion pipeline —
   - Raising the `.tabs` overrides' specificity over `.segmented`: globals load first, the convention every step relies on (declined in step 7 too).
   - `has.loginPieces` using `this`: the existing `has` getters do the same.
 - `docs/UI_REVIEW.md`: views 10–16 and 23, the error page and form messages. `docs/UI_DIRECTION.md`: step 8 ticked, with an as-built note. `CLAUDE.md`: the step 8 pieces.
-- Checked: typecheck, lint and 675 tests clean; `ui-capture` against a local build; local smoke 52/52.
+- Checked: typecheck, lint and 675 tests clean (`format:check` flags only `CLAUDE.md`, CRLF working copy, as before); `ui-capture` against a local build; local smoke 52/52; committed and pushed as `b6a8110`; **production smoke 52/52** after the deploy.
 - Next step: `docs/UI_DIRECTION.md` step 9 (wrap-up: full `ui-capture` review, contrast and focus pass, `docs/UI_REVIEW.md` fully updated, production smoke, then ask about a second Gemini review).
 
 ### 2026-11-09 (UI step 7) — Post-M8 task 5: My List
